@@ -1,0 +1,727 @@
+{
+  "id": "user-travel-english-basics",
+  "title": "旅行英语基础",
+  "description": "涵盖机场、酒店、交通等旅行场景的常用英语词汇和表达，适合初学者练习打字。",
+  "difficulty": 2,
+  "durationMinutes": 27,
+  "lessons": [
+    {
+      "id": "lesson-1",
+      "title": "第 1 课 · 机场与入境",
+      "words": [
+        {
+          "id": "airport",
+          "en": "airport",
+          "zh": "机场",
+          "ipa": "/ˈɛrˌpɔrt/"
+        },
+        {
+          "id": "luggage",
+          "en": "luggage",
+          "zh": "行李",
+          "ipa": "/ˈlʌɡɪdʒ/"
+        },
+        {
+          "id": "passport",
+          "en": "passport",
+          "zh": "护照",
+          "ipa": "/ˈpæsˌpɔrt/"
+        },
+        {
+          "id": "ticket",
+          "en": "ticket",
+          "zh": "机票",
+          "ipa": "/ˈtɪkɪt/"
+        },
+        {
+          "id": "restroom",
+          "en": "restroom",
+          "zh": "洗手间",
+          "ipa": "/ˈrɛstˌrum/"
+        },
+        {
+          "id": "money-exchange",
+          "en": "money exchange",
+          "zh": "兑换货币",
+          "ipa": "/ˈmʌni ɪksˈtʃeɪndʒ/"
+        },
+        {
+          "id": "immigration",
+          "en": "immigration",
+          "zh": "入境处",
+          "ipa": "/ˌɪmɪˈɡreɪʃən/"
+        },
+        {
+          "id": "customs",
+          "en": "customs",
+          "zh": "海关",
+          "ipa": "/ˈkʌstəmz/"
+        }
+      ],
+      "sentences": [
+        {
+          "id": "w-airport",
+          "en": "airport",
+          "zh": "机场",
+          "ipa": "/ˈɛrˌpɔrt/",
+          "level": "word"
+        },
+        {
+          "id": "w-luggage",
+          "en": "luggage",
+          "zh": "行李",
+          "ipa": "/ˈlʌɡɪdʒ/",
+          "level": "word"
+        },
+        {
+          "id": "w-passport",
+          "en": "passport",
+          "zh": "护照",
+          "ipa": "/ˈpæsˌpɔrt/",
+          "level": "word"
+        },
+        {
+          "id": "w-ticket",
+          "en": "ticket",
+          "zh": "机票",
+          "ipa": "/ˈtɪkɪt/",
+          "level": "word"
+        },
+        {
+          "id": "w-restroom",
+          "en": "restroom",
+          "zh": "洗手间",
+          "ipa": "/ˈrɛstˌrum/",
+          "level": "word"
+        },
+        {
+          "id": "w-money-exchange",
+          "en": "money exchange",
+          "zh": "兑换货币",
+          "ipa": "/ˈmʌni ɪksˈtʃeɪndʒ/",
+          "level": "word"
+        },
+        {
+          "id": "w-immigration",
+          "en": "immigration",
+          "zh": "入境处",
+          "ipa": "/ˌɪmɪˈɡreɪʃən/",
+          "level": "word"
+        },
+        {
+          "id": "w-customs",
+          "en": "customs",
+          "zh": "海关",
+          "ipa": "/ˈkʌstəmz/",
+          "level": "word"
+        },
+        {
+          "id": "p1",
+          "en": "airport terminal",
+          "zh": "机场航站楼",
+          "ipa": "/ˈɛrˌpɔrt ˈtɜrmɪnəl/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "luggage claim",
+          "zh": "行李领取处",
+          "ipa": "/ˈlʌɡɪdʒ kleɪm/",
+          "level": "phrase"
+        },
+        {
+          "id": "p3",
+          "en": "passport control",
+          "zh": "护照检查",
+          "ipa": "/ˈpæsˌpɔrt kənˈtroʊl/",
+          "level": "phrase"
+        },
+        {
+          "id": "p4",
+          "en": "ticket counter",
+          "zh": "售票柜台",
+          "ipa": "/ˈtɪkɪt ˈkaʊntər/",
+          "level": "phrase"
+        },
+        {
+          "id": "p5",
+          "en": "restroom sign",
+          "zh": "洗手间标志",
+          "ipa": "/ˈrɛstˌrum saɪn/",
+          "level": "phrase"
+        },
+        {
+          "id": "p6",
+          "en": "money exchange rate",
+          "zh": "兑换汇率",
+          "ipa": "/ˈmʌni ɪksˈtʃeɪndʒ reɪt/",
+          "level": "phrase"
+        },
+        {
+          "id": "p7",
+          "en": "immigration officer",
+          "zh": "入境官员",
+          "ipa": "/ˌɪmɪˈɡreɪʃən ˈɔfɪsər/",
+          "level": "phrase"
+        },
+        {
+          "id": "p8",
+          "en": "customs declaration",
+          "zh": "海关申报",
+          "ipa": "/ˈkʌstəmz ˌdɛkləˈreɪʃən/",
+          "level": "phrase"
+        },
+        {
+          "id": "p9",
+          "en": "airport security",
+          "zh": "机场安检",
+          "ipa": "/ˈɛrˌpɔrt sɪˈkjʊrɪti/",
+          "level": "phrase"
+        },
+        {
+          "id": "p10",
+          "en": "luggage tag",
+          "zh": "行李标签",
+          "ipa": "/ˈlʌɡɪdʒ tæɡ/",
+          "level": "phrase"
+        },
+        {
+          "id": "p11",
+          "en": "passport photo",
+          "zh": "护照照片",
+          "ipa": "/ˈpæsˌpɔrt ˈfoʊtoʊ/",
+          "level": "phrase"
+        },
+        {
+          "id": "p12",
+          "en": "ticket price",
+          "zh": "票价",
+          "ipa": "/ˈtɪkɪt praɪs/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "I go to the airport",
+          "zh": "我去机场。",
+          "ipa": "/aɪ ɡoʊ tu ðə ˈɛrˌpɔrt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "My luggage is heavy",
+          "zh": "我的行李很重。",
+          "ipa": "/maɪ ˈlʌɡɪdʒ ɪz ˈhɛvi/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "I show my passport",
+          "zh": "我出示护照。",
+          "ipa": "/aɪ ʃoʊ maɪ ˈpæsˌpɔrt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s4",
+          "en": "I buy a ticket",
+          "zh": "我买一张票。",
+          "ipa": "/aɪ baɪ ə ˈtɪkɪt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s5",
+          "en": "Where is the restroom",
+          "zh": "洗手间在哪里？",
+          "ipa": "/wɛr ɪz ðə ˈrɛstˌrum/",
+          "level": "sentence"
+        },
+        {
+          "id": "s6",
+          "en": "I need money exchange",
+          "zh": "我需要兑换货币。",
+          "ipa": "/aɪ nid ˈmʌni ɪksˈtʃeɪndʒ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s7",
+          "en": "Immigration checks my passport",
+          "zh": "入境处检查我的护照。",
+          "ipa": "/ˌɪmɪˈɡreɪʃən tʃɛks maɪ ˈpæsˌpɔrt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s8",
+          "en": "Customs asks about my luggage",
+          "zh": "海关询问我的行李。",
+          "ipa": "/ˈkʌstəmz æsks əˈbaʊt maɪ ˈlʌɡɪdʒ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s9",
+          "en": "The airport has many shops",
+          "zh": "机场有很多商店。",
+          "ipa": "/ðə ˈɛrˌpɔrt hæz ˈmɛni ʃɑps/",
+          "level": "sentence"
+        },
+        {
+          "id": "s10",
+          "en": "I have a ticket for the flight",
+          "zh": "我有一张机票。",
+          "ipa": "/aɪ hæv ə ˈtɪkɪt fɔr ðə flaɪt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s11",
+          "en": "Please put your luggage on the scale",
+          "zh": "请把行李放在秤上。",
+          "ipa": "/pliz pʊt jɔr ˈlʌɡɪdʒ ɑn ðə skeɪl/",
+          "level": "sentence"
+        },
+        {
+          "id": "s12",
+          "en": "Show your passport at customs",
+          "zh": "在海关出示护照。",
+          "ipa": "/ʃoʊ jɔr ˈpæsˌpɔrt æt ˈkʌstəmz/",
+          "level": "sentence"
+        }
+      ]
+    },
+    {
+      "id": "lesson-2",
+      "title": "第 2 课 · 酒店与餐饮",
+      "words": [
+        {
+          "id": "hotel",
+          "en": "hotel",
+          "zh": "酒店",
+          "ipa": "/hoʊˈtɛl/"
+        },
+        {
+          "id": "reservation",
+          "en": "reservation",
+          "zh": "预订",
+          "ipa": "/ˌrɛzərˈveɪʃən/"
+        },
+        {
+          "id": "breakfast",
+          "en": "breakfast",
+          "zh": "早餐",
+          "ipa": "/ˈbrɛkfəst/"
+        },
+        {
+          "id": "menu",
+          "en": "menu",
+          "zh": "菜单",
+          "ipa": "/ˈmɛnju/"
+        },
+        {
+          "id": "bill",
+          "en": "bill",
+          "zh": "账单",
+          "ipa": "/bɪl/"
+        },
+        {
+          "id": "supermarket",
+          "en": "supermarket",
+          "zh": "超市",
+          "ipa": "/ˈsupərˌmɑrkɪt/"
+        },
+        {
+          "id": "discount",
+          "en": "discount",
+          "zh": "折扣",
+          "ipa": "/ˈdɪskaʊnt/"
+        }
+      ],
+      "sentences": [
+        {
+          "id": "w-hotel",
+          "en": "hotel",
+          "zh": "酒店",
+          "ipa": "/hoʊˈtɛl/",
+          "level": "word"
+        },
+        {
+          "id": "w-reservation",
+          "en": "reservation",
+          "zh": "预订",
+          "ipa": "/ˌrɛzərˈveɪʃən/",
+          "level": "word"
+        },
+        {
+          "id": "w-breakfast",
+          "en": "breakfast",
+          "zh": "早餐",
+          "ipa": "/ˈbrɛkfəst/",
+          "level": "word"
+        },
+        {
+          "id": "w-menu",
+          "en": "menu",
+          "zh": "菜单",
+          "ipa": "/ˈmɛnju/",
+          "level": "word"
+        },
+        {
+          "id": "w-bill",
+          "en": "bill",
+          "zh": "账单",
+          "ipa": "/bɪl/",
+          "level": "word"
+        },
+        {
+          "id": "w-supermarket",
+          "en": "supermarket",
+          "zh": "超市",
+          "ipa": "/ˈsupərˌmɑrkɪt/",
+          "level": "word"
+        },
+        {
+          "id": "w-discount",
+          "en": "discount",
+          "zh": "折扣",
+          "ipa": "/ˈdɪskaʊnt/",
+          "level": "word"
+        },
+        {
+          "id": "p1",
+          "en": "hotel room",
+          "zh": "酒店房间",
+          "ipa": "/hoʊˈtɛl rum/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "reservation number",
+          "zh": "预订号码",
+          "ipa": "/ˌrɛzərˈveɪʃən ˈnʌmbər/",
+          "level": "phrase"
+        },
+        {
+          "id": "p3",
+          "en": "breakfast buffet",
+          "zh": "早餐自助",
+          "ipa": "/ˈbrɛkfəst bəˈfeɪ/",
+          "level": "phrase"
+        },
+        {
+          "id": "p4",
+          "en": "menu item",
+          "zh": "菜单项",
+          "ipa": "/ˈmɛnju ˈaɪtəm/",
+          "level": "phrase"
+        },
+        {
+          "id": "p5",
+          "en": "bill payment",
+          "zh": "账单支付",
+          "ipa": "/bɪl ˈpeɪmənt/",
+          "level": "phrase"
+        },
+        {
+          "id": "p6",
+          "en": "supermarket aisle",
+          "zh": "超市通道",
+          "ipa": "/ˈsupərˌmɑrkɪt aɪl/",
+          "level": "phrase"
+        },
+        {
+          "id": "p7",
+          "en": "discount price",
+          "zh": "折扣价",
+          "ipa": "/ˈdɪskaʊnt praɪs/",
+          "level": "phrase"
+        },
+        {
+          "id": "p8",
+          "en": "hotel reservation",
+          "zh": "酒店预订",
+          "ipa": "/hoʊˈtɛl ˌrɛzərˈveɪʃən/",
+          "level": "phrase"
+        },
+        {
+          "id": "p9",
+          "en": "breakfast menu",
+          "zh": "早餐菜单",
+          "ipa": "/ˈbrɛkfəst ˈmɛnju/",
+          "level": "phrase"
+        },
+        {
+          "id": "p10",
+          "en": "supermarket discount",
+          "zh": "超市折扣",
+          "ipa": "/ˈsupərˌmɑrkɪt ˈdɪskaʊnt/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "I make a hotel reservation",
+          "zh": "我做一个酒店预订。",
+          "ipa": "/aɪ meɪk ə hoʊˈtɛl ˌrɛzərˈveɪʃən/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "Breakfast is included",
+          "zh": "早餐包含在内。",
+          "ipa": "/ˈbrɛkfəst ɪz ɪnˈkludɪd/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "Please show me the menu",
+          "zh": "请给我看菜单。",
+          "ipa": "/pliz ʃoʊ mi ðə ˈmɛnju/",
+          "level": "sentence"
+        },
+        {
+          "id": "s4",
+          "en": "I need to pay the bill",
+          "zh": "我需要付账。",
+          "ipa": "/aɪ nid tu peɪ ðə bɪl/",
+          "level": "sentence"
+        },
+        {
+          "id": "s5",
+          "en": "The supermarket has a discount",
+          "zh": "超市有折扣。",
+          "ipa": "/ðə ˈsupərˌmɑrkɪt hæz ə ˈdɪskaʊnt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s6",
+          "en": "My hotel room is nice",
+          "zh": "我的酒店房间很好。",
+          "ipa": "/maɪ hoʊˈtɛl rum ɪz naɪs/",
+          "level": "sentence"
+        },
+        {
+          "id": "s7",
+          "en": "I have a reservation for tonight",
+          "zh": "我今晚有预订。",
+          "ipa": "/aɪ hæv ə ˌrɛzərˈveɪʃən fɔr təˈnaɪt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s8",
+          "en": "Breakfast starts at seven",
+          "zh": "早餐七点开始。",
+          "ipa": "/ˈbrɛkfəst stɑrts æt ˈsɛvən/",
+          "level": "sentence"
+        },
+        {
+          "id": "s9",
+          "en": "The menu has many options",
+          "zh": "菜单有很多选项。",
+          "ipa": "/ðə ˈmɛnju hæz ˈmɛni ˈɑpʃənz/",
+          "level": "sentence"
+        },
+        {
+          "id": "s10",
+          "en": "The bill is on the table",
+          "zh": "账单在桌子上。",
+          "ipa": "/ðə bɪl ɪz ɑn ðə ˈteɪbəl/",
+          "level": "sentence"
+        }
+      ]
+    },
+    {
+      "id": "lesson-3",
+      "title": "第 3 课 · 交通与紧急",
+      "words": [
+        {
+          "id": "subway",
+          "en": "subway",
+          "zh": "地铁",
+          "ipa": "/ˈsʌbˌweɪ/"
+        },
+        {
+          "id": "taxi",
+          "en": "taxi",
+          "zh": "出租车",
+          "ipa": "/ˈtæksi/"
+        },
+        {
+          "id": "direction",
+          "en": "direction",
+          "zh": "方向",
+          "ipa": "/dɪˈrɛkʃən/"
+        },
+        {
+          "id": "emergency",
+          "en": "emergency",
+          "zh": "紧急情况",
+          "ipa": "/ɪˈmɜrdʒənsi/"
+        },
+        {
+          "id": "doctor",
+          "en": "doctor",
+          "zh": "医生",
+          "ipa": "/ˈdɑktər/"
+        }
+      ],
+      "sentences": [
+        {
+          "id": "w-subway",
+          "en": "subway",
+          "zh": "地铁",
+          "ipa": "/ˈsʌbˌweɪ/",
+          "level": "word"
+        },
+        {
+          "id": "w-taxi",
+          "en": "taxi",
+          "zh": "出租车",
+          "ipa": "/ˈtæksi/",
+          "level": "word"
+        },
+        {
+          "id": "w-direction",
+          "en": "direction",
+          "zh": "方向",
+          "ipa": "/dɪˈrɛkʃən/",
+          "level": "word"
+        },
+        {
+          "id": "w-emergency",
+          "en": "emergency",
+          "zh": "紧急情况",
+          "ipa": "/ɪˈmɜrdʒənsi/",
+          "level": "word"
+        },
+        {
+          "id": "w-doctor",
+          "en": "doctor",
+          "zh": "医生",
+          "ipa": "/ˈdɑktər/",
+          "level": "word"
+        },
+        {
+          "id": "p1",
+          "en": "subway station",
+          "zh": "地铁站",
+          "ipa": "/ˈsʌbˌweɪ ˈsteɪʃən/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "taxi stand",
+          "zh": "出租车停靠站",
+          "ipa": "/ˈtæksi stænd/",
+          "level": "phrase"
+        },
+        {
+          "id": "p3",
+          "en": "direction sign",
+          "zh": "方向标志",
+          "ipa": "/dɪˈrɛkʃən saɪn/",
+          "level": "phrase"
+        },
+        {
+          "id": "p4",
+          "en": "emergency exit",
+          "zh": "紧急出口",
+          "ipa": "/ɪˈmɜrdʒənsi ˈɛksɪt/",
+          "level": "phrase"
+        },
+        {
+          "id": "p5",
+          "en": "doctor appointment",
+          "zh": "医生预约",
+          "ipa": "/ˈdɑktər əˈpɔɪntmənt/",
+          "level": "phrase"
+        },
+        {
+          "id": "p6",
+          "en": "subway map",
+          "zh": "地铁地图",
+          "ipa": "/ˈsʌbˌweɪ mæp/",
+          "level": "phrase"
+        },
+        {
+          "id": "p7",
+          "en": "taxi driver",
+          "zh": "出租车司机",
+          "ipa": "/ˈtæksi ˈdraɪvər/",
+          "level": "phrase"
+        },
+        {
+          "id": "p8",
+          "en": "emergency room",
+          "zh": "急诊室",
+          "ipa": "/ɪˈmɜrdʒənsi rum/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "I take the subway",
+          "zh": "我乘地铁。",
+          "ipa": "/aɪ teɪk ðə ˈsʌbˌweɪ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "I call a taxi",
+          "zh": "我叫出租车。",
+          "ipa": "/aɪ kɔl ə ˈtæksi/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "Please give me direction",
+          "zh": "请给我方向。",
+          "ipa": "/pliz gɪv mi dɪˈrɛkʃən/",
+          "level": "sentence"
+        },
+        {
+          "id": "s4",
+          "en": "This is an emergency",
+          "zh": "这是紧急情况。",
+          "ipa": "/ðɪs ɪz ən ɪˈmɜrdʒənsi/",
+          "level": "sentence"
+        },
+        {
+          "id": "s5",
+          "en": "I need a doctor",
+          "zh": "我需要医生。",
+          "ipa": "/aɪ nid ə ˈdɑktər/",
+          "level": "sentence"
+        },
+        {
+          "id": "s6",
+          "en": "The subway is fast",
+          "zh": "地铁很快。",
+          "ipa": "/ðə ˈsʌbˌweɪ ɪz fæst/",
+          "level": "sentence"
+        },
+        {
+          "id": "s7",
+          "en": "The taxi is waiting",
+          "zh": "出租车在等。",
+          "ipa": "/ðə ˈtæksi ɪz ˈweɪtɪŋ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s8",
+          "en": "Follow the direction sign",
+          "zh": "跟随方向标志。",
+          "ipa": "/ˈfɑloʊ ðə dɪˈrɛkʃən saɪn/",
+          "level": "sentence"
+        },
+        {
+          "id": "s9",
+          "en": "In case of emergency call",
+          "zh": "紧急情况打电话。",
+          "ipa": "/ɪn keɪs ʌv ɪˈmɜrdʒənsi kɔl/",
+          "level": "sentence"
+        },
+        {
+          "id": "s10",
+          "en": "The doctor helps me",
+          "zh": "医生帮助我。",
+          "ipa": "/ðə ˈdɑktər hɛlps mi/",
+          "level": "sentence"
+        }
+      ]
+    }
+  ]
+}

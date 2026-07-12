@@ -1,0 +1,106 @@
+{
+  "id": "animals-nature",
+  "title": "动物与自然",
+  "description": "围绕小鸟、天空、树木等词，从单词练到完整句子。",
+  "difficulty": 2,
+  "durationMinutes": 18,
+  "lessons": [
+    {
+      "id": "lesson-1",
+      "title": "第 1 课 · 小鸟与天空",
+      "words": [
+        { "id": "bird", "en": "bird", "zh": "鸟", "ipa": "/bɜːrd/" },
+        { "id": "little", "en": "little", "zh": "小的", "ipa": "/ˈlɪtl/" },
+        { "id": "fly", "en": "fly", "zh": "飞", "ipa": "/flaɪ/" },
+        { "id": "flies", "en": "flies", "zh": "飞（第三人称）", "ipa": "/flaɪz/" },
+        { "id": "sky", "en": "sky", "zh": "天空", "ipa": "/skaɪ/" },
+        { "id": "tree", "en": "tree", "zh": "树", "ipa": "/triː/" },
+        { "id": "happy", "en": "happy", "zh": "快乐的", "ipa": "/ˈhæpi/" },
+        { "id": "sings", "en": "sings", "zh": "唱歌（第三人称）", "ipa": "/sɪŋz/" }
+      ],
+      "sentences": [
+        { "id": "w1", "en": "bird", "zh": "鸟", "ipa": "/bɜːrd/", "level": "word" },
+        { "id": "w2", "en": "sky", "zh": "天空", "ipa": "/skaɪ/", "level": "word" },
+        { "id": "w3", "en": "tree", "zh": "树", "ipa": "/triː/", "level": "word" },
+        { "id": "w4", "en": "happy", "zh": "快乐的", "ipa": "/ˈhæpi/", "level": "word" },
+        {
+          "id": "p1",
+          "en": "a little bird",
+          "zh": "一只小鸟",
+          "ipa": "/ə ˈlɪtl bɜːrd/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "in the sky",
+          "zh": "在天空中",
+          "ipa": "/ɪn ðə skaɪ/",
+          "level": "phrase"
+        },
+        {
+          "id": "p3",
+          "en": "on the tree",
+          "zh": "在树上",
+          "ipa": "/ɒn ðə triː/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "The little bird flies",
+          "zh": "小鸟在飞。",
+          "ipa": "/ðə ˈlɪtl bɜːrd flaɪz/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "The little bird flies in the sky",
+          "zh": "小鸟在天空中飞翔。",
+          "ipa": "/ðə ˈlɪtl bɜːrd flaɪz ɪn ðə skaɪ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "A happy bird sings on the tree",
+          "zh": "一只快乐的鸟在树上唱歌。",
+          "ipa": "/ə ˈhæpi bɜːrd sɪŋz ɒn ðə triː/",
+          "level": "sentence"
+        }
+      ]
+    },
+    {
+      "id": "lesson-2",
+      "title": "第 2 课 · 快乐的小鸟",
+      "words": [
+        { "id": "sing", "en": "sing", "zh": "唱歌", "ipa": "/sɪŋ/" },
+        { "id": "song", "en": "song", "zh": "歌曲", "ipa": "/sɒŋ/" },
+        { "id": "morning", "en": "morning", "zh": "早晨", "ipa": "/ˈmɔːrnɪŋ/" },
+        { "id": "beautiful", "en": "beautiful", "zh": "美丽的", "ipa": "/ˈbjuːtɪfl/" }
+      ],
+      "sentences": [
+        { "id": "w1", "en": "sing", "zh": "唱歌", "ipa": "/sɪŋ/", "level": "word" },
+        { "id": "w2", "en": "song", "zh": "歌曲", "ipa": "/sɒŋ/", "level": "word" },
+        {
+          "id": "p1",
+          "en": "a beautiful song",
+          "zh": "一首美丽的歌",
+          "ipa": "/ə ˈbjuːtɪfl sɒŋ/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "The bird sings a song",
+          "zh": "小鸟在唱歌。",
+          "ipa": "/ðə bɜːrd sɪŋz ə sɒŋ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "A happy bird sings in the morning",
+          "zh": "一只快乐的鸟在早晨唱歌。",
+          "ipa": "/ə ˈhæpi bɜːrd sɪŋz ɪn ðə ˈmɔːrnɪŋ/",
+          "level": "sentence"
+        }
+      ]
+    }
+  ]
+}

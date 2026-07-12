@@ -1,0 +1,64 @@
+{
+  "id": "colors-family",
+  "title": "颜色与家人",
+  "description": "认识常见颜色和家庭成员，用键盘敲出简单表达。",
+  "difficulty": 1,
+  "durationMinutes": 10,
+  "lessons": [
+    {
+      "id": "lesson-1",
+      "title": "第 1 课 · 红苹果与妈妈",
+      "words": [
+        { "id": "red", "en": "red", "zh": "红色的", "ipa": "/red/" },
+        { "id": "apple", "en": "apple", "zh": "苹果", "ipa": "/ˈæpl/" },
+        { "id": "blue", "en": "blue", "zh": "蓝色的", "ipa": "/bluː/" },
+        { "id": "ball", "en": "ball", "zh": "球", "ipa": "/bɔːl/" },
+        { "id": "mom", "en": "mom", "zh": "妈妈", "ipa": "/mɑːm/" },
+        { "id": "dad", "en": "dad", "zh": "爸爸", "ipa": "/dæd/" },
+        { "id": "like", "en": "like", "zh": "喜欢", "ipa": "/laɪk/" },
+        { "id": "has", "en": "has", "zh": "有", "ipa": "/hæz/" }
+      ],
+      "sentences": [
+        { "id": "w1", "en": "red", "zh": "红色的", "ipa": "/red/", "level": "word" },
+        { "id": "w2", "en": "apple", "zh": "苹果", "ipa": "/ˈæpl/", "level": "word" },
+        { "id": "w3", "en": "mom", "zh": "妈妈", "ipa": "/mɑːm/", "level": "word" },
+        { "id": "w4", "en": "dad", "zh": "爸爸", "ipa": "/dæd/", "level": "word" },
+        {
+          "id": "p1",
+          "en": "a red apple",
+          "zh": "一个红苹果",
+          "ipa": "/ə red ˈæpl/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "a blue ball",
+          "zh": "一个蓝球",
+          "ipa": "/ə bluː bɔːl/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "I like the red apple",
+          "zh": "我喜欢这个红苹果。",
+          "ipa": "/aɪ laɪk ðə red ˈæpl/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "Mom has a blue ball",
+          "zh": "妈妈有一个蓝球。",
+          "ipa": "/mɑːm hæz ə bluː bɔːl/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "Dad and mom like me",
+          "zh": "爸爸和妈妈喜欢我。",
+          "ipa": "/dæd ænd mɑːm laɪk miː/",
+          "level": "sentence"
+        }
+      ]
+    }
+  ]
+}

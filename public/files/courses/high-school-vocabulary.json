@@ -1,0 +1,403 @@
+{
+  "id": "user-high-school-english-vocabulary",
+  "title": "高中英语核心词汇",
+  "description": "涵盖高中阶段重要词汇，通过打字练习巩固拼写与用法。",
+  "difficulty": 3,
+  "durationMinutes": 15,
+  "lessons": [
+    {
+      "id": "lesson-1",
+      "title": "第 1 课 · 学习与成长",
+      "words": [
+        {
+          "id": "achieve",
+          "en": "achieve",
+          "zh": "实现",
+          "ipa": "/əˈtʃiːv/"
+        },
+        {
+          "id": "benefit",
+          "en": "benefit",
+          "zh": "好处",
+          "ipa": "/ˈbenɪfɪt/"
+        },
+        {
+          "id": "challenge",
+          "en": "challenge",
+          "zh": "挑战",
+          "ipa": "/ˈtʃælɪndʒ/"
+        },
+        {
+          "id": "determine",
+          "en": "determine",
+          "zh": "决定",
+          "ipa": "/dɪˈtɜːmɪn/"
+        },
+        {
+          "id": "experience",
+          "en": "experience",
+          "zh": "经历",
+          "ipa": "/ɪkˈspɪriəns/"
+        },
+        {
+          "id": "knowledge",
+          "en": "knowledge",
+          "zh": "知识",
+          "ipa": "/ˈnɒlɪdʒ/"
+        },
+        {
+          "id": "improve",
+          "en": "improve",
+          "zh": "提高",
+          "ipa": "/ɪmˈpruːv/"
+        }
+      ],
+      "sentences": [
+        {
+          "id": "w-achieve",
+          "en": "achieve",
+          "zh": "实现",
+          "ipa": "/əˈtʃiːv/",
+          "level": "word"
+        },
+        {
+          "id": "w-benefit",
+          "en": "benefit",
+          "zh": "好处",
+          "ipa": "/ˈbenɪfɪt/",
+          "level": "word"
+        },
+        {
+          "id": "w-challenge",
+          "en": "challenge",
+          "zh": "挑战",
+          "ipa": "/ˈtʃælɪndʒ/",
+          "level": "word"
+        },
+        {
+          "id": "w-determine",
+          "en": "determine",
+          "zh": "决定",
+          "ipa": "/dɪˈtɜːmɪn/",
+          "level": "word"
+        },
+        {
+          "id": "w-experience",
+          "en": "experience",
+          "zh": "经历",
+          "ipa": "/ɪkˈspɪriəns/",
+          "level": "word"
+        },
+        {
+          "id": "w-knowledge",
+          "en": "knowledge",
+          "zh": "知识",
+          "ipa": "/ˈnɒlɪdʒ/",
+          "level": "word"
+        },
+        {
+          "id": "w-improve",
+          "en": "improve",
+          "zh": "提高",
+          "ipa": "/ɪmˈpruːv/",
+          "level": "word"
+        },
+        {
+          "id": "p1",
+          "en": "achieve and improve",
+          "zh": "实现和提高",
+          "ipa": "/əˈtʃiːv ænd ɪmˈpruːv/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "benefit from experience",
+          "zh": "从经历中受益",
+          "ipa": "/ˈbenɪfɪt frɒm ɪkˈspɪriəns/",
+          "level": "phrase"
+        },
+        {
+          "id": "p3",
+          "en": "challenge your knowledge",
+          "zh": "挑战你的知识",
+          "ipa": "/ˈtʃælɪndʒ jɔː ˈnɒlɪdʒ/",
+          "level": "phrase"
+        },
+        {
+          "id": "p4",
+          "en": "determine to achieve",
+          "zh": "决心实现",
+          "ipa": "/dɪˈtɜːmɪn tuː əˈtʃiːv/",
+          "level": "phrase"
+        },
+        {
+          "id": "p5",
+          "en": "gain knowledge and experience",
+          "zh": "获得知识和经历",
+          "ipa": "/ɡeɪn ˈnɒlɪdʒ ænd ɪkˈspɪriəns/",
+          "level": "phrase"
+        },
+        {
+          "id": "p6",
+          "en": "improve through experience",
+          "zh": "通过经历提高",
+          "ipa": "/ɪmˈpruːv θruː ɪkˈspɪriəns/",
+          "level": "phrase"
+        },
+        {
+          "id": "p7",
+          "en": "experience a challenge",
+          "zh": "经历挑战",
+          "ipa": "/ɪkˈspɪriəns ə ˈtʃælɪndʒ/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "I achieve success through challenge",
+          "zh": "我通过挑战实现成功。",
+          "ipa": "/aɪ əˈtʃiːv səkˈses θruː ˈtʃælɪndʒ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "Hard work benefits my knowledge",
+          "zh": "努力有益于我的知识。",
+          "ipa": "/hɑːd wɜːk ˈbenɪfɪts maɪ ˈnɒlɪdʒ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "This challenge improves my experience",
+          "zh": "这个挑战提高了我的经历。",
+          "ipa": "/ðɪs ˈtʃælɪndʒ ɪmˈpruːvz maɪ ɪkˈspɪriəns/",
+          "level": "sentence"
+        },
+        {
+          "id": "s4",
+          "en": "I determine to gain experience",
+          "zh": "我决心获得经历。",
+          "ipa": "/aɪ dɪˈtɜːmɪn tuː ɡeɪn ɪkˈspɪriəns/",
+          "level": "sentence"
+        },
+        {
+          "id": "s5",
+          "en": "I improve my knowledge every day",
+          "zh": "我每天提高我的知识。",
+          "ipa": "/aɪ ɪmˈpruːv maɪ ˈnɒlɪdʒ ˈevri deɪ/",
+          "level": "sentence"
+        },
+        {
+          "id": "s6",
+          "en": "Experience helps me achieve goals",
+          "zh": "经历帮助我实现目标。",
+          "ipa": "/ɪkˈspɪriəns helps miː əˈtʃiːv ɡəʊlz/",
+          "level": "sentence"
+        },
+        {
+          "id": "s7",
+          "en": "I benefit from challenging experiences",
+          "zh": "我从具有挑战的经历中受益。",
+          "ipa": "/aɪ ˈbenɪfɪt frɒm ˈtʃælɪndʒɪŋ ɪkˈspɪriənsɪz/",
+          "level": "sentence"
+        }
+      ]
+    },
+    {
+      "id": "lesson-2",
+      "title": "第 2 课 · 社会与环境",
+      "words": [
+        {
+          "id": "communication",
+          "en": "communication",
+          "zh": "交流",
+          "ipa": "/kəˌmjuːnɪˈkeɪʃn/"
+        },
+        {
+          "id": "environment",
+          "en": "environment",
+          "zh": "环境",
+          "ipa": "/ɪnˈvaɪrənmənt/"
+        },
+        {
+          "id": "opportunity",
+          "en": "opportunity",
+          "zh": "机会",
+          "ipa": "/ˌɒpəˈtjuːnɪti/"
+        },
+        {
+          "id": "responsibility",
+          "en": "responsibility",
+          "zh": "责任",
+          "ipa": "/rɪˌspɒnsəˈbɪləti/"
+        },
+        {
+          "id": "schedule",
+          "en": "schedule",
+          "zh": "日程安排",
+          "ipa": "/ˈʃedjuːl/"
+        },
+        {
+          "id": "volunteer",
+          "en": "volunteer",
+          "zh": "志愿者",
+          "ipa": "/ˌvɒlənˈtɪə/"
+        },
+        {
+          "id": "appreciate",
+          "en": "appreciate",
+          "zh": "感激",
+          "ipa": "/əˈpriːʃieɪt/"
+        }
+      ],
+      "sentences": [
+        {
+          "id": "w-communication",
+          "en": "communication",
+          "zh": "交流",
+          "ipa": "/kəˌmjuːnɪˈkeɪʃn/",
+          "level": "word"
+        },
+        {
+          "id": "w-environment",
+          "en": "environment",
+          "zh": "环境",
+          "ipa": "/ɪnˈvaɪrənmənt/",
+          "level": "word"
+        },
+        {
+          "id": "w-opportunity",
+          "en": "opportunity",
+          "zh": "机会",
+          "ipa": "/ˌɒpəˈtjuːnɪti/",
+          "level": "word"
+        },
+        {
+          "id": "w-responsibility",
+          "en": "responsibility",
+          "zh": "责任",
+          "ipa": "/rɪˌspɒnsəˈbɪləti/",
+          "level": "word"
+        },
+        {
+          "id": "w-schedule",
+          "en": "schedule",
+          "zh": "日程安排",
+          "ipa": "/ˈʃedjuːl/",
+          "level": "word"
+        },
+        {
+          "id": "w-volunteer",
+          "en": "volunteer",
+          "zh": "志愿者",
+          "ipa": "/ˌvɒlənˈtɪə/",
+          "level": "word"
+        },
+        {
+          "id": "w-appreciate",
+          "en": "appreciate",
+          "zh": "感激",
+          "ipa": "/əˈpriːʃieɪt/",
+          "level": "word"
+        },
+        {
+          "id": "p1",
+          "en": "communication and responsibility",
+          "zh": "交流与责任",
+          "ipa": "/kəˌmjuːnɪˈkeɪʃn ænd rɪˌspɒnsəˈbɪləti/",
+          "level": "phrase"
+        },
+        {
+          "id": "p2",
+          "en": "environmental responsibility",
+          "zh": "环境责任",
+          "ipa": "/ɪnˌvaɪrənˈmentl rɪˌspɒnsəˈbɪləti/",
+          "level": "phrase"
+        },
+        {
+          "id": "p3",
+          "en": "opportunity to volunteer",
+          "zh": "做志愿者的机会",
+          "ipa": "/ˌɒpəˈtjuːnɪti tuː ˌvɒlənˈtɪə/",
+          "level": "phrase"
+        },
+        {
+          "id": "p4",
+          "en": "responsibility for schedule",
+          "zh": "对日程的责任",
+          "ipa": "/rɪˌspɒnsəˈbɪləti fɔː ˈʃedjuːl/",
+          "level": "phrase"
+        },
+        {
+          "id": "p5",
+          "en": "volunteer schedule",
+          "zh": "志愿者日程",
+          "ipa": "/ˌvɒlənˈtɪə ˈʃedjuːl/",
+          "level": "phrase"
+        },
+        {
+          "id": "p6",
+          "en": "volunteer communication",
+          "zh": "志愿者交流",
+          "ipa": "/ˌvɒlənˈtɪə kəˌmjuːnɪˈkeɪʃn/",
+          "level": "phrase"
+        },
+        {
+          "id": "p7",
+          "en": "appreciate the opportunity",
+          "zh": "感激机会",
+          "ipa": "/əˈpriːʃieɪt ði ˌɒpəˈtjuːnɪti/",
+          "level": "phrase"
+        },
+        {
+          "id": "s1",
+          "en": "Effective communication requires responsibility",
+          "zh": "有效的交流需要责任。",
+          "ipa": "/ɪˈfektɪv kəˌmjuːnɪˈkeɪʃn rɪˈkwaɪəz rɪˌspɒnsəˈbɪləti/",
+          "level": "sentence"
+        },
+        {
+          "id": "s2",
+          "en": "I seize the opportunity to volunteer",
+          "zh": "我抓住机会做志愿者。",
+          "ipa": "/aɪ siːz ði ˌɒpəˈtjuːnɪti tuː ˌvɒlənˈtɪə/",
+          "level": "sentence"
+        },
+        {
+          "id": "s3",
+          "en": "We have a responsibility to protect the environment",
+          "zh": "我们有责任保护环境。",
+          "ipa": "/wiː hæv ə rɪˌspɒnsəˈbɪləti tuː prəˈtekt ði ɪnˈvaɪrənmənt/",
+          "level": "sentence"
+        },
+        {
+          "id": "s4",
+          "en": "My schedule is full of volunteer activities",
+          "zh": "我的日程排满了志愿者活动。",
+          "ipa": "/maɪ ˈʃedjuːl ɪz fʊl ɒv ˌvɒlənˈtɪə ækˈtɪvɪtiz/",
+          "level": "sentence"
+        },
+        {
+          "id": "s5",
+          "en": "I appreciate the environment around me",
+          "zh": "我感激周围的环境。",
+          "ipa": "/aɪ əˈpriːʃieɪt ði ɪnˈvaɪrənmənt əˈraʊnd miː/",
+          "level": "sentence"
+        },
+        {
+          "id": "s6",
+          "en": "Communication helps me schedule tasks",
+          "zh": "交流帮助我安排任务。",
+          "ipa": "/kəˌmjuːnɪˈkeɪʃn helps miː ˈʃedjuːl tɑːsks/",
+          "level": "sentence"
+        },
+        {
+          "id": "s7",
+          "en": "Volunteering is a great opportunity",
+          "zh": "志愿服务是一个很好的机会。",
+          "ipa": "/ˌvɒlənˈtɪərɪŋ ɪz ə ɡreɪt ˌɒpəˈtjuːnɪti/",
+          "level": "sentence"
+        }
+      ]
+    }
+  ]
+}

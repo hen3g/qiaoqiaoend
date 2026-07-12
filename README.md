@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 宝贝英语官网
 
-## Getting Started
+Next.js 官方网站：注册 / 登录 / 修改密码、客户端下载、课程下载、兑换码。
 
-First, run the development server:
+## 本地运行
 
 ```bash
+cp .env.example .env.local
+# 填写数据库与 AUTH_SECRET
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 [http://localhost:4891](http://localhost:4891)。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 功能
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| 页面 | 说明 |
+|------|------|
+| `/register` | 注册（用户名 + 密码 + Cap 人机验证） |
+| `/login` | 登录（用户名 + 密码 + Cap 人机验证） |
+| `/change-password` | 修改密码（需登录） |
+| `/#download` | 客户端下载（首页区块） |
+| `/courses` | 课程包下载 |
+| `/redeem` | 兑换码（延长会员 / 永久会员） |
+| `/account` | 账号信息 |
+| `/admin/redeem-codes` | 本地开发专用：生成会员兑换码（仅 `channg`，`next build` 后不可用） |
+| `/admin/notifications` | 本地开发专用：发布通知（仅 `channg`，`next build` 后不可用） |
 
-## Learn More
+公开接口：`GET /api/notifications` 返回各类型最新通知（更新 / 消息），最多 2 条。
 
-To learn more about Next.js, take a look at the following resources:
+## 数据库
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+远程 MySQL，表：`users`、`course_categories`、`courses`、`user_courses`、`redeem_codes`、`redeem_logs`、`app_releases`、`notifications`、`cap_challenges`、`cap_tokens`。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+课程按分类展示（启蒙 / 小学 / 初中 / 高中 / 场景 / 功能 / 名词 / 兴趣 / 考试 / 专业）。`courses.download_url` 指向 Cloudflare R2 上的 zip 课程包。
 
-## Deploy on Vercel
+### 同步课程到 R2 + 数据库
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+# 上传 zip 并写入/更新分类与课程元数据
+npm run sync:courses
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 仅更新数据库（不重新上传）
+npm run sync:courses:db
+```
+
+客户端安装包 URL 在 `app_releases` 表中维护；当前为占位链接，上线前请替换为真实下载地址。

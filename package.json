@@ -3,21 +3,34 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4891",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p 4891",
+    "lint": "eslint",
+    "sync:courses": "node --env-file=.env.local scripts/sync-courses.mjs",
+    "sync:courses:db": "node --env-file=.env.local scripts/sync-courses.mjs --skip-upload"
   },
   "dependencies": {
+    "@cap.js/server": "^4.0.5",
+    "bcryptjs": "^3.0.3",
+    "cap-widget": "^0.1.56",
+    "jose": "^6.2.3",
+    "mysql2": "^3.22.6",
     "next": "16.2.10",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1085.0",
+    "@aws-sdk/lib-storage": "^3.1085.0",
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "adm-zip": "^0.6.0",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",

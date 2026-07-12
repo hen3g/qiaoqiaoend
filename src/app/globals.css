@@ -1,26 +1,152 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f5f7fa;
+  --bg-deep: #0b1524;
+  --ink: #121c2b;
+  --muted: #5c6b7e;
+  --accent: #2b6de8;
+  --accent-deep: #1f54c4;
+  --warm: #e8893a;
+  --line: rgba(18, 28, 43, 0.1);
+  --glow: rgba(43, 109, 232, 0.22);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-deep: var(--bg-deep);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-warm: var(--warm);
+  --color-line: var(--line);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), "PingFang SC", "Noto Sans SC", sans-serif;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes hero-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes type-cursor {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.75s ease both;
+}
+
+.animate-rise-delay-1 {
+  animation: rise 0.75s ease 0.1s both;
+}
+
+.animate-rise-delay-2 {
+  animation: rise 0.75s ease 0.2s both;
+}
+
+.animate-rise-delay-3 {
+  animation: rise 0.75s ease 0.3s both;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-hero-reveal {
+  animation: hero-reveal 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.cursor-blink {
+  animation: type-cursor 1s step-end infinite;
+}
+
+.cap-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* 兜底遮住右下角 Cap 外链（shadow DOM 内联样式可能抢回显示） */
+.cap-wrap::after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 3;
+  width: 44px;
+  height: 0px;
+  border-radius: 6px;
+  background: #f5f7fa;
+  pointer-events: auto;
+}
+
+.cap-wrap cap-widget {
+  --cap-background: #f5f7fa;
+  --cap-border-color: rgba(18, 28, 43, 0.1);
+  --cap-border-radius: 0.75rem;
+  --cap-widget-width: 100%;
+  --cap-widget-height: 64px;
+  --cap-widget-padding: 18px;
+  --cap-gap: 14px;
+  --cap-color: var(--ink);
+  --cap-checkbox-size: 28px;
+  --cap-checkbox-border: 1.5px solid rgba(18, 28, 43, 0.18);
+  --cap-checkbox-border-radius: 0.5rem;
+  --cap-checkbox-background: #ffffff;
+  --cap-spinner-color: var(--accent);
+  --cap-spinner-background-color: #e8effc;
+  --cap-spinner-thickness: 4px;
+  --cap-font: var(--font-body), "PingFang SC", "Noto Sans SC", sans-serif;
+  display: block;
+  width: 100%;
 }
