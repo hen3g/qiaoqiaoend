@@ -16,6 +16,27 @@ export function SiteFooter() {
           baseheng@qq.com
         </a>
       </p>
+      <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+        <a
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition hover:text-ink"
+        >
+          辽ICP备2025052002号
+        </a>
+        <span className="text-line" aria-hidden>
+          |
+        </span>
+        <a
+          href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=21100202000247"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition hover:text-ink"
+        >
+          辽公网安备21100202000247号
+        </a>
+      </p>
       <p className="mt-3">Copyright © 2026 Baby English. All rights reserved.</p>
     </footer>
   );
