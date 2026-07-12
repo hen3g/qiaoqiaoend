@@ -1,6 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { corsPreflight, withCors } from "@/lib/oauth-cors";
-import { getUserById, readAccessTokenUserId } from "@/lib/oauth";
+import { getUserByIdIfTokenVersion, readAccessToken } from "@/lib/oauth";
 
 export async function OPTIONS(req: Request) {
   return corsPreflight(req);
@@ -13,14 +13,17 @@ export async function GET(req: Request) {
     return withCors(req, jsonError("未授权", 401));
   }
 
-  const userId = await readAccessTokenUserId(match[1]!.trim());
-  if (!userId) {
+  const access = await readAccessToken(match[1]!.trim());
+  if (!access) {
     return withCors(req, jsonError("令牌无效或已过期", 401));
   }
 
-  const user = await getUserById(userId);
+  const user = await getUserByIdIfTokenVersion(
+    access.userId,
+    access.tokenVersion,
+  );
   if (!user) {
-    return withCors(req, jsonError("用户不存在", 401));
+    return withCors(req, jsonError("令牌已失效，请重新登录", 401));
   }
 
   return withCors(req, jsonOk({ user }));

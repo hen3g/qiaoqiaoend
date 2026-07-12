@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/AuthForm";
 import { AuthShell } from "@/components/AuthShell";
+import { getCurrentUser } from "@/lib/auth";
 import { sanitizeNextPath } from "@/lib/oauth";
 
 export const metadata = { title: "登录" };
@@ -19,6 +21,11 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const next = sanitizeNextPath(first(params.next)) || "/account";
+  const user = await getCurrentUser();
+  if (user) {
+    redirect(next);
+  }
+
   const registerHref =
     next !== "/account"
       ? `/register?next=${encodeURIComponent(next)}`

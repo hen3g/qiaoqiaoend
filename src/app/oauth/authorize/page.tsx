@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
+import { OAuthConsentForm } from "@/components/OAuthConsentForm";
 import { getCurrentUser } from "@/lib/auth";
-import {
-  createAuthorizationCode,
-  findClient,
-  isAllowedRedirectUri,
-} from "@/lib/oauth";
+import { findClient, isAllowedRedirectUri } from "@/lib/oauth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -70,16 +67,17 @@ export default async function OAuthAuthorizePage({
     redirect(`/login?next=${encodeURIComponent(returnTo)}`);
   }
 
-  const code = await createAuthorizationCode({
-    userId: user.id,
-    clientId,
-    redirectUri,
-    codeChallenge,
-    codeChallengeMethod: "S256",
-  });
-
-  const target = new URL(redirectUri);
-  target.searchParams.set("code", code);
-  if (state) target.searchParams.set("state", state);
-  redirect(target.toString());
+  return (
+    <OAuthConsentForm
+      clientDisplayName={client.displayName}
+      user={user}
+      scope={scope}
+      clientId={clientId}
+      redirectUri={redirectUri}
+      responseType={responseType}
+      state={state}
+      codeChallenge={codeChallenge}
+      codeChallengeMethod={codeChallengeMethod}
+    />
+  );
 }
