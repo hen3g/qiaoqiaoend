@@ -17,6 +17,9 @@ const body = Noto_Sans_SC({
   weight: ["400", "500", "700"],
 });
 
+/** Prevent nginx/CDN from caching HTML shells for a year across deploys. */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "宝贝英语官网",
