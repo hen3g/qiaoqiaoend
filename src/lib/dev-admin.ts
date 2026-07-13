@@ -22,7 +22,7 @@ export async function requireAdmin(): Promise<SessionUser> {
   return user;
 }
 
-/** Local-dev tools (redeem codes / notifications): development + channg. */
+/** Local-dev tools (redeem codes / notifications / users): development + channg. */
 export async function requireDevAdmin(): Promise<SessionUser> {
   if (!isLocalDevToolsEnabled()) {
     throw new Error("NOT_FOUND");

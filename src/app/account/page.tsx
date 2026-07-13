@@ -34,6 +34,15 @@ function vipSummary(user: SessionUser): string {
   return "会员";
 }
 
+function displayName(user: SessionUser): string {
+  return user.nickname || user.username;
+}
+
+function monogram(user: SessionUser): string {
+  const name = displayName(user).trim();
+  return name.slice(0, 1).toUpperCase() || "?";
+}
+
 function shortenUrl(url: string): string {
   try {
     const u = new URL(url);
@@ -48,6 +57,10 @@ function shortenUrl(url: string): string {
 export default function AccountPage() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [nicknameOpen, setNicknameOpen] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [nicknameBusy, setNicknameBusy] = useState(false);
   const [submissions, setSubmissions] = useState<PromoSubmission[]>([]);
   const [videoUrl, setVideoUrl] = useState("");
   const [likesClaimed, setLikesClaimed] = useState("");
@@ -74,6 +87,54 @@ export default function AccountPage() {
       })
       .finally(() => setLoaded(true));
   }, [loadSubmissions]);
+
+  useEffect(() => {
+    if (!nicknameOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !nicknameBusy) {
+        setNicknameOpen(false);
+        setNicknameError("");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [nicknameOpen, nicknameBusy]);
+
+  function openNicknameDialog() {
+    setNickname(user?.nickname || "");
+    setNicknameError("");
+    setNicknameOpen(true);
+  }
+
+  function closeNicknameDialog() {
+    if (nicknameBusy) return;
+    setNicknameOpen(false);
+    setNicknameError("");
+  }
+
+  async function onNicknameSubmit(e: FormEvent) {
+    e.preventDefault();
+    setNicknameError("");
+    setNicknameBusy(true);
+    try {
+      const res = await fetch("/api/auth/change-nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: nickname.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setNicknameError(data.error || "修改失败");
+        return;
+      }
+      if (data.user) setUser(data.user);
+      setNicknameOpen(false);
+    } catch {
+      setNicknameError("网络错误");
+    } finally {
+      setNicknameBusy(false);
+    }
+  }
 
   async function onPromoSubmit(e: FormEvent) {
     e.preventDefault();
@@ -120,16 +181,18 @@ export default function AccountPage() {
   if (!user) {
     return (
       <PageShell>
-        <div className="mx-auto max-w-3xl animate-rise">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-            我的账号
+        <div className="mx-auto max-w-xl animate-rise pt-8">
+          <p className="text-sm tracking-wide text-muted">账号</p>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
+            登录后查看
           </h1>
-          <p className="mt-4 text-muted">
-            你尚未登录。{" "}
-            <Link href="/login" className="text-accent-deep hover:underline">
-              去登录
-            </Link>
-          </p>
+          <p className="mt-3 text-muted">管理昵称、会员状态与宣传投稿。</p>
+          <Link
+            href="/login"
+            className="mt-8 inline-flex rounded-xl bg-accent px-6 py-3 text-sm font-medium text-white transition hover:bg-accent-deep"
+          >
+            去登录
+          </Link>
         </div>
       </PageShell>
     );
@@ -146,133 +209,170 @@ export default function AccountPage() {
 
   return (
     <PageShell>
-      <div className="mx-auto max-w-3xl">
-        <header className="animate-rise">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-            我的账号
-          </h1>
+      <div className="mx-auto max-w-xl">
+        {/* Identity */}
+        <header className="animate-rise pt-4 sm:pt-8">
+          <div className="flex items-start gap-4">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-deep font-[family-name:var(--font-display)] text-xl font-semibold text-white shadow-[0_10px_28px_var(--glow)]"
+              aria-hidden
+            >
+              {monogram(user)}
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+                  {displayName(user)}
+                </h1>
+                <button
+                  type="button"
+                  onClick={openNicknameDialog}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-white/80 hover:text-accent-deep"
+                  aria-label="修改昵称"
+                  title="修改昵称"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <path
+                      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M13.5 6.5l3 3"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                {user.isVip ? (
+                  <span className="inline-flex items-center gap-1 text-accent-deep">
+                    <VipBadge size={14} />
+                    <span className="text-xs font-medium">会员</span>
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1.5 text-sm text-muted">
+                @{user.username}
+                <span className="mx-2 text-line">·</span>
+                {vipSummary(user)}
+                <span className="mx-2 text-line">·</span>
+                {user.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString("zh-CN")
+                  : "—"}{" "}
+                注册
+              </p>
+            </div>
+          </div>
 
-          <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="text-xl font-medium text-ink">
-              {user.nickname || user.username}
-            </p>
-            {user.isVip ? (
-              <span className="inline-flex items-center gap-1 text-accent-deep">
-                <VipBadge size={14} />
-                <span className="text-sm font-medium">会员</span>
+          <nav
+            className="mt-8 flex flex-wrap gap-x-1 gap-y-1 border-y border-line py-3"
+            aria-label="账号快捷入口"
+          >
+            {links.map((link, i) => (
+              <span key={link.href} className="inline-flex items-center">
+                {i > 0 ? (
+                  <span className="mx-2 select-none text-line" aria-hidden>
+                    /
+                  </span>
+                ) : null}
+                <Link
+                  href={link.href}
+                  className="text-sm text-ink/80 transition hover:text-accent-deep"
+                >
+                  {link.label}
+                </Link>
               </span>
-            ) : null}
-          </div>
-          {user.nickname ? (
-            <p className="mt-1 text-sm text-muted">@{user.username}</p>
-          ) : null}
-          <p className="mt-3 text-muted">
-            {vipSummary(user)}
-            <span className="mx-2 text-line">·</span>
-            注册于{" "}
-            {user.createdAt
-              ? new Date(user.createdAt).toLocaleDateString("zh-CN")
-              : "—"}
-          </p>
-
-          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-[15px] text-accent-deep hover:underline"
-              >
-                {link.label}
-              </Link>
             ))}
-          </div>
+          </nav>
         </header>
 
-        <section className="animate-rise-delay-1 mt-14 border-t border-line pt-12">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-            宣传有礼
-          </h2>
-          <p className="mt-3 max-w-2xl leading-relaxed text-muted">
-            拍短视频宣传「宝贝英语」，视频中出现本程序。按点赞数发放会员：每 1
-            个赞送 1 个月。提交链接后等待审核；也可加微信 535938559 沟通。
+        {/* Promo */}
+        <section className="animate-rise-delay-1 mt-10">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-ink">
+              宣传有礼
+            </h2>
+            <p className="text-xs text-muted">1 赞 = 1 个月会员</p>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            拍短视频宣传「宝贝英语」并露出本程序，提交链接等待审核。也可加微信{" "}
+            <span className="text-ink">535938559</span> 沟通。
           </p>
 
-          <form onSubmit={onPromoSubmit} className="mt-8 max-w-2xl space-y-4">
-            <label className="block">
-              <span className="mb-1.5 block text-sm text-muted">短视频链接</span>
+          <form onSubmit={onPromoSubmit} className="mt-6 space-y-3">
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="短视频链接 https://…"
+              required
+              maxLength={500}
+              aria-label="短视频链接"
+              className="w-full rounded-xl border border-line bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+            />
+            <div className="grid grid-cols-2 gap-3">
               <input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://…"
-                required
-                maxLength={500}
-                className="w-full rounded-2xl border border-line bg-white/90 px-4 py-3 text-ink outline-none transition focus:border-accent"
+                type="number"
+                min={0}
+                max={10000000}
+                value={likesClaimed}
+                onChange={(e) => setLikesClaimed(e.target.value)}
+                placeholder="点赞数（可选）"
+                aria-label="点赞数"
+                className="w-full rounded-xl border border-line bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
               />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-sm text-muted">
-                  点赞数（可选）
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  max={10000000}
-                  value={likesClaimed}
-                  onChange={(e) => setLikesClaimed(e.target.value)}
-                  placeholder="例如 12"
-                  className="w-full rounded-2xl border border-line bg-white/90 px-4 py-3 text-ink outline-none transition focus:border-accent"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm text-muted">备注（可选）</span>
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="平台 / 说明"
-                  maxLength={255}
-                  className="w-full rounded-2xl border border-line bg-white/90 px-4 py-3 text-ink outline-none transition focus:border-accent"
-                />
-              </label>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="备注（可选）"
+                maxLength={255}
+                aria-label="备注"
+                className="w-full rounded-xl border border-line bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+              />
             </div>
 
             {promoError ? (
-              <p className="rounded-xl bg-[#fff1eb] px-3 py-2 text-sm text-[#c24b1e]">
-                {promoError}
-              </p>
+              <p className="text-sm text-[#c24b1e]">{promoError}</p>
             ) : null}
             {promoMessage ? (
-              <p className="rounded-xl bg-[#e8fff8] px-3 py-2 text-sm text-accent-deep">
-                {promoMessage}
-              </p>
+              <p className="text-sm text-accent-deep">{promoMessage}</p>
             ) : null}
 
             <button
               type="submit"
               disabled={promoBusy}
-              className="rounded-xl bg-accent px-7 py-3.5 text-base font-medium text-white transition hover:bg-accent-deep disabled:opacity-60"
+              className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-60"
             >
               {promoBusy ? "提交中…" : "提交投稿"}
             </button>
           </form>
 
           {submissions.length > 0 ? (
-            <div className="mt-12 max-w-2xl">
-              <h3 className="text-sm font-medium text-ink">我的投稿</h3>
-              <ul className="mt-2">
+            <div className="mt-10">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
+                我的投稿
+              </h3>
+              <ul className="mt-3">
                 {submissions.map((s) => (
                   <li
                     key={s.id}
-                    className="flex items-baseline justify-between gap-6 border-b border-line py-3.5"
+                    className="flex items-baseline justify-between gap-4 border-t border-line/70 py-3 first:border-t-0 first:pt-0"
                   >
                     <div className="min-w-0 flex-1">
                       <a
                         href={s.videoUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="block truncate text-[15px] text-ink hover:text-accent-deep"
+                        className="block truncate text-sm text-ink transition hover:text-accent-deep"
                         title={s.videoUrl}
                       >
                         {shortenUrl(s.videoUrl)}
@@ -291,7 +391,7 @@ export default function AccountPage() {
                       </p>
                     </div>
                     <span
-                      className={`shrink-0 text-sm ${
+                      className={`shrink-0 text-xs ${
                         s.status === "rewarded"
                           ? "text-accent-deep"
                           : s.status === "rejected"
@@ -308,6 +408,62 @@ export default function AccountPage() {
           ) : null}
         </section>
       </div>
+
+      {nicknameOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b1524]/35 p-4 backdrop-blur-[2px]"
+          onClick={closeNicknameDialog}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="nickname-dialog-title"
+            className="animate-rise w-full max-w-[22rem] rounded-2xl border border-line bg-white p-5 shadow-[0_24px_60px_rgba(11,21,36,0.18)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="nickname-dialog-title"
+              className="font-[family-name:var(--font-display)] text-lg font-semibold text-ink"
+            >
+              修改昵称
+            </h2>
+            <p className="mt-1 text-sm text-muted">不可与其他用户重复。</p>
+            <form onSubmit={onNicknameSubmit} className="mt-4 space-y-3">
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="新昵称"
+                required
+                maxLength={32}
+                autoFocus
+                aria-label="昵称"
+                className="w-full rounded-xl border border-line px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-accent"
+              />
+              {nicknameError ? (
+                <p className="text-sm text-[#c24b1e]">{nicknameError}</p>
+              ) : null}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeNicknameDialog}
+                  disabled={nicknameBusy}
+                  className="rounded-lg px-3.5 py-2 text-sm text-muted transition hover:text-ink disabled:opacity-60"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={nicknameBusy}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-60"
+                >
+                  {nicknameBusy ? "保存中…" : "保存"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   );
 }

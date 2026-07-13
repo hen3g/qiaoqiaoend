@@ -13,6 +13,8 @@ npm run dev
 
 打开 [http://localhost:4891](http://localhost:4891)。
 
+部署后若页面刷新仍是旧版、站内跳转却是新版，见 [docs/nginx-html-cache.md](docs/nginx-html-cache.md)（nginx 缓存 HTML）。
+
 ## 功能
 
 | 页面 | 说明 |
@@ -27,6 +29,7 @@ npm run dev
 | `/admin/promo` | 宣传投稿审核与发放会员（仅 `channg`，生产环境可用） |
 | `/admin/redeem-codes` | 本地开发专用：生成会员兑换码（仅 `channg`，`next build` 后不可用） |
 | `/admin/notifications` | 本地开发专用：发布通知（仅 `channg`，`next build` 后不可用） |
+| `/admin/users` | 本地开发专用：查看全部用户信息（仅 `channg`，`next build` 后不可用） |
 
 公开接口：`GET /api/notifications` 返回各类型最新通知（更新 / 消息），最多 2 条。
 
