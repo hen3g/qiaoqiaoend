@@ -17,7 +17,7 @@ export async function GET() {
     `SELECT id, platform, version, download_url, file_size, release_notes, is_latest
      FROM app_releases
      WHERE is_latest = 1
-     ORDER BY FIELD(platform, 'mac', 'windows', 'linux'), id ASC`,
+     ORDER BY FIELD(platform, 'mac-arm64', 'mac-x64', 'windows'), id ASC`,
   );
 
   return jsonOk({

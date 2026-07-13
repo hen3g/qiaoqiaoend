@@ -12,9 +12,9 @@ type Release = {
 };
 
 const platformLabel: Record<string, string> = {
-  mac: "macOS",
+  "mac-arm64": "macOS · Apple Silicon",
+  "mac-x64": "macOS · Intel",
   windows: "Windows",
-  linux: "Linux",
 };
 
 export function HomeDownload() {
@@ -47,7 +47,7 @@ export function HomeDownload() {
         {error ? (
           <p className="mt-8 text-sm text-[#ffb4a0]">{error}</p>
         ) : (
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {releases.map((item) => (
               <article
                 key={item.id}
