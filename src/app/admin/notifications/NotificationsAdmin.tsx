@@ -170,7 +170,14 @@ export function NotificationsAdmin() {
         <p className="mt-3 text-muted">
           发布更新通知或消息通知。公开接口{" "}
           <code className="text-sm text-ink">GET /api/notifications</code>{" "}
-          会返回各类型最新一条，最多两条。
+          会返回各类型最新一条，最多两条。调用量与日活见{" "}
+          <Link
+            href="/admin/notification-stats"
+            className="text-accent-deep hover:underline"
+          >
+            通知接口统计
+          </Link>
+          。
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
