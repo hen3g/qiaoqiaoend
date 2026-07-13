@@ -23,15 +23,24 @@ npm run dev
 | `/#download` | 客户端下载（首页区块） |
 | `/courses` | 课程包下载 |
 | `/redeem` | 兑换码（延长会员 / 永久会员） |
-| `/account` | 账号信息 |
+| `/account` | 账号信息、宣传短视频投稿 |
+| `/admin/promo` | 宣传投稿审核与发放会员（仅 `channg`，生产环境可用） |
 | `/admin/redeem-codes` | 本地开发专用：生成会员兑换码（仅 `channg`，`next build` 后不可用） |
 | `/admin/notifications` | 本地开发专用：发布通知（仅 `channg`，`next build` 后不可用） |
 
 公开接口：`GET /api/notifications` 返回各类型最新通知（更新 / 消息），最多 2 条。
 
+### 宣传有礼
+
+用户在 `/account` 提交短视频链接（可选点赞数、备注）。管理员用 `channg` 登录后打开 `/admin/promo` 查看全部投稿，按点赞数发放会员（每 1 个赞对应 1 个月，按 30 天计）或驳回；已发放会标记状态。
+
+也可加微信 `535938559` 沟通发放。
+
 ## 数据库
 
-远程 MySQL，表：`users`、`course_categories`、`courses`、`user_courses`、`redeem_codes`、`redeem_logs`、`app_releases`、`notifications`、`cap_challenges`、`cap_tokens`。
+远程 MySQL，表：`users`、`course_categories`、`courses`、`user_courses`、`redeem_codes`、`redeem_logs`、`app_releases`、`notifications`、`promo_submissions`、`cap_challenges`、`cap_tokens`。
+
+宣传投稿表见 `scripts/schema-promo-submissions.sql`；首次访问相关接口时也会自动建表。
 
 课程按分类展示（启蒙 / 小学 / 初中 / 高中 / 场景 / 功能 / 名词 / 兴趣 / 考试 / 专业）。`courses.download_url` 指向 Cloudflare R2 上的 zip 课程包。
 
