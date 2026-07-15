@@ -45,12 +45,12 @@ export async function POST(req: Request) {
     );
     const user = rows[0];
     if (!user) {
-      return jsonError("用户名或密码错误", 401);
+      return jsonError("用户不存在", 401);
     }
 
     const ok = await verifyPassword(body.password, user.password_hash);
     if (!ok) {
-      return jsonError("用户名或密码错误", 401);
+      return jsonError("密码错误", 401);
     }
 
     const token = await createSessionToken(user.id);

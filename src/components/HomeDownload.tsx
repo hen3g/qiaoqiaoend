@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ONLINE_CLIENT_URL } from "@/lib/online";
 
 type Release = {
   id: number;
@@ -41,7 +42,16 @@ export function HomeDownload() {
           下载客户端
         </h2>
         <p className="mt-3 max-w-xl text-white/65">
-          安装宝贝英语，在电脑上用键盘敲句子学英语。
+          安装宝贝英语，在电脑上用键盘敲句子学英语。也可先
+          <a
+            href={ONLINE_CLIENT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mx-1 font-medium text-white underline underline-offset-4 transition hover:text-white/85"
+          >
+            在线体验
+          </a>
+          （需注册账号），浏览器即可开练。
         </p>
 
         {error ? (

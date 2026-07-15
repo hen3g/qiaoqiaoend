@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { VipBadge } from "@/components/VipBadge";
 import type { SessionUser } from "@/lib/auth";
+import { ONLINE_CLIENT_URL } from "@/lib/online";
 
 const links = [
   { href: "/#download", label: "下载客户端" },
@@ -47,7 +48,15 @@ export function SiteHeader() {
       <Link href="/" className="shrink-0" aria-label="宝贝英语首页">
         <BrandLogo size="header" priority />
       </Link>
-      <nav className="flex flex-wrap items-center justify-end gap-4 text-sm text-muted sm:gap-7">
+      <nav className="flex flex-wrap items-center justify-end gap-3 text-sm text-muted sm:gap-5">
+        <a
+          href={ONLINE_CLIENT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-lg bg-accent px-4 py-2 font-medium text-white transition hover:bg-accent-deep"
+        >
+          在线体验
+        </a>
         {links.map((link) => (
           <Link
             key={link.href}
@@ -85,7 +94,7 @@ export function SiteHeader() {
             </Link>
             <Link
               href="/register"
-              className="rounded-lg bg-accent px-4 py-2 text-white transition hover:bg-accent-deep"
+              className="rounded-lg border border-line bg-white/70 px-4 py-2 text-ink transition hover:border-accent hover:text-accent-deep"
             >
               注册
             </Link>

@@ -5,6 +5,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { HomeDownload } from "@/components/HomeDownload";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ONLINE_CLIENT_URL } from "@/lib/online";
 
 const steps = [
   {
@@ -71,18 +72,23 @@ export default function HomePage() {
             </p>
             <div className="animate-rise-delay-3 mt-8 flex flex-wrap gap-3">
               <a
-                href="#download"
+                href={ONLINE_CLIENT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-xl bg-accent px-7 py-3.5 text-base font-medium text-white transition hover:bg-accent-deep"
+              >
+                在线体验
+              </a>
+              <a
+                href="#download"
+                className="rounded-xl border border-line bg-white/70 px-7 py-3.5 text-base font-medium text-ink transition hover:border-accent hover:text-accent-deep"
               >
                 下载客户端
               </a>
-              <Link
-                href="/register"
-                className="rounded-xl border border-line bg-white/70 px-7 py-3.5 text-base font-medium text-ink transition hover:border-accent hover:text-accent-deep"
-              >
-                免费注册
-              </Link>
             </div>
+            <p className="animate-rise-delay-3 mt-3 text-sm text-muted">
+              需先注册账号，浏览器即可开始练习，无需安装。
+            </p>
           </div>
 
           <div className="animate-hero-reveal relative mx-auto w-full max-w-md lg:max-w-none">
@@ -144,7 +150,7 @@ export default function HomePage() {
             从启蒙到职场
           </h2>
           <p className="mt-3 max-w-xl text-muted">
-            课程按阶段与场景整理，官网开放下载，导入客户端即可练。
+            课程按阶段与场景整理，官网开放下载，导入本地客户端即可练。在线版不支持导入，只能自制课程。
           </p>
           <ul className="mt-12 grid grid-cols-2 gap-8 lg:grid-cols-4">
             {audiences.map((a) => (

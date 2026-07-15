@@ -7,6 +7,9 @@ import type { SessionUser } from "@/lib/auth";
 
 type AdminUser = SessionUser & {
   tokenVersion: number;
+  hasClient: boolean;
+  lastNotificationAt: string | null;
+  notificationHitCount: number;
 };
 
 function vipLabel(u: AdminUser): string {
@@ -65,6 +68,11 @@ export function UsersAdmin() {
     [users],
   );
 
+  const clientCount = useMemo(
+    () => users.filter((u) => u.hasClient).length,
+    [users],
+  );
+
   if (!loaded) {
     return (
       <PageShell>
@@ -109,7 +117,8 @@ export function UsersAdmin() {
           用户后台
         </h1>
         <p className="mt-3 text-muted">
-          查看全部注册用户信息。共 {users.length} 人，其中会员 {vipCount} 人。
+          查看全部注册用户信息。共 {users.length} 人，其中会员 {vipCount}{" "}
+          人，已用客户端（曾请求通知）{clientCount} 人。
         </p>
 
         <div className="mt-8 flex flex-wrap items-end gap-3">
@@ -144,12 +153,13 @@ export function UsersAdmin() {
           </p>
         ) : (
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[44rem] text-left text-sm">
+            <table className="w-full min-w-[52rem] text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-muted">
                   <th className="py-2 pr-3 font-medium">ID</th>
                   <th className="py-2 pr-3 font-medium">用户名</th>
                   <th className="py-2 pr-3 font-medium">昵称</th>
+                  <th className="py-2 pr-3 font-medium">客户端</th>
                   <th className="py-2 pr-3 font-medium">会员</th>
                   <th className="py-2 pr-3 font-medium">到期时间</th>
                   <th className="py-2 pr-3 font-medium">注册时间</th>
@@ -165,6 +175,19 @@ export function UsersAdmin() {
                     </td>
                     <td className="py-2.5 pr-3 align-top text-muted">
                       {u.nickname || "—"}
+                    </td>
+                    <td className="py-2.5 pr-3 align-top">
+                      {u.hasClient ? (
+                        <span className="text-accent-deep">
+                          已用
+                          <span className="mt-0.5 block text-xs font-normal text-muted">
+                            最近 {u.lastNotificationAt ?? "—"} ·{" "}
+                            {u.notificationHitCount} 次
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted">未检测到</span>
+                      )}
                     </td>
                     <td
                       className={`py-2.5 pr-3 align-top ${

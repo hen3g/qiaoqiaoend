@@ -1,10 +1,23 @@
 import { BrandLogo } from "@/components/BrandLogo";
+import { ONLINE_CLIENT_URL } from "@/lib/online";
 
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line bg-white/80 px-5 py-8 text-center text-sm text-muted sm:px-8">
       <BrandLogo size="footer" />
       <p className="mt-4">
+        <a
+          href={ONLINE_CLIENT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-accent-deep underline-offset-2 transition hover:underline"
+        >
+          在线体验
+        </a>
+        <span className="mx-1.5 text-line">·</span>
+        需先注册账号，浏览器即可练习
+      </p>
+      <p className="mt-3">
         有任何问题可以联系作者
         <span className="mx-1.5 text-line">·</span>
         微信 535938559
