@@ -32,7 +32,7 @@ npm run dev
 | `/admin/notification-stats` | 本地开发专用：通知接口调用量 / 日活估算（仅 `channg`，`next build` 后不可用） |
 | `/admin/users` | 本地开发专用：查看全部用户信息（仅 `channg`，`next build` 后不可用） |
 
-公开接口：`GET /api/notifications` 返回各类型最新通知（更新 / 消息），最多 2 条；每次调用会计入统计。带 `Authorization: Bearer`（OAuth）或网站登录 Cookie 时，还会按用户 ID 去重统计日活。
+公开接口：`GET /api/notifications` 返回各类型最新通知（更新 / 消息），最多 2 条；每次调用会计入统计。带 `Authorization: Bearer`（OAuth）或网站登录 Cookie 时，还会按用户 ID 去重统计日活。可通过 `?source=web` 标记在线版请求（缺省按客户端）；`/admin/users` 据此展示用户用过客户端、在线版或两者。
 
 ### 宣传有礼
 

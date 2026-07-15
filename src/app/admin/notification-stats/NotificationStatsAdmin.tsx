@@ -17,7 +17,17 @@ type DailyUser = {
   username: string | null;
   nickname: string | null;
   hitCount: number;
+  sources?: ("client" | "web")[];
 };
+
+function sourcesLabel(sources: ("client" | "web")[] | undefined): string {
+  if (!sources || sources.length === 0) return "—";
+  const hasClient = sources.includes("client");
+  const hasWeb = sources.includes("web");
+  if (hasClient && hasWeb) return "都使用了";
+  if (hasWeb) return "在线版";
+  return "客户端";
+}
 
 export function NotificationStatsAdmin() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -218,6 +228,7 @@ export function NotificationStatsAdmin() {
                     <th className="py-2 pr-3 font-medium">用户 ID</th>
                     <th className="py-2 pr-3 font-medium">用户名</th>
                     <th className="py-2 pr-3 font-medium">昵称</th>
+                    <th className="py-2 pr-3 font-medium">来源</th>
                     <th className="py-2 font-medium">请求次数</th>
                   </tr>
                 </thead>
@@ -232,6 +243,9 @@ export function NotificationStatsAdmin() {
                       </td>
                       <td className="py-2.5 pr-3 align-top text-muted">
                         {u.nickname || "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top text-muted">
+                        {sourcesLabel(u.sources)}
                       </td>
                       <td className="py-2.5 align-top text-ink">{u.hitCount}</td>
                     </tr>

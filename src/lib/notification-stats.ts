@@ -4,6 +4,9 @@ import { SESSION_COOKIE, readSessionUserId } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
 import { readAccessToken } from "@/lib/oauth";
 
+/** client = 桌面/原生客户端；web = 在线版。缺省按 client（兼容旧客户端）。 */
+export type NotificationClientSource = "client" | "web";
+
 export type DailyStatDto = {
   date: string;
   totalHits: number;
@@ -16,9 +19,17 @@ export type DailyUserHitDto = {
   username: string | null;
   nickname: string | null;
   hitCount: number;
+  sources: NotificationClientSource[];
 };
 
 let ensured = false;
+
+export function parseNotificationClientSource(
+  value: string | null,
+): NotificationClientSource {
+  if (value === "web") return "web";
+  return "client";
+}
 
 export async function ensureNotificationStatsTables(): Promise<void> {
   if (ensured) return;
@@ -34,12 +45,33 @@ export async function ensureNotificationStatsTables(): Promise<void> {
     CREATE TABLE IF NOT EXISTS notification_api_daily_users (
       stat_date DATE NOT NULL,
       user_id BIGINT UNSIGNED NOT NULL,
+      source VARCHAR(16) NOT NULL DEFAULT 'client',
       hit_count INT UNSIGNED NOT NULL DEFAULT 1,
-      PRIMARY KEY (stat_date, user_id),
+      PRIMARY KEY (stat_date, user_id, source),
       KEY idx_notif_api_user (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+  await migrateNotificationUsersSourceColumn();
   ensured = true;
+}
+
+/** 旧表只有 (stat_date, user_id) 主键时，补 source 列并升级主键。 */
+async function migrateNotificationUsersSourceColumn(): Promise<void> {
+  type ColRow = RowDataPacket & { Field: string };
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM notification_api_daily_users LIKE 'source'`,
+  );
+  if (cols.length > 0) return;
+
+  await execute(
+    `ALTER TABLE notification_api_daily_users
+     ADD COLUMN source VARCHAR(16) NOT NULL DEFAULT 'client' AFTER user_id`,
+  );
+  await execute(
+    `ALTER TABLE notification_api_daily_users
+     DROP PRIMARY KEY,
+     ADD PRIMARY KEY (stat_date, user_id, source)`,
+  );
 }
 
 /** YYYY-MM-DD in Asia/Shanghai (matches DB timezone +08:00). */
@@ -73,6 +105,7 @@ export async function resolveStatsUserId(req: Request): Promise<number | null> {
 /** Record one notification API hit. Safe to call fire-and-forget. */
 export async function recordNotificationApiHit(
   userId: number | null,
+  source: NotificationClientSource = "client",
 ): Promise<void> {
   await ensureNotificationStatsTables();
   const statDate = todayInShanghai();
@@ -89,10 +122,10 @@ export async function recordNotificationApiHit(
 
   if (userId != null) {
     await execute(
-      `INSERT INTO notification_api_daily_users (stat_date, user_id, hit_count)
-       VALUES (:statDate, :userId, 1)
+      `INSERT INTO notification_api_daily_users (stat_date, user_id, source, hit_count)
+       VALUES (:statDate, :userId, :source, 1)
        ON DUPLICATE KEY UPDATE hit_count = hit_count + 1`,
-      { statDate, userId },
+      { statDate, userId, source },
     );
   }
 }
@@ -129,7 +162,7 @@ export async function listDailyNotificationStats(
             COALESCE(u.unique_users, 0) AS unique_users
      FROM notification_api_daily_stats s
      LEFT JOIN (
-       SELECT stat_date, COUNT(*) AS unique_users
+       SELECT stat_date, COUNT(DISTINCT user_id) AS unique_users
        FROM notification_api_daily_users
        GROUP BY stat_date
      ) u ON u.stat_date = s.stat_date
@@ -149,9 +182,20 @@ export async function listDailyNotificationStats(
 type UserHitRow = RowDataPacket & {
   user_id: number;
   hit_count: number;
+  sources: string | null;
   username: string | null;
   nickname: string | null;
 };
+
+function parseSources(value: string | null): NotificationClientSource[] {
+  if (!value) return [];
+  const set = new Set<NotificationClientSource>();
+  for (const part of value.split(",")) {
+    const trimmed = part.trim();
+    if (trimmed === "web" || trimmed === "client") set.add(trimmed);
+  }
+  return [...set];
+}
 
 export async function listDailyNotificationUsers(
   statDate: string,
@@ -161,11 +205,16 @@ export async function listDailyNotificationUsers(
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 500);
 
   const rows = await query<UserHitRow[]>(
-    `SELECT d.user_id, d.hit_count, u.username, u.nickname
+    `SELECT d.user_id,
+            SUM(d.hit_count) AS hit_count,
+            GROUP_CONCAT(DISTINCT d.source ORDER BY d.source) AS sources,
+            u.username,
+            u.nickname
      FROM notification_api_daily_users d
      LEFT JOIN users u ON u.id = d.user_id
      WHERE d.stat_date = :statDate
-     ORDER BY d.hit_count DESC, d.user_id ASC
+     GROUP BY d.user_id, u.username, u.nickname
+     ORDER BY hit_count DESC, d.user_id ASC
      LIMIT ${safeLimit}`,
     { statDate },
   );
@@ -175,5 +224,6 @@ export async function listDailyNotificationUsers(
     username: row.username ?? null,
     nickname: row.nickname ?? null,
     hitCount: Number(row.hit_count) || 0,
+    sources: parseSources(row.sources),
   }));
 }

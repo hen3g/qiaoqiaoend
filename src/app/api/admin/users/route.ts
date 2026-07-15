@@ -5,6 +5,8 @@ import { requireDevAdmin } from "@/lib/dev-admin";
 import { query } from "@/lib/db";
 import { ensureNotificationStatsTables } from "@/lib/notification-stats";
 
+export type ClientUsage = "none" | "client" | "web" | "both";
+
 type UserRow = RowDataPacket & {
   id: number;
   username: string;
@@ -13,14 +15,19 @@ type UserRow = RowDataPacket & {
   created_at: Date | string | null;
   token_version: number;
   has_client: number | boolean;
+  has_web: number | boolean;
   last_notification_at: Date | string | null;
   notification_hit_count: number | null;
 };
 
 export type AdminUserDto = SessionUser & {
   tokenVersion: number;
-  /** 是否曾以登录态请求过通知接口（客户端代理指标） */
+  /** 是否曾以登录态从客户端请求过通知接口 */
   hasClient: boolean;
+  /** 是否曾以登录态从在线版请求过通知接口 */
+  hasWeb: boolean;
+  /** 客户端使用情况：未检测到 / 仅客户端 / 仅在线版 / 都使用了 */
+  clientUsage: ClientUsage;
   lastNotificationAt: string | null;
   notificationHitCount: number;
 };
@@ -47,16 +54,26 @@ function formatDate(value: Date | string | null): string | null {
   return String(value).slice(0, 10);
 }
 
+function toClientUsage(hasClient: boolean, hasWeb: boolean): ClientUsage {
+  if (hasClient && hasWeb) return "both";
+  if (hasClient) return "client";
+  if (hasWeb) return "web";
+  return "none";
+}
+
 async function listUsers(): Promise<AdminUserDto[]> {
   await ensureNotificationStatsTables();
   const rows = await query<UserRow[]>(
     `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.created_at, u.token_version,
-            CASE WHEN n.user_id IS NOT NULL THEN 1 ELSE 0 END AS has_client,
+            COALESCE(n.has_client, 0) AS has_client,
+            COALESCE(n.has_web, 0) AS has_web,
             n.last_notification_at,
             COALESCE(n.notification_hit_count, 0) AS notification_hit_count
      FROM users u
      LEFT JOIN (
        SELECT user_id,
+              MAX(CASE WHEN source = 'client' THEN 1 ELSE 0 END) AS has_client,
+              MAX(CASE WHEN source = 'web' THEN 1 ELSE 0 END) AS has_web,
               MAX(stat_date) AS last_notification_at,
               SUM(hit_count) AS notification_hit_count
        FROM notification_api_daily_users
@@ -64,13 +81,19 @@ async function listUsers(): Promise<AdminUserDto[]> {
      ) n ON n.user_id = u.id
      ORDER BY u.id ASC`,
   );
-  return rows.map((row) => ({
-    ...mapUser(row),
-    tokenVersion: row.token_version ?? 0,
-    hasClient: Boolean(row.has_client),
-    lastNotificationAt: formatDate(row.last_notification_at),
-    notificationHitCount: Number(row.notification_hit_count) || 0,
-  }));
+  return rows.map((row) => {
+    const hasClient = Boolean(row.has_client);
+    const hasWeb = Boolean(row.has_web);
+    return {
+      ...mapUser(row),
+      tokenVersion: row.token_version ?? 0,
+      hasClient,
+      hasWeb,
+      clientUsage: toClientUsage(hasClient, hasWeb),
+      lastNotificationAt: formatDate(row.last_notification_at),
+      notificationHitCount: Number(row.notification_hit_count) || 0,
+    };
+  });
 }
 
 export async function GET() {

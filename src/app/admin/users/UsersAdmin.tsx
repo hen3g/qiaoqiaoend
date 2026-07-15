@@ -5,11 +5,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import type { SessionUser } from "@/lib/auth";
 
+type ClientUsage = "none" | "client" | "web" | "both";
+
 type AdminUser = SessionUser & {
   tokenVersion: number;
   hasClient: boolean;
+  hasWeb: boolean;
+  clientUsage: ClientUsage;
   lastNotificationAt: string | null;
   notificationHitCount: number;
+};
+
+const USAGE_LABEL: Record<ClientUsage, string> = {
+  none: "未检测到",
+  client: "客户端",
+  web: "在线版",
+  both: "都使用了",
 };
 
 function vipLabel(u: AdminUser): string {
@@ -19,6 +30,17 @@ function vipLabel(u: AdminUser): string {
     return `至 ${new Date(u.vipExpiresAt).toLocaleDateString("zh-CN")}`;
   }
   return "会员";
+}
+
+function usageLabel(u: AdminUser): ClientUsage {
+  if (u.clientUsage) return u.clientUsage;
+  return u.hasClient && u.hasWeb
+    ? "both"
+    : u.hasClient
+      ? "client"
+      : u.hasWeb
+        ? "web"
+        : "none";
 }
 
 export function UsersAdmin() {
@@ -68,10 +90,18 @@ export function UsersAdmin() {
     [users],
   );
 
-  const clientCount = useMemo(
-    () => users.filter((u) => u.hasClient).length,
-    [users],
-  );
+  const usageCounts = useMemo(() => {
+    let clientOnly = 0;
+    let webOnly = 0;
+    let both = 0;
+    for (const u of users) {
+      const usage = usageLabel(u);
+      if (usage === "client") clientOnly += 1;
+      else if (usage === "web") webOnly += 1;
+      else if (usage === "both") both += 1;
+    }
+    return { clientOnly, webOnly, both };
+  }, [users]);
 
   if (!loaded) {
     return (
@@ -118,7 +148,8 @@ export function UsersAdmin() {
         </h1>
         <p className="mt-3 text-muted">
           查看全部注册用户信息。共 {users.length} 人，其中会员 {vipCount}{" "}
-          人，已用客户端（曾请求通知）{clientCount} 人。
+          人；客户端 {usageCounts.clientOnly} 人，在线版 {usageCounts.webOnly}{" "}
+          人，都使用了 {usageCounts.both} 人。
         </p>
 
         <div className="mt-8 flex flex-wrap items-end gap-3">
@@ -167,52 +198,55 @@ export function UsersAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-line/60">
-                    <td className="py-2.5 pr-3 align-top text-muted">{u.id}</td>
-                    <td className="py-2.5 pr-3 align-top font-medium text-ink">
-                      {u.username}
-                    </td>
-                    <td className="py-2.5 pr-3 align-top text-muted">
-                      {u.nickname || "—"}
-                    </td>
-                    <td className="py-2.5 pr-3 align-top">
-                      {u.hasClient ? (
-                        <span className="text-accent-deep">
-                          已用
-                          <span className="mt-0.5 block text-xs font-normal text-muted">
-                            最近 {u.lastNotificationAt ?? "—"} ·{" "}
-                            {u.notificationHitCount} 次
+                {filtered.map((u) => {
+                  const usage = usageLabel(u);
+                  return (
+                    <tr key={u.id} className="border-b border-line/60">
+                      <td className="py-2.5 pr-3 align-top text-muted">{u.id}</td>
+                      <td className="py-2.5 pr-3 align-top font-medium text-ink">
+                        {u.username}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top text-muted">
+                        {u.nickname || "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top">
+                        {usage === "none" ? (
+                          <span className="text-muted">{USAGE_LABEL.none}</span>
+                        ) : (
+                          <span className="text-accent-deep">
+                            {USAGE_LABEL[usage]}
+                            <span className="mt-0.5 block text-xs font-normal text-muted">
+                              最近 {u.lastNotificationAt ?? "—"} ·{" "}
+                              {u.notificationHitCount} 次
+                            </span>
                           </span>
-                        </span>
-                      ) : (
-                        <span className="text-muted">未检测到</span>
-                      )}
-                    </td>
-                    <td
-                      className={`py-2.5 pr-3 align-top ${
-                        u.isVip ? "text-accent-deep" : "text-muted"
-                      }`}
-                    >
-                      {vipLabel(u)}
-                    </td>
-                    <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
-                      {u.isPermanentVip
-                        ? "永久"
-                        : u.vipExpiresAt
-                          ? new Date(u.vipExpiresAt).toLocaleString("zh-CN")
+                        )}
+                      </td>
+                      <td
+                        className={`py-2.5 pr-3 align-top ${
+                          u.isVip ? "text-accent-deep" : "text-muted"
+                        }`}
+                      >
+                        {vipLabel(u)}
+                      </td>
+                      <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
+                        {u.isPermanentVip
+                          ? "永久"
+                          : u.vipExpiresAt
+                            ? new Date(u.vipExpiresAt).toLocaleString("zh-CN")
+                            : "—"}
+                      </td>
+                      <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
+                        {u.createdAt
+                          ? new Date(u.createdAt).toLocaleString("zh-CN")
                           : "—"}
-                    </td>
-                    <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
-                      {u.createdAt
-                        ? new Date(u.createdAt).toLocaleString("zh-CN")
-                        : "—"}
-                    </td>
-                    <td className="py-2.5 align-top text-muted">
-                      {u.tokenVersion}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-2.5 align-top text-muted">
+                        {u.tokenVersion}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
