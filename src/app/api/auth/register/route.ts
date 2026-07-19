@@ -6,7 +6,6 @@ import {
   mapUser,
   setSessionCookie,
 } from "@/lib/auth";
-import { requireCapToken } from "@/lib/cap";
 import { execute, query } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 
@@ -19,7 +18,6 @@ const schema = z
       .regex(/^[a-zA-Z0-9_]+$/, "用户名仅支持字母、数字和下划线"),
     password: z.string().min(6, "密码至少 6 位").max(72, "密码过长"),
     passwordConfirm: z.string().min(1, "请再次输入密码"),
-    captchaToken: z.string().min(1, "请先完成人机验证"),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: "两次输入的密码不一致",
@@ -29,12 +27,6 @@ const schema = z
 export async function POST(req: Request) {
   try {
     const body = schema.parse(await req.json());
-    try {
-      await requireCapToken(body.captchaToken);
-    } catch (err) {
-      return jsonError(err instanceof Error ? err.message : "人机验证失败");
-    }
-
     const username = body.username.toLowerCase();
 
     const existing = await query<RowDataPacket[]>(

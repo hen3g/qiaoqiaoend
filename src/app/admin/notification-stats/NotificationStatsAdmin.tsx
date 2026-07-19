@@ -120,13 +120,13 @@ export function NotificationStatsAdmin() {
           <button
             type="button"
             onClick={() => void loadStats(detailDate || undefined)}
-            className="rounded-full border border-line px-4 py-2.5 text-sm text-ink hover:border-accent"
+            className="rounded-full border border-line/10 px-4 py-2.5 text-sm text-ink hover:border-accent"
           >
             刷新
           </button>
           <Link
             href="/admin/notifications"
-            className="rounded-full border border-line px-4 py-2.5 text-sm text-ink hover:border-accent"
+            className="rounded-full border border-line/10 px-4 py-2.5 text-sm text-ink hover:border-accent"
           >
             通知设置
           </Link>
@@ -140,19 +140,19 @@ export function NotificationStatsAdmin() {
 
         {today ? (
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-line bg-white/70 px-4 py-4">
+            <div className="rounded-2xl border border-line/10 bg-white/70 px-4 py-4">
               <p className="text-sm text-muted">今日请求</p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
                 {today.totalHits}
               </p>
             </div>
-            <div className="rounded-2xl border border-line bg-white/70 px-4 py-4">
+            <div className="rounded-2xl border border-line/10 bg-white/70 px-4 py-4">
               <p className="text-sm text-muted">今日带登录请求</p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
                 {today.loggedInHits}
               </p>
             </div>
-            <div className="rounded-2xl border border-line bg-white/70 px-4 py-4">
+            <div className="rounded-2xl border border-line/10 bg-white/70 px-4 py-4">
               <p className="text-sm text-muted">今日独立用户</p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold text-accent-deep">
                 {today.uniqueUsers}
@@ -169,7 +169,7 @@ export function NotificationStatsAdmin() {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[32rem] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line text-muted">
+                  <tr className="border-b border-line/10 text-muted">
                     <th className="py-2 pr-3 font-medium">日期</th>
                     <th className="py-2 pr-3 font-medium">总请求</th>
                     <th className="py-2 pr-3 font-medium">带登录请求</th>
@@ -224,7 +224,7 @@ export function NotificationStatsAdmin() {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[28rem] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line text-muted">
+                  <tr className="border-b border-line/10 text-muted">
                     <th className="py-2 pr-3 font-medium">用户 ID</th>
                     <th className="py-2 pr-3 font-medium">用户名</th>
                     <th className="py-2 pr-3 font-medium">昵称</th>

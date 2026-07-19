@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useState, type ReactNode } from "react";
-import { CapWidget } from "@/components/CapWidget";
+import { FormEvent, useState, type ReactNode } from "react";
 
 type Field = {
   name: string;
@@ -22,7 +21,6 @@ type Props = {
   footer?: ReactNode;
   onSuccess?: (data: Record<string, unknown>) => void;
   successRedirect?: string;
-  requireCaptcha?: boolean;
 };
 
 export function AuthForm({
@@ -34,28 +32,10 @@ export function AuthForm({
   footer,
   onSuccess,
   successRedirect,
-  requireCaptcha = false,
 }: Props) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [capToken, setCapToken] = useState<string | null>(null);
-  const [capKey, setCapKey] = useState(0);
-
-  const onTokenChange = useCallback((token: string | null) => {
-    setCapToken(token);
-    if (token) setError("");
-  }, []);
-
-  const onCaptchaError = useCallback((message: string) => {
-    setCapToken(null);
-    setError(message);
-  }, []);
-
-  function resetCaptcha() {
-    setCapToken(null);
-    setCapKey((k) => k + 1);
-  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,15 +70,6 @@ export function AuthForm({
       return;
     }
 
-    if (requireCaptcha) {
-      if (!capToken) {
-        setError("请先完成人机验证");
-        setBusy(false);
-        return;
-      }
-      body.captchaToken = capToken;
-    }
-
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -108,7 +79,6 @@ export function AuthForm({
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setError(data.error || "请求失败");
-        if (requireCaptcha) resetCaptcha();
         return;
       }
       setMessage(data.message || "成功");
@@ -118,7 +88,6 @@ export function AuthForm({
       }
     } catch {
       setError("网络错误，请稍后重试");
-      if (requireCaptcha) resetCaptcha();
     } finally {
       setBusy(false);
     }
@@ -145,21 +114,10 @@ export function AuthForm({
               placeholder={field.placeholder}
               autoComplete={field.autoComplete}
               required={field.required !== false}
-              className="w-full rounded-2xl border border-line bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
+              className="w-full rounded-2xl border border-line/10 bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
             />
           </label>
         ))}
-
-        {requireCaptcha ? (
-          <div className="pt-1">
-            <p className="mb-2 text-sm font-medium text-ink/80">人机验证</p>
-            <CapWidget
-              key={capKey}
-              onTokenChange={onTokenChange}
-              onError={onCaptchaError}
-            />
-          </div>
-        ) : null}
 
         {error ? (
           <p className="rounded-2xl bg-[#fff1eb] px-4 py-3 text-sm text-[#c24b1e]">
@@ -174,7 +132,7 @@ export function AuthForm({
 
         <button
           type="submit"
-          disabled={busy || (requireCaptcha && !capToken)}
+          disabled={busy}
           className="mt-1 w-full rounded-full bg-accent px-6 py-3.5 text-base font-medium text-white shadow-lg shadow-[var(--glow)] transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-55"
         >
           {busy ? "处理中…" : submitLabel}
@@ -182,7 +140,7 @@ export function AuthForm({
       </form>
 
       {footer ? (
-        <div className="mt-7 border-t border-line pt-6 text-sm text-muted">
+        <div className="mt-7 border-t border-line/10 pt-6 text-sm text-muted">
           {footer}
         </div>
       ) : null}

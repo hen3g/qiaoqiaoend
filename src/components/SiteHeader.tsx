@@ -94,7 +94,7 @@ export function SiteHeader() {
             </Link>
             <Link
               href="/register"
-              className="rounded-lg border border-line bg-white/70 px-4 py-2 text-ink transition hover:border-accent hover:text-accent-deep"
+              className="rounded-lg border border-line/10 bg-white/70 px-4 py-2 text-ink transition hover:border-accent hover:text-accent-deep"
             >
               注册
             </Link>

@@ -36,7 +36,7 @@ export function HomeDownload() {
   }, []);
 
   return (
-    <section id="download" className="border-y border-line bg-bg-deep text-white">
+    <section id="download" className="border-y border-line/10 bg-bg-deep text-white">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
         <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
           下载客户端

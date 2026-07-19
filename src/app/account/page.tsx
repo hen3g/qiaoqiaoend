@@ -261,9 +261,9 @@ export default function AccountPage() {
               </div>
               <p className="mt-1.5 text-sm text-muted">
                 @{user.username}
-                <span className="mx-2 text-line">·</span>
+                <span className="mx-2 text-line/10">·</span>
                 {vipSummary(user)}
-                <span className="mx-2 text-line">·</span>
+                <span className="mx-2 text-line/10">·</span>
                 {user.createdAt
                   ? new Date(user.createdAt).toLocaleDateString("zh-CN")
                   : "—"}{" "}
@@ -273,13 +273,13 @@ export default function AccountPage() {
           </div>
 
           <nav
-            className="mt-8 flex flex-wrap gap-x-1 gap-y-1 border-y border-line py-3"
+            className="mt-8 flex flex-wrap gap-x-1 gap-y-1 border-y border-line/10 py-3"
             aria-label="账号快捷入口"
           >
             {links.map((link, i) => (
               <span key={link.href} className="inline-flex items-center">
                 {i > 0 ? (
-                  <span className="mx-2 select-none text-line" aria-hidden>
+                  <span className="mx-2 select-none text-line/10" aria-hidden>
                     /
                   </span>
                 ) : null}
@@ -316,7 +316,7 @@ export default function AccountPage() {
               required
               maxLength={500}
               aria-label="短视频链接"
-              className="w-full rounded-xl border border-line bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+              className="w-full rounded-xl border border-line/10 bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
             />
             <div className="grid grid-cols-2 gap-3">
               <input
@@ -327,7 +327,7 @@ export default function AccountPage() {
                 onChange={(e) => setLikesClaimed(e.target.value)}
                 placeholder="点赞数（可选）"
                 aria-label="点赞数"
-                className="w-full rounded-xl border border-line bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+                className="w-full rounded-xl border border-line/10 bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
               />
               <input
                 type="text"
@@ -336,7 +336,7 @@ export default function AccountPage() {
                 placeholder="备注（可选）"
                 maxLength={255}
                 aria-label="备注"
-                className="w-full rounded-xl border border-line bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+                className="w-full rounded-xl border border-line/10 bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
               />
             </div>
 
@@ -418,7 +418,7 @@ export default function AccountPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="nickname-dialog-title"
-            className="animate-rise w-full max-w-[22rem] rounded-2xl border border-line bg-white p-5 shadow-[0_24px_60px_rgba(11,21,36,0.18)]"
+            className="animate-rise w-full max-w-[22rem] rounded-2xl border border-line/10 bg-white p-5 shadow-[0_24px_60px_rgba(11,21,36,0.18)]"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
@@ -438,7 +438,7 @@ export default function AccountPage() {
                 maxLength={32}
                 autoFocus
                 aria-label="昵称"
-                className="w-full rounded-xl border border-line px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-accent"
+                className="w-full rounded-xl border border-line/10 px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-accent"
               />
               {nicknameError ? (
                 <p className="text-sm text-[#c24b1e]">{nicknameError}</p>

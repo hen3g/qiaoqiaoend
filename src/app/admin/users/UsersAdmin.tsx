@@ -9,6 +9,7 @@ type ClientUsage = "none" | "client" | "web" | "both";
 
 type AdminUser = SessionUser & {
   tokenVersion: number;
+  unlockedDifficulty: number;
   hasClient: boolean;
   hasWeb: boolean;
   clientUsage: ClientUsage;
@@ -160,13 +161,13 @@ export function UsersAdmin() {
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
               placeholder="用户名 / 昵称 / ID"
-              className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
             />
           </label>
           <button
             type="button"
             onClick={() => void loadUsers()}
-            className="rounded-full border border-line px-4 py-2.5 text-sm text-ink hover:border-accent"
+            className="rounded-full border border-line/10 px-4 py-2.5 text-sm text-ink hover:border-accent"
           >
             刷新
           </button>
@@ -184,12 +185,13 @@ export function UsersAdmin() {
           </p>
         ) : (
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-left text-sm">
+            <table className="w-full min-w-[56rem] text-left text-sm">
               <thead>
-                <tr className="border-b border-line text-muted">
+                <tr className="border-b border-line/10 text-muted">
                   <th className="py-2 pr-3 font-medium">ID</th>
                   <th className="py-2 pr-3 font-medium">用户名</th>
                   <th className="py-2 pr-3 font-medium">昵称</th>
+                  <th className="py-2 pr-3 font-medium">星级</th>
                   <th className="py-2 pr-3 font-medium">客户端</th>
                   <th className="py-2 pr-3 font-medium">会员</th>
                   <th className="py-2 pr-3 font-medium">到期时间</th>
@@ -208,6 +210,9 @@ export function UsersAdmin() {
                       </td>
                       <td className="py-2.5 pr-3 align-top text-muted">
                         {u.nickname || "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top text-ink">
+                        {u.unlockedDifficulty ?? 1} 星
                       </td>
                       <td className="py-2.5 pr-3 align-top">
                         {usage === "none" ? (

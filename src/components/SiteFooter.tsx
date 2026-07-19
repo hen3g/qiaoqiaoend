@@ -3,7 +3,7 @@ import { ONLINE_CLIENT_URL } from "@/lib/online";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-line bg-white/80 px-5 py-8 text-center text-sm text-muted sm:px-8">
+    <footer className="mt-auto border-t border-line/10 bg-white/80 px-5 py-8 text-center text-sm text-muted sm:px-8">
       <BrandLogo size="footer" />
       <p className="mt-4">
         <a
@@ -14,14 +14,14 @@ export function SiteFooter() {
         >
           在线体验
         </a>
-        <span className="mx-1.5 text-line">·</span>
+        <span className="mx-1.5 text-line/10">·</span>
         需先注册账号，浏览器即可练习
       </p>
       <p className="mt-3">
         有任何问题可以联系作者
-        <span className="mx-1.5 text-line">·</span>
+        <span className="mx-1.5 text-line/10">·</span>
         微信 535938559
-        <span className="mx-1.5 text-line">·</span>
+        <span className="mx-1.5 text-line/10">·</span>
         <a
           href="mailto:baseheng@qq.com"
           className="text-ink underline-offset-2 transition hover:text-accent hover:underline"
@@ -38,7 +38,7 @@ export function SiteFooter() {
         >
           辽ICP备2025052002号
         </a>
-        <span className="text-line" aria-hidden>
+        <span className="text-line/10" aria-hidden>
           |
         </span>
         <a

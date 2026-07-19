@@ -155,7 +155,7 @@ export function PromoAdmin() {
           <button
             type="button"
             onClick={() => void loadSubmissions()}
-            className="rounded-full border border-line px-3 py-1.5 text-sm text-ink hover:border-accent"
+            className="rounded-full border border-line/10 px-3 py-1.5 text-sm text-ink hover:border-accent"
           >
             刷新
           </button>
@@ -186,7 +186,7 @@ export function PromoAdmin() {
               return (
                 <li
                   key={s.id}
-                  className="rounded-[1.25rem] border border-line bg-white/85 p-5 shadow-[0_12px_36px_rgba(11,31,51,0.06)]"
+                  className="rounded-[1.25rem] border border-line/10 bg-white/85 p-5 shadow-[0_12px_36px_rgba(11,31,51,0.06)]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
@@ -251,7 +251,7 @@ export function PromoAdmin() {
                               [s.id]: Number(e.target.value),
                             }))
                           }
-                          className="w-24 rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                          className="w-24 rounded-xl border border-line/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         />
                       </label>
                       <label className="block min-w-[12rem] flex-1">
@@ -269,7 +269,7 @@ export function PromoAdmin() {
                           }
                           placeholder="审核说明"
                           maxLength={500}
-                          className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                          className="w-full rounded-xl border border-line/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         />
                       </label>
                       <button

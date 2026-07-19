@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { CapWidget } from "@/components/CapWidget";
+import { MathCaptcha } from "@/components/MathCaptcha";
 import { PageShell } from "@/components/PageShell";
 import { VipBadge } from "@/components/VipBadge";
 import type { SessionUser } from "@/lib/auth";
@@ -35,22 +35,17 @@ export default function RedeemPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [capToken, setCapToken] = useState<string | null>(null);
-  const [capKey, setCapKey] = useState(0);
+  const [captchaSolved, setCaptchaSolved] = useState(false);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
-  const onTokenChange = useCallback((token: string | null) => {
-    setCapToken(token);
-    if (token) setError("");
-  }, []);
-
-  const onCaptchaError = useCallback((message: string) => {
-    setCapToken(null);
-    setError(message);
+  const onSolvedChange = useCallback((solved: boolean) => {
+    setCaptchaSolved(solved);
+    if (solved) setError("");
   }, []);
 
   function resetCaptcha() {
-    setCapToken(null);
-    setCapKey((k) => k + 1);
+    setCaptchaSolved(false);
+    setCaptchaKey((k) => k + 1);
   }
 
   useEffect(() => {
@@ -64,8 +59,8 @@ export default function RedeemPage() {
     e.preventDefault();
     setError("");
     setMessage("");
-    if (!capToken) {
-      setError("请先完成人机验证");
+    if (!captchaSolved) {
+      setError("请先完成验证码");
       return;
     }
     setBusy(true);
@@ -73,7 +68,7 @@ export default function RedeemPage() {
       const res = await fetch("/api/redeem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, captchaToken: capToken }),
+        body: JSON.stringify({ code }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -139,21 +134,14 @@ export default function RedeemPage() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="输入兑换码"
-              className="w-full rounded-2xl border border-line bg-white/90 px-4 py-3 uppercase tracking-wide text-ink outline-none transition focus:border-accent"
+              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-3 uppercase tracking-wide text-ink outline-none transition focus:border-accent"
               required
               disabled={!user}
             />
           </label>
 
           {user ? (
-            <div>
-              <p className="mb-2 text-sm text-muted">人机验证</p>
-              <CapWidget
-                key={capKey}
-                onTokenChange={onTokenChange}
-                onError={onCaptchaError}
-              />
-            </div>
+            <MathCaptcha key={captchaKey} onSolvedChange={onSolvedChange} />
           ) : null}
 
           {error ? (
@@ -169,7 +157,7 @@ export default function RedeemPage() {
 
           <button
             type="submit"
-            disabled={busy || !user || !capToken}
+            disabled={busy || !user || !captchaSolved}
             className="w-full rounded-full bg-accent px-6 py-3.5 text-base font-medium text-white shadow-lg shadow-[var(--glow)] transition hover:bg-accent-deep disabled:opacity-60"
           >
             {busy ? "兑换中…" : "立即兑换"}
@@ -177,7 +165,7 @@ export default function RedeemPage() {
         </form>
 
         {/* 次要：获取兑换码 */}
-        <section className="animate-rise-delay-3 mt-14 border-t border-line pt-10">
+        <section className="animate-rise-delay-3 mt-14 border-t border-line/10 pt-10">
           <h2 className="text-sm font-medium text-ink">还没有兑换码？</h2>
           <p className="mt-1 text-sm text-muted">
             支付后将收到兑换码，再回到上方填写即可。
@@ -193,7 +181,7 @@ export default function RedeemPage() {
                 className={`group relative rounded-2xl border px-4 py-4 transition hover:border-accent/40 hover:bg-white ${
                   plan.featured
                     ? "border-accent/25 bg-[#e8fff8]/50"
-                    : "border-line bg-white/70"
+                    : "border-line/10 bg-white/70"
                 }`}
               >
                 {plan.featured ? (

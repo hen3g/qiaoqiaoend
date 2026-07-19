@@ -35,7 +35,6 @@ export default async function RegisterPage({
         endpoint="/api/auth/register"
         submitLabel="创建账号"
         successRedirect={next}
-        requireCaptcha
         fields={[
           {
             name: "username",

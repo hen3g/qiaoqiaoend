@@ -161,7 +161,7 @@ export default function CoursesPage() {
               startTransition(() => setQuery(v));
             }}
             placeholder="搜索课程名称、主题…"
-            className="w-full rounded-2xl border border-line bg-white/85 px-4 py-3 text-sm text-ink outline-none ring-accent/30 transition placeholder:text-muted/70 focus:border-accent focus:ring-2"
+            className="w-full rounded-2xl border border-line/10 bg-white/85 px-4 py-3 text-sm text-ink outline-none ring-accent/30 transition placeholder:text-muted/70 focus:border-accent focus:ring-2"
           />
         </label>
         <p className="text-xs text-muted sm:shrink-0">
@@ -179,7 +179,7 @@ export default function CoursesPage() {
           className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
             activeSlug === "all"
               ? "bg-ink text-white shadow-sm"
-              : "border border-line bg-white/80 text-ink hover:border-accent/50"
+              : "border border-line/10 bg-white/80 text-ink hover:border-accent/50"
           }`}
         >
           <CategoryIcon slug="all" size={16} />
@@ -274,7 +274,7 @@ export default function CoursesPage() {
               {cat.courses.map((course) => (
                 <li
                   key={course.id}
-                  className="flex flex-col rounded-[1.25rem] border border-line bg-white/85 p-5 transition hover:border-accent/35"
+                  className="flex flex-col rounded-[1.25rem] border border-line/10 bg-white/85 p-5 transition hover:border-accent/35"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-[family-name:var(--font-display)] text-lg font-medium text-ink">

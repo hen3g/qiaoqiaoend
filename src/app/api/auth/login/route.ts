@@ -6,14 +6,12 @@ import {
   mapUser,
   setSessionCookie,
 } from "@/lib/auth";
-import { requireCapToken } from "@/lib/cap";
 import { query } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 
 const schema = z.object({
   username: z.string().min(1, "请输入用户名"),
   password: z.string().min(1, "请输入密码"),
-  captchaToken: z.string().min(1, "请先完成人机验证"),
 });
 
 type UserAuthRow = RowDataPacket & {
@@ -28,12 +26,6 @@ type UserAuthRow = RowDataPacket & {
 export async function POST(req: Request) {
   try {
     const body = schema.parse(await req.json());
-    try {
-      await requireCapToken(body.captchaToken);
-    } catch (err) {
-      return jsonError(err instanceof Error ? err.message : "人机验证失败");
-    }
-
     const username = body.username.trim().toLowerCase();
 
     const rows = await query<UserAuthRow[]>(

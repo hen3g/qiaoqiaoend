@@ -42,7 +42,6 @@ export default async function LoginPage({
         endpoint="/api/auth/login"
         submitLabel="登录"
         successRedirect={next}
-        requireCaptcha
         fields={[
           {
             name: "username",

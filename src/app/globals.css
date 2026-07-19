@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --bg: #f5f7fa;
@@ -10,19 +12,6 @@
   --warm: #e8893a;
   --line: rgba(18, 28, 43, 0.1);
   --glow: rgba(43, 109, 232, 0.22);
-}
-
-@theme inline {
-  --color-bg: var(--bg);
-  --color-bg-deep: var(--bg-deep);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-accent: var(--accent);
-  --color-accent-deep: var(--accent-deep);
-  --color-warm: var(--warm);
-  --color-line: var(--line);
-  --font-sans: var(--font-body);
-  --font-display: var(--font-display);
 }
 
 * {
@@ -109,88 +98,4 @@ body {
 
 .cursor-blink {
   animation: type-cursor 1s step-end infinite;
-}
-
-.cap-wrap {
-  position: relative;
-  width: 100%;
-  min-height: 64px;
-}
-
-.cap-wrap .cap-widget-pending {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.cap-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 64px;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0 18px;
-  border: 1px solid rgba(18, 28, 43, 0.1);
-  border-radius: 0.75rem;
-  background: #f5f7fa;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.cap-fallback-error {
-  color: #c24b1e;
-  background: #fff1eb;
-  border-color: rgba(194, 75, 30, 0.2);
-}
-
-.cap-retry {
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  padding: 8px 14px;
-}
-
-/* 兜底遮住右下角 Cap 外链（shadow DOM 内联样式可能抢回显示） */
-.cap-wrap::after {
-  content: "";
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  z-index: 3;
-  width: 44px;
-  height: 0px;
-  border-radius: 6px;
-  background: #f5f7fa;
-  pointer-events: auto;
-}
-
-.cap-wrap cap-widget {
-  --cap-background: #f5f7fa;
-  --cap-border-color: rgba(18, 28, 43, 0.1);
-  --cap-border-radius: 0.75rem;
-  --cap-widget-width: 100%;
-  --cap-widget-height: 64px;
-  --cap-widget-padding: 18px;
-  --cap-gap: 14px;
-  --cap-color: var(--ink);
-  --cap-checkbox-size: 28px;
-  --cap-checkbox-border: 1.5px solid rgba(18, 28, 43, 0.18);
-  --cap-checkbox-border-radius: 0.5rem;
-  --cap-checkbox-background: #ffffff;
-  --cap-spinner-color: var(--accent);
-  --cap-spinner-background-color: #e8effc;
-  --cap-spinner-thickness: 4px;
-  --cap-font: var(--font-body), "PingFang SC", "Noto Sans SC", sans-serif;
-  display: block;
-  width: 100%;
-  min-height: 64px;
-  height: 64px;
 }

@@ -81,7 +81,7 @@ export default function HomePage() {
               </a>
               <a
                 href="#download"
-                className="rounded-xl border border-line bg-white/70 px-7 py-3.5 text-base font-medium text-ink transition hover:border-accent hover:text-accent-deep"
+                className="rounded-xl border border-line/10 bg-white/70 px-7 py-3.5 text-base font-medium text-ink transition hover:border-accent hover:text-accent-deep"
               >
                 下载客户端
               </a>
@@ -125,7 +125,7 @@ export default function HomePage() {
         </section>
 
         {/* Product capabilities */}
-        <section className="border-y border-line bg-white/60">
+        <section className="border-y border-line/10 bg-white/60">
           <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
             <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
               软件能做什么
@@ -135,7 +135,7 @@ export default function HomePage() {
             </p>
             <div className="mt-14 grid gap-x-12 gap-y-12 sm:grid-cols-2">
               {capabilities.map((item) => (
-                <article key={item.title} className="border-t border-line pt-6">
+                <article key={item.title} className="border-t border-line/10 pt-6">
                   <h3 className="text-xl font-medium text-ink">{item.title}</h3>
                   <p className="mt-3 leading-relaxed text-muted">{item.desc}</p>
                 </article>

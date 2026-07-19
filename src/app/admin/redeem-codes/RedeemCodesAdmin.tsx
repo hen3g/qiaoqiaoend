@@ -231,7 +231,7 @@ export function RedeemCodesAdmin() {
                   max={36500}
                   value={days}
                   onChange={(e) => setDays(Number(e.target.value))}
-                  className="w-40 rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+                  className="w-40 rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
                   required={!permanent}
                 />
               </label>
@@ -256,7 +256,7 @@ export function RedeemCodesAdmin() {
                 max={10000}
                 value={maxUses}
                 onChange={(e) => setMaxUses(Number(e.target.value))}
-                className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+                className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
                 required
               />
               <span className="mt-1 block text-xs text-muted">
@@ -271,7 +271,7 @@ export function RedeemCodesAdmin() {
                 max={50}
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
-                className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+                className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
                 required
               />
             </label>
@@ -329,7 +329,7 @@ export function RedeemCodesAdmin() {
               {created.map((c) => (
                 <li
                   key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white/80 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line/10 bg-white/80 px-4 py-3"
                 >
                   <div className="min-w-0">
                     <code className="break-all text-sm tracking-wide text-ink">
@@ -342,7 +342,7 @@ export function RedeemCodesAdmin() {
                   <button
                     type="button"
                     onClick={() => void copyText(c.code)}
-                    className="rounded-full border border-line px-3 py-1.5 text-sm text-ink hover:border-accent"
+                    className="rounded-full border border-line/10 px-3 py-1.5 text-sm text-ink hover:border-accent"
                   >
                     复制
                   </button>
@@ -364,7 +364,7 @@ export function RedeemCodesAdmin() {
               <button
                 type="button"
                 onClick={() => void loadCodes()}
-                className="rounded-full border border-line px-3 py-1.5 text-sm text-ink hover:border-accent"
+                className="rounded-full border border-line/10 px-3 py-1.5 text-sm text-ink hover:border-accent"
               >
                 刷新
               </button>
@@ -385,7 +385,7 @@ export function RedeemCodesAdmin() {
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[40rem] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line text-muted">
+                  <tr className="border-b border-line/10 text-muted">
                     <th className="py-2 pr-2 font-medium">
                       <input
                         type="checkbox"

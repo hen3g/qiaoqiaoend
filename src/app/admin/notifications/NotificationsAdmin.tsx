@@ -214,7 +214,7 @@ export function NotificationsAdmin() {
                 onChange={(e) => setVersion(e.target.value)}
                 placeholder="例如 1.2.0"
                 maxLength={64}
-                className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+                className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
                 required
               />
             </label>
@@ -227,7 +227,7 @@ export function NotificationsAdmin() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
-              className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
               required
             />
           </label>
@@ -239,7 +239,7 @@ export function NotificationsAdmin() {
               onChange={(e) => setSummary(e.target.value)}
               maxLength={500}
               rows={3}
-              className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
               required
             />
           </label>
@@ -254,7 +254,7 @@ export function NotificationsAdmin() {
               onChange={(e) => setImageUrl(e.target.value)}
               placeholder="https://"
               maxLength={500}
-              className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
             />
           </label>
 
@@ -266,7 +266,7 @@ export function NotificationsAdmin() {
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="https://"
               maxLength={500}
-              className="w-full rounded-2xl border border-line bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
+              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
               required
             />
           </label>
@@ -302,7 +302,7 @@ export function NotificationsAdmin() {
             <button
               type="button"
               onClick={() => void loadNotifications()}
-              className="rounded-full border border-line px-3 py-1.5 text-sm text-ink hover:border-accent"
+              className="rounded-full border border-line/10 px-3 py-1.5 text-sm text-ink hover:border-accent"
             >
               刷新
             </button>
@@ -315,7 +315,7 @@ export function NotificationsAdmin() {
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-line bg-white/80 p-4 sm:flex-row sm:items-start"
+                  className="flex flex-col gap-3 rounded-2xl border border-line/10 bg-white/80 p-4 sm:flex-row sm:items-start"
                 >
                   {n.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element

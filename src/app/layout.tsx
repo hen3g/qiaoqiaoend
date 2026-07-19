@@ -41,13 +41,7 @@ export default function RootLayout({
 
   return (
     <html lang="zh-CN" className={`${display.variable} ${body.variable} h-full`}>
-      <body className="min-h-full antialiased">
-        {/* Cap widget prefetches WASM at import time; set same-origin URL before any bundles. */}
-        <Script id="cap-wasm-url" strategy="beforeInteractive">
-          {`window.CAP_CUSTOM_WASM_URL="/cap/cap_wasm_bg.wasm";`}
-        </Script>
-        {children}
-      </body>
+      <body className="min-h-full antialiased">{children}</body>
       {enableAnalytics ? (
         <>
           <Script

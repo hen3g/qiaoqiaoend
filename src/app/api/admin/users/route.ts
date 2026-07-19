@@ -14,6 +14,7 @@ type UserRow = RowDataPacket & {
   vip_expires_at: Date | string | null;
   created_at: Date | string | null;
   token_version: number;
+  unlocked_difficulty: number | null;
   has_client: number | boolean;
   has_web: number | boolean;
   last_notification_at: Date | string | null;
@@ -22,6 +23,8 @@ type UserRow = RowDataPacket & {
 
 export type AdminUserDto = SessionUser & {
   tokenVersion: number;
+  /** 用户当前解锁星级（1–5），无进度记录时默认为 1 */
+  unlockedDifficulty: number;
   /** 是否曾以登录态从客户端请求过通知接口 */
   hasClient: boolean;
   /** 是否曾以登录态从在线版请求过通知接口 */
@@ -65,11 +68,13 @@ async function listUsers(): Promise<AdminUserDto[]> {
   await ensureNotificationStatsTables();
   const rows = await query<UserRow[]>(
     `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.created_at, u.token_version,
+            sp.unlocked_difficulty,
             COALESCE(n.has_client, 0) AS has_client,
             COALESCE(n.has_web, 0) AS has_web,
             n.last_notification_at,
             COALESCE(n.notification_hit_count, 0) AS notification_hit_count
      FROM users u
+     LEFT JOIN user_skill_progress sp ON sp.user_id = u.id
      LEFT JOIN (
        SELECT user_id,
               MAX(CASE WHEN source = 'client' THEN 1 ELSE 0 END) AS has_client,
@@ -84,9 +89,14 @@ async function listUsers(): Promise<AdminUserDto[]> {
   return rows.map((row) => {
     const hasClient = Boolean(row.has_client);
     const hasWeb = Boolean(row.has_web);
+    const unlockedDifficulty = Math.min(
+      5,
+      Math.max(1, Number(row.unlocked_difficulty) || 1),
+    );
     return {
       ...mapUser(row),
       tokenVersion: row.token_version ?? 0,
+      unlockedDifficulty,
       hasClient,
       hasWeb,
       clientUsage: toClientUsage(hasClient, hasWeb),

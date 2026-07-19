@@ -43,7 +43,7 @@ export function OAuthConsentForm({
           <span className="font-medium text-ink"> {accountLabel}</span>。
         </p>
 
-        <div className="mt-8 rounded-2xl border border-line bg-[#f7fbfe] px-5 py-4">
+        <div className="mt-8 rounded-2xl border border-line/10 bg-[#f7fbfe] px-5 py-4">
           <p className="text-sm font-medium text-ink/80">将允许应用：</p>
           <ul className="mt-3 space-y-2 text-[15px] text-ink">
             {permissions.map((item) => (
@@ -72,7 +72,7 @@ export function OAuthConsentForm({
             type="submit"
             name="decision"
             value="allow"
-            className="w-full rounded-full bg-accent px-6 py-3.5 text-base font-medium text-white shadow-lg shadow-[var(--glow)] transition hover:bg-accent-deep"
+            className="w-full cursor-pointer rounded-full bg-accent px-6 py-3.5 text-base font-medium text-white shadow-lg shadow-[var(--glow)] transition hover:bg-accent-deep"
           >
             允许
           </button>
@@ -80,7 +80,7 @@ export function OAuthConsentForm({
             type="submit"
             name="decision"
             value="deny"
-            className="w-full rounded-full border border-line bg-white px-6 py-3.5 text-base font-medium text-ink transition hover:bg-[#f7fbfe]"
+            className="w-full rounded-full border border-line/10 bg-white px-6 py-3.5 text-base font-medium text-ink transition hover:bg-[#f7fbfe]"
           >
             拒绝
           </button>
