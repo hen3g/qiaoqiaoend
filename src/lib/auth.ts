@@ -115,7 +115,7 @@ export async function readSessionUserId(token: string): Promise<number | null> {
 }
 
 export async function setSessionCookie(token: string) {
-  const jar = await cookies();
+  const jar = cookies();
   jar.set(SESSION_COOKIE, token, {
     ...cookieBase(),
     maxAge: SESSION_DAYS * 24 * 60 * 60,
@@ -123,7 +123,7 @@ export async function setSessionCookie(token: string) {
 }
 
 export async function clearSessionCookie() {
-  const jar = await cookies();
+  const jar = cookies();
   jar.set(SESSION_COOKIE, "", {
     ...cookieBase(),
     maxAge: 0,
@@ -131,7 +131,7 @@ export async function clearSessionCookie() {
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
-  const jar = await cookies();
+  const jar = cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 

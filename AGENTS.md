@@ -1,5 +1,5 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# Project notes for agents
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+This app runs on **Next.js 14** (App Router) and **React 18**.
+
+Prefer patterns and APIs from Next.js 14 / React 18. Do not assume Next.js 15+ async `cookies()` / `params` / `searchParams`, or React 19 APIs.

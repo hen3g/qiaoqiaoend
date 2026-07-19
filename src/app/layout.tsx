@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_SC, Outfit } from "next/font/google";
 import Script from "next/script";
+import { VConsole } from "@/components/VConsole";
 import "./globals.css";
 
 const GA_ID = "G-GY20QVPJG6";
@@ -38,10 +39,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const enableAnalytics = process.env.NODE_ENV === "production";
+  const enableVConsole = process.env.NODE_ENV === "development";
 
   return (
     <html lang="zh-CN" className={`${display.variable} ${body.variable} h-full`}>
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        {children}
+        {enableVConsole ? <VConsole /> : null}
+      </body>
       {enableAnalytics ? (
         <>
           <Script

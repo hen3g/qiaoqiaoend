@@ -8,7 +8,7 @@ import {
 import { cookies } from "next/headers";
 
 export async function POST() {
-  const jar = await cookies();
+  const jar = cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) {
     const userId = await readSessionUserId(token);

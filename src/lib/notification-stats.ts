@@ -96,7 +96,7 @@ export async function resolveStatsUserId(req: Request): Promise<number | null> {
     if (access) return access.userId;
   }
 
-  const jar = await cookies();
+  const jar = cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return readSessionUserId(token);

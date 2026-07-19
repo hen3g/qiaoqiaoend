@@ -6,7 +6,7 @@
     "dev": "next dev -p 4891",
     "build": "next build",
     "start": "next start -p 4891",
-    "lint": "eslint",
+    "lint": "next lint",
     "sync:courses": "node --env-file=.env.local scripts/sync-courses.mjs",
     "sync:courses:db": "node --env-file=.env.local scripts/sync-courses.mjs --skip-upload"
   },
@@ -14,9 +14,9 @@
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
     "mysql2": "^3.22.6",
-    "next": "16.2.10",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -24,15 +24,16 @@
     "@aws-sdk/lib-storage": "^3.1085.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
     "adm-zip": "^0.6.0",
     "autoprefixer": "^10.5.4",
     "dotenv": "^17.4.2",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.35",
     "postcss": "^8.5.20",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vconsole": "^3.15.1"
   }
 }

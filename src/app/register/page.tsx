@@ -5,7 +5,7 @@ import { sanitizeNextPath } from "@/lib/oauth";
 
 export const metadata = { title: "注册" };
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+type SearchParams = Record<string, string | string[] | undefined>;
 
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
@@ -17,8 +17,7 @@ export default async function RegisterPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const params = await searchParams;
-  const next = sanitizeNextPath(first(params.next)) || "/account";
+  const next = sanitizeNextPath(first(searchParams.next)) || "/account";
   const loginHref =
     next !== "/account"
       ? `/login?next=${encodeURIComponent(next)}`

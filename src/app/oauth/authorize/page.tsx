@@ -3,7 +3,7 @@ import { OAuthConsentForm } from "@/components/OAuthConsentForm";
 import { getCurrentUser } from "@/lib/auth";
 import { findClient, isAllowedRedirectUri } from "@/lib/oauth";
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+type SearchParams = Record<string, string | string[] | undefined>;
 
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
@@ -22,14 +22,13 @@ export default async function OAuthAuthorizePage({
 }: {
   searchParams: SearchParams;
 }) {
-  const params = await searchParams;
-  const clientId = first(params.client_id);
-  const redirectUri = first(params.redirect_uri);
-  const responseType = first(params.response_type);
-  const state = first(params.state);
-  const codeChallenge = first(params.code_challenge);
-  const codeChallengeMethod = first(params.code_challenge_method);
-  const scope = first(params.scope);
+  const clientId = first(searchParams.client_id);
+  const redirectUri = first(searchParams.redirect_uri);
+  const responseType = first(searchParams.response_type);
+  const state = first(searchParams.state);
+  const codeChallenge = first(searchParams.code_challenge);
+  const codeChallengeMethod = first(searchParams.code_challenge_method);
+  const scope = first(searchParams.scope);
 
   const client = findClient(clientId);
   if (!client || !redirectUri || !isAllowedRedirectUri(client, redirectUri)) {

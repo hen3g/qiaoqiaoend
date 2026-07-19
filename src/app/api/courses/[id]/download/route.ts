@@ -2,11 +2,11 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseAccess, userCanAccessCourse } from "@/lib/courses";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: { id: string } };
 
 export async function GET(_req: Request, { params }: Params) {
   try {
-    const { id } = await params;
+    const { id } = params;
     const courseId = Number(id);
     if (!Number.isFinite(courseId)) {
       return jsonError("课程不存在", 404);
