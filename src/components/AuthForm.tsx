@@ -44,6 +44,12 @@ export function AuthForm({
 
   const onTokenChange = useCallback((token: string | null) => {
     setCapToken(token);
+    if (token) setError("");
+  }, []);
+
+  const onCaptchaError = useCallback((message: string) => {
+    setCapToken(null);
+    setError(message);
   }, []);
 
   function resetCaptcha() {
@@ -147,7 +153,11 @@ export function AuthForm({
         {requireCaptcha ? (
           <div className="pt-1">
             <p className="mb-2 text-sm font-medium text-ink/80">人机验证</p>
-            <CapWidget key={capKey} onTokenChange={onTokenChange} />
+            <CapWidget
+              key={capKey}
+              onTokenChange={onTokenChange}
+              onError={onCaptchaError}
+            />
           </div>
         ) : null}
 

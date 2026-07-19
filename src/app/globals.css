@@ -114,6 +114,48 @@ body {
 .cap-wrap {
   position: relative;
   width: 100%;
+  min-height: 64px;
+}
+
+.cap-wrap .cap-widget-pending {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cap-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 18px;
+  border: 1px solid rgba(18, 28, 43, 0.1);
+  border-radius: 0.75rem;
+  background: #f5f7fa;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.cap-fallback-error {
+  color: #c24b1e;
+  background: #fff1eb;
+  border-color: rgba(194, 75, 30, 0.2);
+}
+
+.cap-retry {
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  padding: 8px 14px;
 }
 
 /* 兜底遮住右下角 Cap 外链（shadow DOM 内联样式可能抢回显示） */
@@ -149,4 +191,6 @@ body {
   --cap-font: var(--font-body), "PingFang SC", "Noto Sans SC", sans-serif;
   display: block;
   width: 100%;
+  min-height: 64px;
+  height: 64px;
 }
