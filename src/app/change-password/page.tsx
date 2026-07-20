@@ -1,43 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { AuthForm } from "@/components/AuthForm";
 import { AuthShell } from "@/components/AuthShell";
-import type { SessionUser } from "@/lib/auth";
 
 export default function ChangePasswordPage() {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const { user, status } = useAuth();
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => setUser(data.user ?? null))
-      .finally(() => setLoaded(true));
-  }, []);
-
-  if (!loaded) {
+  if (status === "loading") {
     return (
       <AuthShell asideTitle="修改密码" asideText="加载中…">
-        <p className="text-muted">加载中…</p>
+        <div className="space-y-3" aria-busy aria-label="加载中">
+          <div className="skeleton h-8 w-40 rounded-lg" />
+          <div className="skeleton h-4 w-56 rounded" />
+          <div className="skeleton mt-6 h-11 w-full rounded-xl" />
+          <div className="skeleton h-11 w-full rounded-xl" />
+          <div className="skeleton h-11 w-28 rounded-xl" />
+        </div>
       </AuthShell>
     );
   }
 
   if (!user) {
     return (
-      <AuthShell
-        asideTitle="修改密码"
-        asideText="登录后才能修改密码。"
-      >
+      <AuthShell asideTitle="修改密码" asideText="登录后才能修改密码。">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
             需要登录
           </h2>
-          <p className="mt-3 text-muted">
-            请先登录后再修改密码。
-          </p>
+          <p className="mt-3 text-muted">请先登录后再修改密码。</p>
           <Link
             href="/login"
             className="mt-8 inline-flex rounded-full bg-accent px-6 py-3 text-sm font-medium text-white hover:bg-accent-deep"

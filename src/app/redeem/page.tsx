@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { MathCaptcha } from "@/components/MathCaptcha";
 import { PageShell } from "@/components/PageShell";
 import { VipBadge } from "@/components/VipBadge";
-import type { SessionUser } from "@/lib/auth";
 
 const plans = [
   {
@@ -29,12 +29,11 @@ const plans = [
 ] as const;
 
 export default function RedeemPage() {
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const { user, status, setUser } = useAuth();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [captchaSolved, setCaptchaSolved] = useState(false);
   const [captchaKey, setCaptchaKey] = useState(0);
 
@@ -47,13 +46,6 @@ export default function RedeemPage() {
     setCaptchaSolved(false);
     setCaptchaKey((k) => k + 1);
   }
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => setUser(data.user ?? null))
-      .finally(() => setLoaded(true));
-  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -98,7 +90,7 @@ export default function RedeemPage() {
           输入兑换码延长会员时间。
         </p>
 
-        {loaded && !user ? (
+        {status === "ready" && !user ? (
           <p className="animate-rise-delay-1 mt-6 rounded-xl bg-[#fff8ef] px-3 py-2 text-sm text-muted">
             请先{" "}
             <Link href="/login" className="text-accent-deep hover:underline">

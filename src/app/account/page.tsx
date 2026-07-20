@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { PageShell } from "@/components/PageShell";
 import { VipBadge } from "@/components/VipBadge";
 import type { SessionUser } from "@/lib/auth";
@@ -23,6 +24,12 @@ const STATUS_LABEL: Record<PromoStatus, string> = {
   pending: "审核中",
   rewarded: "已发放",
   rejected: "已驳回",
+};
+
+const STATUS_STYLE: Record<PromoStatus, string> = {
+  pending: "bg-[#fff6eb] text-warm",
+  rewarded: "bg-[#eaf2ff] text-accent-deep",
+  rejected: "bg-[#fff1eb] text-[#c24b1e]",
 };
 
 function vipSummary(user: SessionUser): string {
@@ -54,14 +61,48 @@ function shortenUrl(url: string): string {
   }
 }
 
+function AccountSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl" aria-busy aria-label="加载中">
+      <div className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/65 p-6 shadow-[0_20px_50px_rgba(11,21,36,0.06)] backdrop-blur-sm sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="skeleton h-16 w-16 shrink-0 rounded-2xl" />
+          <div className="min-w-0 flex-1 space-y-3 pt-1">
+            <div className="skeleton h-7 w-40 rounded-lg" />
+            <div className="skeleton h-4 w-56 max-w-full rounded" />
+            <div className="skeleton h-4 w-32 rounded" />
+          </div>
+        </div>
+        <div className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-11 rounded-xl" />
+          ))}
+        </div>
+      </div>
+      <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/65 p-6 shadow-[0_20px_50px_rgba(11,21,36,0.06)] backdrop-blur-sm sm:p-8">
+        <div className="skeleton h-6 w-28 rounded-lg" />
+        <div className="skeleton mt-3 h-4 w-full max-w-md rounded" />
+        <div className="mt-6 space-y-3">
+          <div className="skeleton h-11 w-full rounded-xl" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="skeleton h-11 rounded-xl" />
+            <div className="skeleton h-11 rounded-xl" />
+          </div>
+          <div className="skeleton h-10 w-28 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AccountPage() {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const { user, status, setUser } = useAuth();
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const [nickname, setNickname] = useState("");
   const [nicknameError, setNicknameError] = useState("");
   const [nicknameBusy, setNicknameBusy] = useState(false);
   const [submissions, setSubmissions] = useState<PromoSubmission[]>([]);
+  const [promoLoaded, setPromoLoaded] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [likesClaimed, setLikesClaimed] = useState("");
   const [note, setNote] = useState("");
@@ -78,15 +119,19 @@ export default function AccountPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then(async (data) => {
-        const u = data.user ?? null;
-        setUser(u);
-        if (u) await loadSubmissions();
-      })
-      .finally(() => setLoaded(true));
-  }, [loadSubmissions]);
+    if (status !== "ready" || !user) {
+      setPromoLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    setPromoLoaded(false);
+    void loadSubmissions().finally(() => {
+      if (!cancelled) setPromoLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, user, loadSubmissions]);
 
   useEffect(() => {
     if (!nicknameOpen) return;
@@ -170,243 +215,56 @@ export default function AccountPage() {
     }
   }
 
-  if (!loaded) {
-    return (
-      <PageShell>
-        <p className="text-muted">加载中…</p>
-      </PageShell>
-    );
-  }
-
-  if (!user) {
-    return (
-      <PageShell>
-        <div className="mx-auto max-w-xl animate-rise pt-8">
-          <p className="text-sm tracking-wide text-muted">账号</p>
-          <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
-            登录后查看
-          </h1>
-          <p className="mt-3 text-muted">管理昵称、会员状态与宣传投稿。</p>
-          <Link
-            href="/login"
-            className="mt-8 inline-flex rounded-xl bg-accent px-6 py-3 text-sm font-medium text-white transition hover:bg-accent-deep"
-          >
-            去登录
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
-  const isAdmin = user.username.toLowerCase() === "channg";
-  const links = [
-    { href: "/courses", label: "课程下载" },
-    { href: "/redeem", label: "兑换会员" },
-    { href: "/#download", label: "下载客户端" },
-    { href: "/change-password", label: "修改密码" },
-    ...(isAdmin ? [{ href: "/admin/promo", label: "宣传后台" }] : []),
-  ];
-
   return (
     <PageShell>
-      <div className="mx-auto max-w-xl">
-        {/* Identity */}
-        <header className="animate-rise pt-4 sm:pt-8">
-          <div className="flex items-start gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-deep font-[family-name:var(--font-display)] text-xl font-semibold text-white shadow-[0_10px_28px_var(--glow)]"
-              aria-hidden
-            >
-              {monogram(user)}
-            </div>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
-                  {displayName(user)}
-                </h1>
-                <button
-                  type="button"
-                  onClick={openNicknameDialog}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-white/80 hover:text-accent-deep"
-                  aria-label="修改昵称"
-                  title="修改昵称"
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden
-                  >
-                    <path
-                      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M13.5 6.5l3 3"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                {user.isVip ? (
-                  <span className="inline-flex items-center gap-1 text-accent-deep">
-                    <VipBadge size={14} />
-                    <span className="text-xs font-medium">会员</span>
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-1.5 text-sm text-muted">
-                @{user.username}
-                <span className="mx-2 text-line/10">·</span>
-                {vipSummary(user)}
-                <span className="mx-2 text-line/10">·</span>
-                {user.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString("zh-CN")
-                  : "—"}{" "}
-                注册
+      <div className="min-h-[min(72vh,44rem)]">
+        {status === "loading" ? (
+          <AccountSkeleton />
+        ) : !user ? (
+          <div className="animate-fade-in mx-auto max-w-xl pt-6 sm:pt-10">
+            <div className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 p-8 shadow-[0_24px_60px_rgba(11,21,36,0.08)] backdrop-blur-sm sm:p-10">
+              <p className="text-sm tracking-wide text-muted">账号中心</p>
+              <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
+                登录后查看
+              </h1>
+              <p className="mt-3 max-w-sm text-muted">
+                管理昵称、会员状态与宣传投稿，兑换与课程入口也在这里。
               </p>
-            </div>
-          </div>
-
-          <nav
-            className="mt-8 flex flex-wrap gap-x-1 gap-y-1 border-y border-line/10 py-3"
-            aria-label="账号快捷入口"
-          >
-            {links.map((link, i) => (
-              <span key={link.href} className="inline-flex items-center">
-                {i > 0 ? (
-                  <span className="mx-2 select-none text-line/10" aria-hidden>
-                    /
-                  </span>
-                ) : null}
+              <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href={link.href}
-                  className="text-sm text-ink/80 transition hover:text-accent-deep"
+                  href="/login"
+                  className="inline-flex rounded-xl bg-accent px-6 py-3 text-sm font-medium text-white transition hover:bg-accent-deep"
                 >
-                  {link.label}
+                  去登录
                 </Link>
-              </span>
-            ))}
-          </nav>
-        </header>
-
-        {/* Promo */}
-        <section className="animate-rise-delay-1 mt-10">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-ink">
-              宣传有礼
-            </h2>
-            <p className="text-xs text-muted">1 赞 = 1 个月会员</p>
+                <Link
+                  href="/register"
+                  className="inline-flex rounded-xl border border-line/10 bg-white/80 px-6 py-3 text-sm font-medium text-ink transition hover:border-accent hover:text-accent-deep"
+                >
+                  注册账号
+                </Link>
+              </div>
+            </div>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            拍短视频宣传「宝贝英语」并露出本程序，提交链接等待审核。也可加微信{" "}
-            <span className="text-ink">535938559</span> 沟通。
-          </p>
-
-          <form onSubmit={onPromoSubmit} className="mt-6 space-y-3">
-            <input
-              type="url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="短视频链接 https://…"
-              required
-              maxLength={500}
-              aria-label="短视频链接"
-              className="w-full rounded-xl border border-line/10 bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="number"
-                min={0}
-                max={10000000}
-                value={likesClaimed}
-                onChange={(e) => setLikesClaimed(e.target.value)}
-                placeholder="点赞数（可选）"
-                aria-label="点赞数"
-                className="w-full rounded-xl border border-line/10 bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
-              />
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="备注（可选）"
-                maxLength={255}
-                aria-label="备注"
-                className="w-full rounded-xl border border-line/10 bg-white/80 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
-              />
-            </div>
-
-            {promoError ? (
-              <p className="text-sm text-[#c24b1e]">{promoError}</p>
-            ) : null}
-            {promoMessage ? (
-              <p className="text-sm text-accent-deep">{promoMessage}</p>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={promoBusy}
-              className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-60"
-            >
-              {promoBusy ? "提交中…" : "提交投稿"}
-            </button>
-          </form>
-
-          {submissions.length > 0 ? (
-            <div className="mt-10">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
-                我的投稿
-              </h3>
-              <ul className="mt-3">
-                {submissions.map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex items-baseline justify-between gap-4 border-t border-line/70 py-3 first:border-t-0 first:pt-0"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <a
-                        href={s.videoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-sm text-ink transition hover:text-accent-deep"
-                        title={s.videoUrl}
-                      >
-                        {shortenUrl(s.videoUrl)}
-                      </a>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {s.createdAt
-                          ? new Date(s.createdAt).toLocaleDateString("zh-CN")
-                          : "—"}
-                        {s.likesClaimed != null
-                          ? ` · ${s.likesClaimed} 赞`
-                          : ""}
-                        {s.status === "rewarded"
-                          ? ` · +${s.monthsGranted} 个月`
-                          : ""}
-                        {s.adminNote ? ` · ${s.adminNote}` : ""}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 text-xs ${
-                        s.status === "rewarded"
-                          ? "text-accent-deep"
-                          : s.status === "rejected"
-                            ? "text-[#c24b1e]"
-                            : "text-muted"
-                      }`}
-                    >
-                      {STATUS_LABEL[s.status]}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
+        ) : (
+          <AccountContent
+            user={user}
+            links={buildLinks(user)}
+            submissions={submissions}
+            promoLoaded={promoLoaded}
+            videoUrl={videoUrl}
+            likesClaimed={likesClaimed}
+            note={note}
+            promoError={promoError}
+            promoMessage={promoMessage}
+            promoBusy={promoBusy}
+            onOpenNickname={openNicknameDialog}
+            onPromoSubmit={onPromoSubmit}
+            setVideoUrl={setVideoUrl}
+            setLikesClaimed={setLikesClaimed}
+            setNote={setNote}
+          />
+        )}
       </div>
 
       {nicknameOpen ? (
@@ -418,7 +276,7 @@ export default function AccountPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="nickname-dialog-title"
-            className="animate-rise w-full max-w-[22rem] rounded-2xl border border-line/10 bg-white p-5 shadow-[0_24px_60px_rgba(11,21,36,0.18)]"
+            className="animate-fade-in w-full max-w-[22rem] rounded-2xl border border-line/10 bg-white p-5 shadow-[0_24px_60px_rgba(11,21,36,0.18)]"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
@@ -465,5 +323,259 @@ export default function AccountPage() {
         </div>
       ) : null}
     </PageShell>
+  );
+}
+
+function buildLinks(user: SessionUser) {
+  const isAdmin = user.username.toLowerCase() === "channg";
+  return [
+    { href: "/courses", label: "课程下载" },
+    { href: "/redeem", label: "兑换会员" },
+    { href: "/#download", label: "下载客户端" },
+    { href: "/change-password", label: "修改密码" },
+    ...(isAdmin ? [{ href: "/admin/promo", label: "宣传后台" }] : []),
+  ];
+}
+
+function AccountContent({
+  user,
+  links,
+  submissions,
+  promoLoaded,
+  videoUrl,
+  likesClaimed,
+  note,
+  promoError,
+  promoMessage,
+  promoBusy,
+  onOpenNickname,
+  onPromoSubmit,
+  setVideoUrl,
+  setLikesClaimed,
+  setNote,
+}: {
+  user: SessionUser;
+  links: { href: string; label: string }[];
+  submissions: PromoSubmission[];
+  promoLoaded: boolean;
+  videoUrl: string;
+  likesClaimed: string;
+  note: string;
+  promoError: string;
+  promoMessage: string;
+  promoBusy: boolean;
+  onOpenNickname: () => void;
+  onPromoSubmit: (e: FormEvent) => void;
+  setVideoUrl: (v: string) => void;
+  setLikesClaimed: (v: string) => void;
+  setNote: (v: string) => void;
+}) {
+  return (
+    <div className="animate-fade-in mx-auto max-w-2xl space-y-6">
+      <section className="relative overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(11,21,36,0.08)] backdrop-blur-sm">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-br from-[#dce9ff] via-[#eef4ff] to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-warm/15 blur-3xl"
+        />
+        <div className="relative p-6 sm:p-8">
+          <div className="flex items-start gap-4 sm:gap-5">
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-deep font-[family-name:var(--font-display)] text-2xl font-semibold text-white shadow-[0_12px_32px_var(--glow)]"
+              aria-hidden
+            >
+              {monogram(user)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink sm:text-[1.85rem]">
+                  {displayName(user)}
+                </h1>
+                <button
+                  type="button"
+                  onClick={onOpenNickname}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-accent-deep"
+                  aria-label="修改昵称"
+                  title="修改昵称"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <path
+                      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M13.5 6.5l3 3"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="mt-1 text-sm text-muted">@{user.username}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                    user.isVip
+                      ? "bg-[#eaf2ff] text-accent-deep"
+                      : "bg-white/90 text-muted"
+                  }`}
+                >
+                  {user.isVip ? <VipBadge size={13} /> : null}
+                  {vipSummary(user)}
+                </span>
+                <span className="text-xs text-muted">
+                  {user.createdAt
+                    ? `${new Date(user.createdAt).toLocaleDateString("zh-CN")} 注册`
+                    : "注册时间未知"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <nav
+            className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4"
+            aria-label="账号快捷入口"
+          >
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-xl border border-line/10 bg-white/80 px-3 py-2.5 text-center text-sm font-medium text-ink transition hover:border-accent/40 hover:bg-white hover:text-accent-deep"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 p-6 shadow-[0_24px_60px_rgba(11,21,36,0.08)] backdrop-blur-sm sm:p-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-ink">
+              宣传有礼
+            </h2>
+            <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">
+              拍短视频宣传「宝贝英语」并露出本程序，提交链接等待审核。也可加微信{" "}
+              <span className="font-medium text-ink">535938559</span> 沟通。
+            </p>
+          </div>
+          <p className="rounded-full bg-[#fff6eb] px-3 py-1 text-xs font-medium text-warm">
+            1 赞 = 1 个月会员
+          </p>
+        </div>
+
+        <form onSubmit={onPromoSubmit} className="mt-6 space-y-3">
+          <input
+            type="url"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="短视频链接 https://…"
+            required
+            maxLength={500}
+            aria-label="短视频链接"
+            className="w-full rounded-xl border border-line/10 bg-white/90 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="number"
+              min={0}
+              max={10000000}
+              value={likesClaimed}
+              onChange={(e) => setLikesClaimed(e.target.value)}
+              placeholder="点赞数（可选）"
+              aria-label="点赞数"
+              className="w-full rounded-xl border border-line/10 bg-white/90 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+            />
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="备注（可选）"
+              maxLength={255}
+              aria-label="备注"
+              className="w-full rounded-xl border border-line/10 bg-white/90 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent"
+            />
+          </div>
+
+          {promoError ? (
+            <p className="text-sm text-[#c24b1e]">{promoError}</p>
+          ) : null}
+          {promoMessage ? (
+            <p className="text-sm text-accent-deep">{promoMessage}</p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={promoBusy}
+            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-60"
+          >
+            {promoBusy ? "提交中…" : "提交投稿"}
+          </button>
+        </form>
+
+        <div className="mt-8 border-t border-line/10 pt-6">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
+            我的投稿
+          </h3>
+          {!promoLoaded ? (
+            <div className="mt-4 space-y-3" aria-busy aria-label="投稿加载中">
+              <div className="skeleton h-14 w-full rounded-xl" />
+              <div className="skeleton h-14 w-full rounded-xl" />
+            </div>
+          ) : submissions.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">还没有投稿，提交第一条试试。</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {submissions.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex items-start justify-between gap-4 rounded-xl border border-line/10 bg-white/80 px-3.5 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={s.videoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate text-sm font-medium text-ink transition hover:text-accent-deep"
+                      title={s.videoUrl}
+                    >
+                      {shortenUrl(s.videoUrl)}
+                    </a>
+                    <p className="mt-1 text-xs text-muted">
+                      {s.createdAt
+                        ? new Date(s.createdAt).toLocaleDateString("zh-CN")
+                        : "—"}
+                      {s.likesClaimed != null ? ` · ${s.likesClaimed} 赞` : ""}
+                      {s.status === "rewarded"
+                        ? ` · +${s.monthsGranted} 个月`
+                        : ""}
+                      {s.adminNote ? ` · ${s.adminNote}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[s.status]}`}
+                  >
+                    {STATUS_LABEL[s.status]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

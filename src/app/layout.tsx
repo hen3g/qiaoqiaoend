@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_SC, Outfit } from "next/font/google";
 import Script from "next/script";
+import { AuthProvider } from "@/components/AuthProvider";
 import { VConsole } from "@/components/VConsole";
 import "./globals.css";
 
@@ -44,8 +45,10 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className={`${display.variable} ${body.variable} h-full`}>
       <body className="min-h-full antialiased">
-        {children}
-        {enableVConsole ? <VConsole /> : null}
+        <AuthProvider>
+          {children}
+          {enableVConsole ? <VConsole /> : null}
+        </AuthProvider>
       </body>
       {enableAnalytics ? (
         <>

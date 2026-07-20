@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { VipBadge } from "@/components/VipBadge";
-import type { SessionUser } from "@/lib/auth";
 import { ONLINE_CLIENT_URL } from "@/lib/online";
 
 const links = [
@@ -14,34 +13,21 @@ const links = [
   { href: "/redeem", label: "兑换" },
 ];
 
+function AuthSlotSkeleton() {
+  return (
+    <div
+      className="flex h-9 min-w-[7.5rem] items-center justify-end gap-2"
+      aria-hidden
+    >
+      <span className="h-4 w-14 animate-pulse rounded bg-line/10" />
+      <span className="h-9 w-16 animate-pulse rounded-lg bg-line/10" />
+    </div>
+  );
+}
+
 export function SiteHeader() {
   const pathname = usePathname();
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setUser(data.user ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname]);
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    window.location.href = "/";
-  }
+  const { user, status, logout } = useAuth();
 
   return (
     <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
@@ -68,27 +54,29 @@ export function SiteHeader() {
             {link.label}
           </Link>
         ))}
-        {loaded && user ? (
-          <>
+        {status === "loading" ? (
+          <AuthSlotSkeleton />
+        ) : user ? (
+          <div className="flex min-w-[7.5rem] items-center justify-end gap-3">
             <Link
               href="/account"
-              className="inline-flex items-center gap-1.5 hover:text-ink"
+              className="inline-flex max-w-[8rem] items-center gap-1.5 truncate font-medium text-ink transition hover:text-accent-deep sm:max-w-[12rem]"
             >
               {user.isVip ? (
-                <VipBadge size={14} className="text-accent-deep" />
+                <VipBadge size={14} className="shrink-0 text-accent-deep" />
               ) : null}
-              {user.nickname || user.username}
+              <span className="truncate">{user.nickname || user.username}</span>
             </Link>
             <button
               type="button"
               onClick={() => void logout()}
-              className="hover:text-ink"
+              className="shrink-0 hover:text-ink"
             >
               退出
             </button>
-          </>
-        ) : loaded ? (
-          <>
+          </div>
+        ) : (
+          <div className="flex min-w-[7.5rem] items-center justify-end gap-3">
             <Link href="/login" className="hover:text-ink">
               登录
             </Link>
@@ -98,8 +86,8 @@ export function SiteHeader() {
             >
               注册
             </Link>
-          </>
-        ) : null}
+          </div>
+        )}
       </nav>
     </header>
   );
