@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Atmosphere } from "@/components/Atmosphere";
-import { BrandLogo } from "@/components/BrandLogo";
 import { HomeDownload } from "@/components/HomeDownload";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -61,23 +60,20 @@ export default function HomePage() {
         {/* Hero: left copy + right product image */}
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-2 lg:gap-12 lg:pb-28 lg:pt-16">
           <div>
-            <h1 className="animate-rise">
-              <BrandLogo size="hero" priority />
-            </h1>
-            <p className="animate-rise-delay-1 mt-5 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink sm:text-3xl lg:text-[2.15rem] lg:leading-snug">
+            <h1 className="animate-rise font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink sm:text-3xl lg:text-[2.15rem] lg:leading-snug">
               用键盘敲句子，学英语。
-            </p>
-            <p className="animate-rise-delay-2 mt-4 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+            </h1>
+            <p className="animate-rise-delay-1 mt-4 max-w-md text-base leading-relaxed text-muted sm:text-lg">
               看中文提示，敲出对应英文。从单词到短语再到句子，在电脑上主动练会用。
             </p>
-            <div className="animate-rise-delay-3 mt-8 flex flex-wrap gap-3">
+            <div className="animate-rise-delay-2 mt-8 flex flex-wrap gap-3">
               <a
                 href={ONLINE_CLIENT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl bg-accent px-7 py-3.5 text-base font-medium text-white transition hover:bg-accent-deep"
               >
-                在线体验
+                在线版使用
               </a>
               <a
                 href="#download"

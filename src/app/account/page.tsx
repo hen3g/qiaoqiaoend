@@ -333,7 +333,12 @@ function buildLinks(user: SessionUser) {
     { href: "/redeem", label: "兑换会员" },
     { href: "/#download", label: "下载客户端" },
     { href: "/change-password", label: "修改密码" },
-    ...(isAdmin ? [{ href: "/admin/promo", label: "宣传后台" }] : []),
+    ...(isAdmin
+      ? [
+          { href: "/admin/promo", label: "宣传后台" },
+          { href: "/admin/checkin", label: "打卡后台" },
+        ]
+      : []),
   ];
 }
 

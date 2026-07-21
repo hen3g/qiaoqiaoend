@@ -2,7 +2,7 @@ import Image from "next/image";
 
 const sizes = {
   header: { width: 152, height: 45, className: "h-9 w-auto sm:h-10" },
-  footer: { width: 128, height: 38, className: "mx-auto h-8 w-auto" },
+  footer: { width: 128, height: 38, className: "h-8 w-auto" },
   aside: { width: 160, height: 47, className: "h-10 w-auto" },
   hero: {
     width: 380,

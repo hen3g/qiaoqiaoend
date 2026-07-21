@@ -49,7 +49,7 @@ export function HomeDownload() {
             rel="noopener noreferrer"
             className="mx-1 font-medium text-white underline underline-offset-4 transition hover:text-white/85"
           >
-            在线体验
+            在线版使用
           </a>
           （需注册账号），浏览器即可开练。
         </p>
