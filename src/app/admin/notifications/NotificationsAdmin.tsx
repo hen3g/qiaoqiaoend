@@ -163,7 +163,7 @@ export function NotificationsAdmin() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl">
-        <p className="text-sm text-amber-800/80">仅本地开发可用 · 用户 channg</p>
+        <p className="text-sm text-muted">仅管理员 channg 可访问</p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
           通知设置
         </h1>

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requireDevAdmin } from "@/lib/dev-admin";
+import { requireAdmin } from "@/lib/dev-admin";
 import {
   createVipRedeemCodes,
   deleteRedeemCode,
@@ -32,7 +32,7 @@ function adminError(err: unknown) {
 
 export async function GET() {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const codes = await listRedeemCodes();
     return jsonOk({ codes, total: codes.length });
   } catch (err) {
@@ -45,7 +45,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const body = createSchema.parse(await req.json());
     if (!body.permanent && body.days == null) {
       return jsonError("请填写会员天数，或选择永久会员");
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const body = deleteSchema.parse(await req.json());
     if (body.ids?.length) {
       const deleted = await deleteRedeemCodes(body.ids);

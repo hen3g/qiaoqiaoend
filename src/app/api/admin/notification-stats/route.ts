@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requireDevAdmin } from "@/lib/dev-admin";
+import { requireAdmin } from "@/lib/dev-admin";
 import {
   listDailyNotificationStats,
   listDailyNotificationUsers,
@@ -26,7 +26,7 @@ const querySchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const url = new URL(req.url);
     const parsed = querySchema.parse({
       days: url.searchParams.get("days") ?? undefined,

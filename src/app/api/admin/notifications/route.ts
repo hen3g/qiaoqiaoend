@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requireDevAdmin } from "@/lib/dev-admin";
+import { requireAdmin } from "@/lib/dev-admin";
 import {
   createNotification,
   deleteNotification,
@@ -51,7 +51,7 @@ function adminError(err: unknown) {
 
 export async function GET() {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const notifications = await listNotifications();
     return jsonOk({ notifications, total: notifications.length });
   } catch (err) {
@@ -64,7 +64,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const body = createSchema.parse(await req.json());
     const notification = await createNotification({
       ...body,
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const body = deleteSchema.parse(await req.json());
     await deleteNotification(body.id);
     return jsonOk({ deleted: 1, message: "已删除通知" });

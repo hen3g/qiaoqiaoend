@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import type { SessionUser } from "@/lib/auth";
 
@@ -15,7 +15,12 @@ type RedeemCodeDto = {
   expiresAt: string | null;
   createdAt: string | null;
   label: string;
+  createdBy: number | null;
+  isUserGenerated: boolean;
+  createdByName: string | null;
 };
+
+type SourceFilter = "all" | "user" | "admin";
 
 function codeStatus(c: RedeemCodeDto): { text: string; className: string } {
   if (c.usedCount >= c.maxUses) {
@@ -36,6 +41,7 @@ export function RedeemCodesAdmin() {
   const [codes, setCodes] = useState<RedeemCodeDto[]>([]);
   const [created, setCreated] = useState<RedeemCodeDto[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,6 +51,21 @@ export function RedeemCodesAdmin() {
   const [days, setDays] = useState(30);
   const [maxUses, setMaxUses] = useState(1);
   const [quantity, setQuantity] = useState(1);
+
+  const filteredCodes = useMemo(() => {
+    if (sourceFilter === "user") {
+      return codes.filter((c) => c.isUserGenerated);
+    }
+    if (sourceFilter === "admin") {
+      return codes.filter((c) => !c.isUserGenerated);
+    }
+    return codes;
+  }, [codes, sourceFilter]);
+
+  const userGeneratedCount = useMemo(
+    () => codes.filter((c) => c.isUserGenerated).length,
+    [codes],
+  );
 
   const loadCodes = useCallback(async () => {
     const res = await fetch("/api/admin/redeem-codes");
@@ -154,11 +175,14 @@ export function RedeemCodesAdmin() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === codes.length) {
+    if (
+      filteredCodes.length > 0 &&
+      filteredCodes.every((c) => selected.has(c.id))
+    ) {
       setSelected(new Set());
       return;
     }
-    setSelected(new Set(codes.map((c) => c.id)));
+    setSelected(new Set(filteredCodes.map((c) => c.id)));
   }
 
   if (!loaded) {
@@ -200,7 +224,7 @@ export function RedeemCodesAdmin() {
   return (
     <PageShell>
       <div className="mx-auto max-w-4xl">
-        <p className="text-sm text-amber-800/80">仅本地开发可用 · 用户 channg</p>
+        <p className="text-sm text-muted">仅管理员 channg 可访问</p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
           兑换码后台
         </h1>
@@ -357,10 +381,25 @@ export function RedeemCodesAdmin() {
             <h2 className="text-lg font-medium text-ink">
               全部兑换码
               <span className="ml-2 text-sm font-normal text-muted">
-                共 {codes.length} 个
+                共 {codes.length} 个 · 用户生成 {userGeneratedCount} 个
               </span>
             </h2>
             <div className="flex flex-wrap gap-2">
+              <label className="flex items-center gap-2 text-sm text-muted">
+                <span>来源</span>
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => {
+                    setSourceFilter(e.target.value as SourceFilter);
+                    setSelected(new Set());
+                  }}
+                  className="rounded-full border border-line/10 bg-white/90 px-3 py-1.5 text-ink outline-none focus:border-accent"
+                >
+                  <option value="all">全部</option>
+                  <option value="user">用户生成</option>
+                  <option value="admin">后台生成</option>
+                </select>
+              </label>
               <button
                 type="button"
                 onClick={() => void loadCodes()}
@@ -379,18 +418,21 @@ export function RedeemCodesAdmin() {
             </div>
           </div>
 
-          {codes.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">暂无兑换码</p>
+          {filteredCodes.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">
+              {codes.length === 0 ? "暂无兑换码" : "当前筛选下没有兑换码"}
+            </p>
           ) : (
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[40rem] text-left text-sm">
+              <table className="w-full min-w-[46rem] text-left text-sm">
                 <thead>
                   <tr className="border-b border-line/10 text-muted">
                     <th className="py-2 pr-2 font-medium">
                       <input
                         type="checkbox"
                         checked={
-                          codes.length > 0 && selected.size === codes.length
+                          filteredCodes.length > 0 &&
+                          filteredCodes.every((c) => selected.has(c.id))
                         }
                         onChange={toggleSelectAll}
                         aria-label="全选"
@@ -398,6 +440,7 @@ export function RedeemCodesAdmin() {
                     </th>
                     <th className="py-2 pr-3 font-medium">兑换码</th>
                     <th className="py-2 pr-3 font-medium">权益</th>
+                    <th className="py-2 pr-3 font-medium">来源</th>
                     <th className="py-2 pr-3 font-medium">使用</th>
                     <th className="py-2 pr-3 font-medium">状态</th>
                     <th className="py-2 pr-3 font-medium">创建</th>
@@ -405,7 +448,7 @@ export function RedeemCodesAdmin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {codes.map((c) => {
+                  {filteredCodes.map((c) => {
                     const status = codeStatus(c);
                     return (
                       <tr key={c.id} className="border-b border-line/60">
@@ -429,6 +472,20 @@ export function RedeemCodesAdmin() {
                         </td>
                         <td className="py-2.5 pr-3 align-top text-muted">
                           {c.label}
+                        </td>
+                        <td className="py-2.5 pr-3 align-top">
+                          {c.isUserGenerated ? (
+                            <span className="text-accent-deep">
+                              用户生成
+                              {c.createdByName ? (
+                                <span className="mt-0.5 block text-xs text-muted">
+                                  {c.createdByName}
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : (
+                            <span className="text-muted">后台生成</span>
+                          )}
                         </td>
                         <td className="py-2.5 pr-3 align-top text-muted">
                           {c.usedCount}/{c.maxUses}

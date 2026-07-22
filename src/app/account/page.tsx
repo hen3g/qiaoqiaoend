@@ -20,6 +20,15 @@ type PromoSubmission = {
   createdAt: string | null;
 };
 
+type GiftCode = {
+  id: number;
+  code: string;
+  label: string;
+  available: boolean;
+  redeemedUserName: string | null;
+  createdAt: string | null;
+};
+
 const STATUS_LABEL: Record<PromoStatus, string> = {
   pending: "审核中",
   rewarded: "已发放",
@@ -109,12 +118,34 @@ export default function AccountPage() {
   const [promoError, setPromoError] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [promoBusy, setPromoBusy] = useState(false);
+  const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
+  const [giftLoaded, setGiftLoaded] = useState(false);
+  const [giftPage, setGiftPage] = useState(1);
+  const [giftTotal, setGiftTotal] = useState(0);
+  const [giftPageSize, setGiftPageSize] = useState(10);
+  const [canGenerateToday, setCanGenerateToday] = useState(false);
+  const [giftError, setGiftError] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
+  const [giftBusy, setGiftBusy] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const loadSubmissions = useCallback(async () => {
     const res = await fetch("/api/promo/submissions");
     const data = await res.json();
     if (res.ok && data.ok) {
       setSubmissions(data.submissions ?? []);
+    }
+  }, []);
+
+  const loadGiftCodes = useCallback(async (page: number) => {
+    const res = await fetch(`/api/account/gift-codes?page=${page}`);
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      setGiftCodes(data.codes ?? []);
+      setGiftTotal(Number(data.total ?? 0));
+      setGiftPage(Number(data.page ?? page));
+      setGiftPageSize(Number(data.pageSize ?? 10));
+      setCanGenerateToday(Boolean(data.canGenerateToday));
     }
   }, []);
 
@@ -132,6 +163,24 @@ export default function AccountPage() {
       cancelled = true;
     };
   }, [status, user, loadSubmissions]);
+
+  useEffect(() => {
+    if (status !== "ready" || !user?.isPermanentVip) {
+      setGiftLoaded(false);
+      setGiftCodes([]);
+      setGiftTotal(0);
+      setCanGenerateToday(false);
+      return;
+    }
+    let cancelled = false;
+    setGiftLoaded(false);
+    void loadGiftCodes(giftPage).finally(() => {
+      if (!cancelled) setGiftLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, user, giftPage, loadGiftCodes]);
 
   useEffect(() => {
     if (!nicknameOpen) return;
@@ -215,6 +264,39 @@ export default function AccountPage() {
     }
   }
 
+  async function onGenerateGiftCode() {
+    setGiftError("");
+    setGiftMessage("");
+    setGiftBusy(true);
+    try {
+      const res = await fetch("/api/account/gift-codes", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setGiftError(data.error || "生成失败");
+        return;
+      }
+      setGiftMessage(data.message || "已生成激活码");
+      setGiftPage(1);
+      await loadGiftCodes(1);
+    } catch {
+      setGiftError("网络错误");
+    } finally {
+      setGiftBusy(false);
+    }
+  }
+
+  async function onCopyGiftCode(item: GiftCode) {
+    try {
+      await navigator.clipboard.writeText(item.code);
+      setCopiedId(item.id);
+      window.setTimeout(() => {
+        setCopiedId((cur) => (cur === item.id ? null : cur));
+      }, 1500);
+    } catch {
+      setGiftError("复制失败，请手动选择");
+    }
+  }
+
   return (
     <PageShell>
       <div className="min-h-[min(72vh,44rem)]">
@@ -258,8 +340,21 @@ export default function AccountPage() {
             promoError={promoError}
             promoMessage={promoMessage}
             promoBusy={promoBusy}
+            giftCodes={giftCodes}
+            giftLoaded={giftLoaded}
+            giftPage={giftPage}
+            giftTotal={giftTotal}
+            giftPageSize={giftPageSize}
+            canGenerateToday={canGenerateToday}
+            giftError={giftError}
+            giftMessage={giftMessage}
+            giftBusy={giftBusy}
+            copiedId={copiedId}
             onOpenNickname={openNicknameDialog}
             onPromoSubmit={onPromoSubmit}
+            onGenerateGiftCode={onGenerateGiftCode}
+            onCopyGiftCode={onCopyGiftCode}
+            onGiftPageChange={setGiftPage}
             setVideoUrl={setVideoUrl}
             setLikesClaimed={setLikesClaimed}
             setNote={setNote}
@@ -337,6 +432,10 @@ function buildLinks(user: SessionUser) {
       ? [
           { href: "/admin/promo", label: "宣传后台" },
           { href: "/admin/checkin", label: "打卡后台" },
+          { href: "/admin/users", label: "用户后台" },
+          { href: "/admin/redeem-codes", label: "兑换码后台" },
+          { href: "/admin/notifications", label: "通知设置" },
+          { href: "/admin/notification-stats", label: "通知统计" },
         ]
       : []),
   ];
@@ -353,8 +452,21 @@ function AccountContent({
   promoError,
   promoMessage,
   promoBusy,
+  giftCodes,
+  giftLoaded,
+  giftPage,
+  giftTotal,
+  giftPageSize,
+  canGenerateToday,
+  giftError,
+  giftMessage,
+  giftBusy,
+  copiedId,
   onOpenNickname,
   onPromoSubmit,
+  onGenerateGiftCode,
+  onCopyGiftCode,
+  onGiftPageChange,
   setVideoUrl,
   setLikesClaimed,
   setNote,
@@ -369,12 +481,27 @@ function AccountContent({
   promoError: string;
   promoMessage: string;
   promoBusy: boolean;
+  giftCodes: GiftCode[];
+  giftLoaded: boolean;
+  giftPage: number;
+  giftTotal: number;
+  giftPageSize: number;
+  canGenerateToday: boolean;
+  giftError: string;
+  giftMessage: string;
+  giftBusy: boolean;
+  copiedId: number | null;
   onOpenNickname: () => void;
   onPromoSubmit: (e: FormEvent) => void;
+  onGenerateGiftCode: () => void;
+  onCopyGiftCode: (item: GiftCode) => void;
+  onGiftPageChange: (page: number) => void;
   setVideoUrl: (v: string) => void;
   setLikesClaimed: (v: string) => void;
   setNote: (v: string) => void;
 }) {
+  const giftTotalPages = Math.max(1, Math.ceil(giftTotal / giftPageSize));
+
   return (
     <div className="animate-fade-in mx-auto max-w-2xl space-y-6">
       <section className="relative overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(11,21,36,0.08)] backdrop-blur-sm">
@@ -465,6 +592,130 @@ function AccountContent({
           </nav>
         </div>
       </section>
+
+      {user.isPermanentVip ? (
+        <section className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 p-6 shadow-[0_24px_60px_rgba(11,21,36,0.08)] backdrop-blur-sm sm:p-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-ink">
+                会员激活码
+              </h2>
+              <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">
+                永久会员每天可生成 1 个 180 天会员激活码，对方在「兑换会员」页使用即可。
+              </p>
+            </div>
+            <p className="rounded-full bg-[#eaf2ff] px-3 py-1 text-xs font-medium text-accent-deep">
+              {canGenerateToday ? "今日可生成" : "今日已生成"}
+            </p>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onGenerateGiftCode}
+              disabled={giftBusy || !canGenerateToday}
+              className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-60"
+            >
+              {giftBusy
+                ? "生成中…"
+                : canGenerateToday
+                  ? "生成激活码"
+                  : "明天再来"}
+            </button>
+            {giftError ? (
+              <p className="text-sm text-[#c24b1e]">{giftError}</p>
+            ) : null}
+            {giftMessage ? (
+              <p className="text-sm text-accent-deep">{giftMessage}</p>
+            ) : null}
+          </div>
+
+          <div className="mt-8 border-t border-line/10 pt-6">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
+              我的激活码
+            </h3>
+            {!giftLoaded ? (
+              <div className="mt-4 space-y-3" aria-busy aria-label="激活码加载中">
+                <div className="skeleton h-14 w-full rounded-xl" />
+                <div className="skeleton h-14 w-full rounded-xl" />
+              </div>
+            ) : giftCodes.length === 0 ? (
+              <p className="mt-4 text-sm text-muted">还没有激活码，点上方按钮生成。</p>
+            ) : (
+              <>
+                <ul className="mt-4 space-y-2">
+                  {giftCodes.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-line/10 bg-white/80 px-3.5 py-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <code className="truncate text-sm font-medium text-ink">
+                            {item.code}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => onCopyGiftCode(item)}
+                            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted transition hover:bg-white hover:text-accent-deep"
+                          >
+                            {copiedId === item.id ? "已复制" : "复制"}
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted">
+                          {item.label}
+                          {item.createdAt
+                            ? ` · ${new Date(item.createdAt).toLocaleDateString("zh-CN")}`
+                            : ""}
+                          {!item.available && item.redeemedUserName
+                            ? ` · 已激活：${item.redeemedUserName}`
+                            : !item.available
+                              ? " · 已使用"
+                              : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          item.available
+                            ? "bg-[#eaf2ff] text-accent-deep"
+                            : "bg-[#fff1eb] text-[#c24b1e]"
+                        }`}
+                      >
+                        {item.available ? "可用" : "已用"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {giftTotalPages > 1 ? (
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted">
+                      共 {giftTotal} 个 · 第 {giftPage}/{giftTotalPages} 页
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={giftPage <= 1}
+                        onClick={() => onGiftPageChange(giftPage - 1)}
+                        className="rounded-lg border border-line/10 bg-white/80 px-3 py-1.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent-deep disabled:opacity-50"
+                      >
+                        上一页
+                      </button>
+                      <button
+                        type="button"
+                        disabled={giftPage >= giftTotalPages}
+                        onClick={() => onGiftPageChange(giftPage + 1)}
+                        className="rounded-lg border border-line/10 bg-white/80 px-3 py-1.5 text-xs font-medium text-ink transition hover:border-accent/40 hover:text-accent-deep disabled:opacity-50"
+                      >
+                        下一页
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <section className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 p-6 shadow-[0_24px_60px_rgba(11,21,36,0.08)] backdrop-blur-sm sm:p-8">
         <div className="flex flex-wrap items-end justify-between gap-3">

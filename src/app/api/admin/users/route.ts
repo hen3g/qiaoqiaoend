@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 import { jsonError, jsonOk } from "@/lib/api";
 import { mapUser, type SessionUser } from "@/lib/auth";
-import { requireDevAdmin } from "@/lib/dev-admin";
+import { requireAdmin } from "@/lib/dev-admin";
 import { query } from "@/lib/db";
 import { ensureNotificationStatsTables } from "@/lib/notification-stats";
 
@@ -108,7 +108,7 @@ async function listUsers(): Promise<AdminUserDto[]> {
 
 export async function GET() {
   try {
-    await requireDevAdmin();
+    await requireAdmin();
     const users = await listUsers();
     return jsonOk({ users, total: users.length });
   } catch (err) {

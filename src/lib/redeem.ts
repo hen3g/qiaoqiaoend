@@ -19,6 +19,9 @@ type RedeemCodeRow = RowDataPacket & {
   used_count: number;
   expires_at: Date | string | null;
   created_at?: Date | string;
+  created_by?: number | null;
+  creator_username?: string | null;
+  creator_nickname?: string | null;
 };
 
 export type RedeemResult = {
@@ -36,6 +39,10 @@ export type RedeemCodeDto = {
   expiresAt: string | null;
   createdAt: string | null;
   label: string;
+  /** Permanent-member gift codes set this; admin-created codes are null. */
+  createdBy: number | null;
+  isUserGenerated: boolean;
+  createdByName: string | null;
 };
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -44,7 +51,15 @@ function toIso(value: Date | string | null | undefined): string | null {
   return new Date(value).toISOString();
 }
 
-function vipLabel(value: string | null): string {
+function creatorDisplayName(
+  nickname: string | null | undefined,
+  username: string | null | undefined,
+): string | null {
+  const name = (nickname || username || "").trim();
+  return name || null;
+}
+
+export function vipLabel(value: string | null): string {
   if (value === PERMANENT_VIP_VALUE) return "永久会员";
   const days = Number(value || 0);
   return days > 0 ? `会员 ${days} 天` : "会员";
@@ -56,6 +71,11 @@ export function mapRedeemCode(row: RedeemCodeRow): RedeemCodeDto {
   else if (row.type === "course") label = `课程 #${row.value}`;
   else if (row.type === "unlock_all") label = "解锁全部课程";
 
+  const createdBy =
+    row.created_by == null || Number(row.created_by) < 1
+      ? null
+      : Number(row.created_by);
+
   return {
     id: row.id,
     code: row.code,
@@ -66,11 +86,35 @@ export function mapRedeemCode(row: RedeemCodeRow): RedeemCodeDto {
     expiresAt: toIso(row.expires_at),
     createdAt: toIso(row.created_at),
     label,
+    createdBy,
+    isUserGenerated: createdBy != null,
+    createdByName: creatorDisplayName(
+      row.creator_nickname,
+      row.creator_username,
+    ),
   };
 }
 
+let createdByEnsured = false;
+
+export async function ensureRedeemCodesCreatedByColumn(): Promise<void> {
+  if (createdByEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM redeem_codes LIKE 'created_by'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE redeem_codes
+       ADD COLUMN created_by BIGINT UNSIGNED NULL AFTER expires_at,
+       ADD KEY idx_redeem_codes_created_by (created_by)`,
+    );
+  }
+  createdByEnsured = true;
+}
+
 /** 128-bit entropy; format fits redeem_codes.code varchar(64). */
-function generateCodeString(): string {
+export function generateCodeString(): string {
   const raw = randomBytes(16).toString("hex").toUpperCase();
   const parts = raw.match(/.{1,8}/g) ?? [raw];
   return `BE-${parts.join("-")}`;
@@ -198,6 +242,9 @@ export async function createVipRedeemCodes(
           expiresAt: expiresAt ? expiresAt.toISOString() : null,
           createdAt: new Date().toISOString(),
           label: vipLabel(value),
+          createdBy: null,
+          isUserGenerated: false,
+          createdByName: null,
         });
         break;
       } catch (err) {
@@ -218,10 +265,14 @@ export async function createVipRedeemCodes(
 }
 
 export async function listRedeemCodes(): Promise<RedeemCodeDto[]> {
+  await ensureRedeemCodesCreatedByColumn();
   const rows = await query<RedeemCodeRow[]>(
-    `SELECT id, code, type, value, max_uses, used_count, expires_at, created_at
-     FROM redeem_codes
-     ORDER BY id DESC`,
+    `SELECT rc.id, rc.code, rc.type, rc.value, rc.max_uses, rc.used_count,
+            rc.expires_at, rc.created_at, rc.created_by,
+            u.username AS creator_username, u.nickname AS creator_nickname
+     FROM redeem_codes rc
+     LEFT JOIN users u ON u.id = rc.created_by
+     ORDER BY rc.id DESC`,
   );
   return rows.map(mapRedeemCode);
 }
