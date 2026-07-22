@@ -132,3 +132,55 @@ body {
   background-size: 200% 100%;
   animation: shimmer 1.2s ease-in-out infinite;
 }
+
+@keyframes gift-sheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+@keyframes gift-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes gift-orbit {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.gift-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 65%
+  );
+  animation: gift-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.gift-pulse {
+  animation: gift-pulse 3.2s ease-in-out infinite;
+}
+
+.gift-orbit {
+  animation: gift-orbit 18s linear infinite;
+}
