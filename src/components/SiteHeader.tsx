@@ -8,11 +8,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { VipBadge } from "@/components/VipBadge";
 import { ONLINE_CLIENT_URL } from "@/lib/online";
 
-const links = [
-  { href: "/#download", label: "下载客户端" },
-  { href: "/courses", label: "课程下载" },
-  { href: "/redeem", label: "兑换" },
-];
+const links = [{ href: "/redeem", label: "兑换" }];
 
 function AuthSlotSkeleton() {
   return (

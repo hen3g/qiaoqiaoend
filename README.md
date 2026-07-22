@@ -1,6 +1,6 @@
 # 宝贝英语官网
 
-Next.js 官方网站：注册 / 登录 / 修改密码、客户端下载、课程下载、兑换码。
+Next.js 官方网站：注册 / 登录 / 修改密码、在线练习入口、兑换码。
 
 ## 本地运行
 
@@ -22,7 +22,6 @@ npm run dev
 | `/register` | 注册（用户名 + 密码 + Cap 人机验证） |
 | `/login` | 登录（用户名 + 密码 + Cap 人机验证） |
 | `/change-password` | 修改密码（需登录） |
-| `/#download` | 客户端下载（首页区块） |
 | `/courses` | 课程包下载 |
 | `/redeem` | 兑换码（延长会员 / 永久会员） |
 | `/account` | 账号信息、宣传短视频投稿 |
@@ -42,7 +41,7 @@ npm run dev
 
 ## 数据库
 
-远程 MySQL，表：`users`、`course_categories`、`courses`、`user_courses`、`redeem_codes`、`redeem_logs`、`app_releases`、`notifications`、`promo_submissions`、`notification_api_daily_stats`、`notification_api_daily_users`、`cap_challenges`、`cap_tokens`。
+远程 MySQL，表：`users`、`course_categories`、`courses`、`user_courses`、`redeem_codes`、`redeem_logs`、`notifications`、`promo_submissions`、`notification_api_daily_stats`、`notification_api_daily_users`、`cap_challenges`、`cap_tokens`。
 
 宣传投稿表见 `scripts/schema-promo-submissions.sql`；通知接口统计表见 `scripts/schema-notification-api-stats.sql`；首次访问相关接口时也会自动建表。
 
@@ -57,5 +56,3 @@ npm run sync:courses
 # 仅更新数据库（不重新上传）
 npm run sync:courses:db
 ```
-
-客户端安装包 URL 在 `app_releases` 表中维护；当前为占位链接，上线前请替换为真实下载地址。

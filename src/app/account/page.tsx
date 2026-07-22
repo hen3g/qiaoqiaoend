@@ -427,9 +427,7 @@ export default function AccountPage() {
 function buildLinks(user: SessionUser) {
   const isAdmin = user.username.toLowerCase() === "channg";
   return [
-    { href: "/courses", label: "课程下载" },
     { href: "/redeem", label: "兑换会员" },
-    { href: "/#download", label: "下载客户端" },
     { href: "/change-password", label: "修改密码" },
     ...(isAdmin
       ? [

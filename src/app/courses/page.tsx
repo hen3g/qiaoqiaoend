@@ -119,7 +119,7 @@ export default function CoursesPage() {
           从启蒙到职场，按阶段与场景整理。所有课程均可直接下载，无需登录或会员。
         </p>
         <p className="mt-4 max-w-2xl rounded-xl border border-warm/30 bg-warm/10 px-4 py-3 text-sm leading-relaxed text-ink">
-          下载的课程包仅支持在本地客户端导入使用。在线版只能自制课程，无法导入官网课程包。
+          课程包下载入口即将调整。当前在线版可自制课程练习；官网打包下载仍可通过下方网盘获取。
         </p>
         <a
           href="https://pan.quark.cn/s/728d2804d9d3"

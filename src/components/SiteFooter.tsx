@@ -2,11 +2,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { ONLINE_CLIENT_URL } from "@/lib/online";
 
-const navLinks = [
-  { href: "/#download", label: "下载客户端" },
-  { href: "/courses", label: "课程下载" },
-  { href: "/redeem", label: "兑换" },
-];
+const navLinks = [{ href: "/redeem", label: "兑换" }];
 
 export function SiteFooter() {
   return (
