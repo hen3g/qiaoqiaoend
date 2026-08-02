@@ -38,7 +38,11 @@ export default function HomePage() {
       <main className="relative z-10">
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-2 lg:gap-12 lg:pb-28 lg:pt-16">
           <div>
-            <p className="animate-rise text-sm font-medium tracking-wide text-accent-deep">
+            <p className="animate-rise inline-flex items-center gap-2 text-sm font-medium tracking-[0.14em] text-accent-deep">
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 rounded-full bg-cyan shadow-[0_0_10px_rgba(14,165,233,0.75)]"
+              />
               在线版 · 课程 · 套卷 · 工具
             </p>
             <h1 className="animate-rise-delay-1 mt-3 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink sm:text-3xl lg:text-[2.15rem] lg:leading-snug">
@@ -52,13 +56,13 @@ export default function HomePage() {
                 href={ONLINE_CLIENT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-xl bg-accent px-7 py-3.5 text-base font-medium text-white transition hover:bg-accent-deep"
+                className="rounded-xl bg-accent px-7 py-3.5 text-base font-medium text-white shadow-[0_0_0_1px_rgba(43,109,232,0.3),0_10px_30px_rgba(43,109,232,0.28)] transition hover:bg-accent-deep"
               >
                 在线版使用
               </a>
               <Link
                 href="/register"
-                className="rounded-xl border border-line/10 bg-white/70 px-7 py-3.5 text-base font-medium text-ink transition hover:border-accent hover:text-accent-deep"
+                className="rounded-xl border border-cyan/20 bg-white/70 px-7 py-3.5 text-base font-medium text-ink backdrop-blur-sm transition hover:border-accent hover:text-accent-deep"
               >
                 注册账号
               </Link>
@@ -69,11 +73,19 @@ export default function HomePage() {
           </div>
 
           <div className="animate-hero-reveal relative mx-auto w-full max-w-md lg:max-w-none">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-3 rounded-[1.75rem] border border-cyan/15 bg-gradient-to-b from-white/40 to-transparent sm:-inset-4"
+            />
             <ProductDemo />
           </div>
         </section>
 
-        <section className="border-y border-line/10 bg-white/60">
+        <section className="relative border-y border-cyan/12 bg-white/55 backdrop-blur-sm">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/35 to-transparent"
+          />
           <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
             <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
               三种学法，一眼看懂

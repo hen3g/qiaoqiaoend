@@ -44,6 +44,30 @@ function MenuIcon({ open }: { open: boolean }) {
   );
 }
 
+function OnlineCta({
+  compact = false,
+  onNavigate,
+}: {
+  compact?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <a
+      href={ONLINE_CLIENT_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onNavigate}
+      className={
+        compact
+          ? "inline-flex h-9 items-center rounded-md bg-accent px-3 text-xs font-semibold tracking-wide text-white shadow-[0_0_0_1px_rgba(43,109,232,0.35),0_0_18px_rgba(43,109,232,0.28)] transition hover:bg-accent-deep"
+          : "rounded-lg bg-accent px-4 py-2 font-medium text-white shadow-[0_0_0_1px_rgba(43,109,232,0.28),0_0_20px_rgba(43,109,232,0.22)] transition hover:bg-accent-deep"
+      }
+    >
+      {compact ? "在线版" : "在线版使用"}
+    </a>
+  );
+}
+
 export function SiteHeader() {
   const pathname = usePathname();
   const { user, status, logout } = useAuth();
@@ -103,7 +127,7 @@ export function SiteHeader() {
         <Link
           href="/register"
           onClick={() => setMenuOpen(false)}
-          className="rounded-lg border border-line/10 bg-white/70 px-4 py-2 text-ink transition hover:border-accent hover:text-accent-deep"
+          className="rounded-lg border border-cyan/25 bg-white/70 px-4 py-2 text-ink transition hover:border-accent hover:text-accent-deep"
         >
           注册
         </Link>
@@ -111,79 +135,72 @@ export function SiteHeader() {
     );
 
   return (
-    <header className="relative z-10 mx-auto w-full max-w-6xl px-5 py-5 sm:px-8">
-      <div className="flex items-center justify-between gap-4">
-        <Link href="/" className="shrink-0" aria-label="宝贝英语首页">
-          <BrandLogo size="header" priority />
-        </Link>
+    <header className="sticky top-0 z-20 border-b border-cyan/15 bg-[color-mix(in_srgb,var(--bg)_78%,transparent)] backdrop-blur-xl">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent"
+      />
+      <div className="relative mx-auto w-full max-w-6xl px-5 py-3.5 sm:px-8 sm:py-4">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="shrink-0" aria-label="宝贝英语首页">
+            <BrandLogo size="header" priority />
+          </Link>
 
-        <button
-          type="button"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line/10 bg-white/70 text-ink transition hover:border-accent sm:hidden"
-          aria-expanded={menuOpen}
-          aria-controls="site-header-menu"
-          aria-label={menuOpen ? "收起菜单" : "展开菜单"}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <MenuIcon open={menuOpen} />
-        </button>
-
-        <nav className="hidden items-center justify-end gap-5 text-sm text-muted sm:flex">
-          <a
-            href={ONLINE_CLIENT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg bg-accent px-4 py-2 font-medium text-white transition hover:bg-accent-deep"
-          >
-            在线版使用
-          </a>
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={navLinkClass(link.href)}
+          <div className="flex items-center gap-2 sm:hidden">
+            <OnlineCta compact />
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan/20 bg-white/70 text-ink transition hover:border-accent"
+              aria-expanded={menuOpen}
+              aria-controls="site-header-menu"
+              aria-label={menuOpen ? "收起菜单" : "展开菜单"}
+              onClick={() => setMenuOpen((open) => !open)}
             >
-              {link.label}
-            </Link>
-          ))}
-          {authContent}
+              <MenuIcon open={menuOpen} />
+            </button>
+          </div>
+
+          <nav className="hidden items-center justify-end gap-5 text-sm text-muted sm:flex">
+            <OnlineCta />
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={navLinkClass(link.href)}
+              >
+                {link.label}
+              </Link>
+            ))}
+            {authContent}
+          </nav>
+        </div>
+
+        <nav
+          id="site-header-menu"
+          className={`overflow-hidden transition-[max-height,opacity] duration-200 sm:hidden ${
+            menuOpen
+              ? "mt-3 max-h-96 opacity-100"
+              : "pointer-events-none max-h-0 opacity-0"
+          }`}
+          aria-hidden={!menuOpen}
+        >
+          <div className="flex flex-col gap-1 rounded-xl border border-cyan/15 bg-white/90 p-2.5 text-sm text-muted shadow-[0_12px_40px_rgba(11,21,36,0.08)]">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`rounded-lg px-3.5 py-2.5 transition hover:bg-[#eef5ff] ${navLinkClass(link.href)}`}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <div className="mt-0.5 border-t border-cyan/12 px-1 pt-2.5">
+              {authContent}
+            </div>
+          </div>
         </nav>
       </div>
-
-      <nav
-        id="site-header-menu"
-        className={`overflow-hidden transition-[max-height,opacity] duration-200 sm:hidden ${
-          menuOpen
-            ? "mt-4 max-h-96 opacity-100"
-            : "pointer-events-none max-h-0 opacity-0"
-        }`}
-        aria-hidden={!menuOpen}
-      >
-        <div className="flex flex-col gap-1 rounded-2xl border border-line/10 bg-white/90 p-3 text-sm text-muted shadow-sm shadow-[var(--glow)]">
-          <a
-            href={ONLINE_CLIENT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setMenuOpen(false)}
-            className="rounded-xl bg-accent px-4 py-3 text-center font-medium text-white transition hover:bg-accent-deep"
-          >
-            在线版使用
-          </a>
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMenuOpen(false)}
-              className={`rounded-xl px-4 py-3 transition hover:bg-[#f7fbfe] ${navLinkClass(link.href)}`}
-            >
-              {link.label}
-            </Link>
-          ))}
-          <div className="mt-1 border-t border-line/10 px-1 pt-3">
-            {authContent}
-          </div>
-        </div>
-      </nav>
     </header>
   );
 }

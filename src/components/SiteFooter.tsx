@@ -6,7 +6,7 @@ const navLinks = [{ href: "/redeem", label: "兑换" }];
 
 export function SiteFooter() {
   return (
-    <footer className="relative z-10 mt-auto border-t border-line/10 bg-white/80">
+    <footer className="relative z-10 mt-auto border-t border-cyan/12 bg-white/80 backdrop-blur-sm">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-10 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr] md:gap-8 md:py-12">
         <div>
           <BrandLogo size="footer" />

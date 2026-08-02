@@ -3,15 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f5f7fa;
+  --bg: #f2f6fb;
   --bg-deep: #0b1524;
-  --ink: #121c2b;
-  --muted: #5c6b7e;
+  --ink: #0f1a2a;
+  --muted: #5a6b80;
   --accent: #2b6de8;
   --accent-deep: #1f54c4;
+  --cyan: #0ea5e9;
   --warm: #e8893a;
   --line: rgba(18, 28, 43, 0.1);
-  --glow: rgba(43, 109, 232, 0.22);
+  --glow: rgba(43, 109, 232, 0.28);
 }
 
 * {
@@ -742,7 +743,7 @@ body {
 }
 
 .feature-card {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(14, 165, 233, 0.18);
   padding-top: 1.5rem;
   transition: opacity 0.35s ease;
 }
