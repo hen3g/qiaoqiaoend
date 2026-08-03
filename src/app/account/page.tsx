@@ -434,6 +434,7 @@ function buildLinks(user: SessionUser) {
           { href: "/admin/promo", label: "宣传后台" },
           { href: "/admin/checkin", label: "打卡后台" },
           { href: "/admin/users", label: "用户后台" },
+          { href: "/admin/user-content", label: "课程与套卷" },
           { href: "/admin/redeem-codes", label: "兑换码后台" },
           { href: "/admin/notifications", label: "通知设置" },
           { href: "/admin/notification-stats", label: "通知统计" },
