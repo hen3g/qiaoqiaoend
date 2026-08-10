@@ -26,11 +26,14 @@ export async function GET(req: Request) {
       Number.isInteger(rawAuthorId) && rawAuthorId > 0
         ? rawAuthorId
         : undefined;
+    const filterParam = url.searchParams.get("filter")?.trim();
+    const filter = filterParam === "added" ? ("added" as const) : undefined;
     const result = await listPlazaCourseSummaries({
       viewerId: user.id,
       page,
       q,
       authorId,
+      filter,
     });
 
     return withAuthCors(jsonOk(result));

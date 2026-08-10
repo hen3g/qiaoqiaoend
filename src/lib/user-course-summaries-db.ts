@@ -339,6 +339,8 @@ export async function listPlazaCourseSummaries(opts: {
   q?: string;
   /** 仅看某一创作者分享的课程 */
   authorId?: number;
+  /** added = 仅看当前用户已从广场添加的课程 */
+  filter?: "added";
 }): Promise<PlazaCoursesPage> {
   await ensureAuthorColumns();
   await ensureShareCustomCoursesColumn();
@@ -353,11 +355,21 @@ export async function listPlazaCourseSummaries(opts: {
     Number.isInteger(opts.authorId) && (opts.authorId ?? 0) > 0
       ? Number(opts.authorId)
       : null;
+  const onlyAdded = opts.filter === "added";
 
   const where = `s.audio_ready = 1
        AND u.share_custom_courses = 1
        AND (s.source_course_key IS NULL OR s.source_course_key = '')
        ${authorId != null ? `AND s.user_id = :authorId` : ""}
+       ${
+         onlyAdded
+           ? `AND EXISTS (
+                SELECT 1 FROM user_course_summaries v
+                WHERE v.user_id = :viewerId
+                  AND v.source_course_key = CONCAT(s.user_id, ':', s.course_id)
+              )`
+           : ""
+       }
        ${
          like
            ? authorId != null
@@ -370,8 +382,9 @@ export async function listPlazaCourseSummaries(opts: {
            : ""
        }`;
   const params: Record<string, string | number> | undefined =
-    authorId != null || like
+    authorId != null || like || onlyAdded
       ? {
+          ...(onlyAdded ? { viewerId: opts.viewerId } : {}),
           ...(authorId != null ? { authorId } : {}),
           ...(like ? { like } : {}),
         }
