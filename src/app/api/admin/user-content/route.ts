@@ -5,6 +5,8 @@ import {
   listAllUserPapers,
 } from "@/lib/user-content-admin";
 
+export const dynamic = "force-dynamic";
+
 function adminError(err: unknown) {
   if (err instanceof Error) {
     if (err.message === "UNAUTHORIZED") return jsonError("请先登录", 401);

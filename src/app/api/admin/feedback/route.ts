@@ -2,6 +2,8 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { requireAdmin } from "@/lib/dev-admin";
 import { listFeedbackSubmissions } from "@/lib/feedback";
 
+export const dynamic = "force-dynamic";
+
 function mapAdminError(err: unknown) {
   if (err instanceof Error && err.message === "UNAUTHORIZED") {
     return jsonError("请先登录", 401);

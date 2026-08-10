@@ -12,6 +12,8 @@ import {
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 
+export const dynamic = "force-dynamic";
+
 export type ClientUsage = "none" | "client" | "web" | "both";
 
 type UserRow = RowDataPacket & {

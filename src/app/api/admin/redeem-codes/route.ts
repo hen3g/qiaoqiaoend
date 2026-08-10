@@ -8,6 +8,8 @@ import {
   listRedeemCodes,
 } from "@/lib/redeem";
 
+export const dynamic = "force-dynamic";
+
 const createSchema = z.object({
   permanent: z.boolean().default(false),
   days: z.number().int().min(1).max(36500).optional(),

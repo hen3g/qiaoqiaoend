@@ -7,6 +7,8 @@ import {
   todayInShanghai,
 } from "@/lib/notification-stats";
 
+export const dynamic = "force-dynamic";
+
 function adminError(err: unknown) {
   if (err instanceof Error) {
     if (err.message === "NOT_FOUND") return jsonError("不可用", 404);

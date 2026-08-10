@@ -7,6 +7,8 @@ import {
   rewardPromoSubmission,
 } from "@/lib/promo";
 
+export const dynamic = "force-dynamic";
+
 const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("reward"),

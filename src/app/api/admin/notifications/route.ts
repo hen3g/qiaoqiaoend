@@ -7,6 +7,8 @@ import {
   listNotifications,
 } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 const createSchema = z
   .object({
     type: z.enum(["update", "message"]),

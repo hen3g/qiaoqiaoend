@@ -6,6 +6,8 @@ import {
 } from "@/lib/notification-stats";
 import { getLatestNotifications } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 /** 公开接口：返回各类型最新通知，最多 2 条（更新 + 消息）。
  *  query `source=web` 表示在线版；缺省或其它值按客户端计。 */
 export async function GET(req: Request) {
