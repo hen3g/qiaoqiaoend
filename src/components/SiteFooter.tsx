@@ -1,52 +1,14 @@
-import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
-import { ONLINE_CLIENT_URL } from "@/lib/online";
-
-const navLinks = [{ href: "/redeem", label: "兑换" }];
 
 export function SiteFooter() {
   return (
     <footer className="relative z-10 mt-auto border-t border-cyan/12 bg-white/80 backdrop-blur-sm">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-10 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr] md:gap-8 md:py-12">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-10 sm:px-8 md:grid-cols-[1.4fr_1fr] md:gap-8 md:py-12">
         <div>
           <BrandLogo size="footer" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted">
-            看中文、敲英文，从单词练到句子，帮助孩子把英语真正用起来。
+            敲敲英语：看中文、敲英文，从单词练到句子。
           </p>
-          <a
-            href={ONLINE_CLIENT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-deep"
-          >
-            在线版使用
-          </a>
-        </div>
-
-        <div>
-          <h2 className="text-sm font-medium text-ink">快速入口</h2>
-          <ul className="mt-4 space-y-3 text-sm text-muted">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="transition hover:text-accent-deep"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <a
-                href={ONLINE_CLIENT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition hover:text-accent-deep"
-              >
-                在线版使用
-              </a>
-            </li>
-          </ul>
         </div>
 
         <div>
@@ -71,7 +33,7 @@ export function SiteFooter() {
 
       <div className="border-t border-line/10">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p>Copyright © 2026 Baby English. All rights reserved.</p>
+          <p>© 2026 言词科技（大连）有限公司</p>
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <a
               href="https://beian.miit.gov.cn/"
@@ -79,18 +41,18 @@ export function SiteFooter() {
               rel="noopener noreferrer"
               className="transition hover:text-ink"
             >
-              辽ICP备2025052002号
+              辽ICP备2026017437号
             </a>
             <span className="text-line/20" aria-hidden>
               |
             </span>
             <a
-              href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=21100202000247"
+              href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=21021102001931"
               target="_blank"
               rel="noopener noreferrer"
               className="transition hover:text-ink"
             >
-              辽公网安备21100202000247号
+              辽公网安备21021102001931号
             </a>
           </p>
         </div>

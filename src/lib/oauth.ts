@@ -7,6 +7,11 @@ import {
   mapUser,
   type SessionUser,
 } from "@/lib/auth";
+import {
+  ensureShareCustomCoursesColumn,
+  ensureUserDiamondsColumn,
+  ensureUserPromoterColumns,
+} from "@/lib/user-schema";
 
 const AUTH_CODE_TTL = "5m";
 const ACCESS_TOKEN_DAYS = 14;
@@ -21,7 +26,12 @@ type UserRow = RowDataPacket & {
   id: number;
   username: string;
   nickname: string | null;
+  avatar_url?: string | null;
   vip_expires_at: Date | string | null;
+  diamonds?: number | null;
+  share_custom_courses?: number | boolean | null;
+  is_promoter?: number | boolean | null;
+  promoter_id?: number | null;
   created_at: Date | string | null;
   token_version?: number;
 };
@@ -48,7 +58,7 @@ export function getOAuthClient(): OAuthClient {
   return {
     clientId,
     redirectUris,
-    displayName: process.env.OAUTH_CLIENT_DISPLAY_NAME?.trim() || "宝贝英语",
+    displayName: process.env.OAUTH_CLIENT_DISPLAY_NAME?.trim() || "敲敲英语",
   };
 }
 
@@ -215,8 +225,13 @@ export async function readAccessTokenUserId(
 }
 
 export async function getUserById(userId: number): Promise<SessionUser | null> {
+  await ensureUserDiamondsColumn();
+  await ensureShareCustomCoursesColumn();
+  await ensureUserPromoterColumns();
   const rows = await query<UserRow[]>(
-    `SELECT id, username, nickname, vip_expires_at, created_at, token_version
+    `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
+            share_custom_courses, is_promoter, promoter_id, created_at,
+            token_version
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );
@@ -228,8 +243,13 @@ export async function getUserByIdIfTokenVersion(
   userId: number,
   tokenVersion: number,
 ): Promise<SessionUser | null> {
+  await ensureUserDiamondsColumn();
+  await ensureShareCustomCoursesColumn();
+  await ensureUserPromoterColumns();
   const rows = await query<UserRow[]>(
-    `SELECT id, username, nickname, vip_expires_at, created_at, token_version
+    `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
+            share_custom_courses, is_promoter, promoter_id, created_at,
+            token_version
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );

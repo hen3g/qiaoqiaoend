@@ -49,7 +49,9 @@ export function UsersAdmin() {
   const [loaded, setLoaded] = useState(false);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [queryText, setQueryText] = useState("");
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const loadUsers = useCallback(async () => {
     const res = await fetch("/api/admin/users");
@@ -91,6 +93,11 @@ export function UsersAdmin() {
     [users],
   );
 
+  const promoterCount = useMemo(
+    () => users.filter((u) => u.isPromoter).length,
+    [users],
+  );
+
   const usageCounts = useMemo(() => {
     let clientOnly = 0;
     let webOnly = 0;
@@ -103,6 +110,35 @@ export function UsersAdmin() {
     }
     return { clientOnly, webOnly, both };
   }, [users]);
+
+  async function togglePromoter(target: AdminUser) {
+    setError("");
+    setMessage("");
+    setTogglingId(target.id);
+    try {
+      const next = !target.isPromoter;
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: target.id, isPromoter: next }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || "更新失败");
+        return;
+      }
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === target.id ? { ...u, isPromoter: next } : u,
+        ),
+      );
+      setMessage(data.message || (next ? "已设为推广者" : "已取消推广者"));
+    } catch {
+      setError("网络错误");
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   if (!loaded) {
     return (
@@ -149,8 +185,8 @@ export function UsersAdmin() {
         </h1>
         <p className="mt-3 text-muted">
           查看全部注册用户信息。共 {users.length} 人，其中会员 {vipCount}{" "}
-          人；客户端 {usageCounts.clientOnly} 人，在线版 {usageCounts.webOnly}{" "}
-          人，都使用了 {usageCounts.both} 人。
+          人，推广者 {promoterCount} 人；客户端 {usageCounts.clientOnly}{" "}
+          人，在线版 {usageCounts.webOnly} 人，都使用了 {usageCounts.both} 人。
         </p>
 
         <div className="mt-8 flex flex-wrap items-end gap-3">
@@ -178,6 +214,11 @@ export function UsersAdmin() {
             {error}
           </p>
         ) : null}
+        {message ? (
+          <p className="mt-4 rounded-xl bg-[#eaf2ff] px-3 py-2 text-sm text-accent-deep">
+            {message}
+          </p>
+        ) : null}
 
         {filtered.length === 0 ? (
           <p className="mt-6 text-sm text-muted">
@@ -185,7 +226,7 @@ export function UsersAdmin() {
           </p>
         ) : (
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[56rem] text-left text-sm">
+            <table className="w-full min-w-[64rem] text-left text-sm">
               <thead>
                 <tr className="border-b border-line/10 text-muted">
                   <th className="py-2 pr-3 font-medium">ID</th>
@@ -194,6 +235,8 @@ export function UsersAdmin() {
                   <th className="py-2 pr-3 font-medium">星级</th>
                   <th className="py-2 pr-3 font-medium">客户端</th>
                   <th className="py-2 pr-3 font-medium">会员</th>
+                  <th className="py-2 pr-3 font-medium">钻石</th>
+                  <th className="py-2 pr-3 font-medium">推广者</th>
                   <th className="py-2 pr-3 font-medium">到期时间</th>
                   <th className="py-2 pr-3 font-medium">注册时间</th>
                   <th className="py-2 font-medium">token_version</th>
@@ -233,6 +276,27 @@ export function UsersAdmin() {
                         }`}
                       >
                         {vipLabel(u)}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top text-ink">
+                        {u.diamonds ?? 0}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top">
+                        <button
+                          type="button"
+                          disabled={togglingId === u.id}
+                          onClick={() => void togglePromoter(u)}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
+                            u.isPromoter
+                              ? "bg-accent text-white hover:bg-accent-deep"
+                              : "border border-line/15 text-muted hover:border-accent hover:text-ink"
+                          }`}
+                        >
+                          {togglingId === u.id
+                            ? "…"
+                            : u.isPromoter
+                              ? "推广者"
+                              : "设为推广者"}
+                        </button>
                       </td>
                       <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
                         {u.isPermanentVip

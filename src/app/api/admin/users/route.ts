@@ -1,9 +1,16 @@
 import type { RowDataPacket } from "mysql2";
+import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { mapUser, type SessionUser } from "@/lib/auth";
 import { requireAdmin } from "@/lib/dev-admin";
 import { query } from "@/lib/db";
 import { ensureNotificationStatsTables } from "@/lib/notification-stats";
+import { setUserIsPromoter } from "@/lib/promoter";
+import {
+  ensureShareCustomCoursesColumn,
+  ensureUserDiamondsColumn,
+  ensureUserPromoterColumns,
+} from "@/lib/user-schema";
 
 export type ClientUsage = "none" | "client" | "web" | "both";
 
@@ -12,6 +19,10 @@ type UserRow = RowDataPacket & {
   username: string;
   nickname: string | null;
   vip_expires_at: Date | string | null;
+  diamonds: number;
+  share_custom_courses?: number | boolean | null;
+  is_promoter?: number | boolean | null;
+  promoter_id?: number | null;
   created_at: Date | string | null;
   token_version: number;
   unlocked_difficulty: number | null;
@@ -34,6 +45,11 @@ export type AdminUserDto = SessionUser & {
   lastNotificationAt: string | null;
   notificationHitCount: number;
 };
+
+const patchSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+  isPromoter: z.boolean(),
+});
 
 function adminError(err: unknown) {
   if (err instanceof Error) {
@@ -66,8 +82,13 @@ function toClientUsage(hasClient: boolean, hasWeb: boolean): ClientUsage {
 
 async function listUsers(): Promise<AdminUserDto[]> {
   await ensureNotificationStatsTables();
+  await ensureUserDiamondsColumn();
+  await ensureShareCustomCoursesColumn();
+  await ensureUserPromoterColumns();
   const rows = await query<UserRow[]>(
-    `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.created_at, u.token_version,
+    `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.diamonds,
+            u.share_custom_courses, u.is_promoter, u.promoter_id,
+            u.created_at, u.token_version,
             sp.unlocked_difficulty,
             COALESCE(n.has_client, 0) AS has_client,
             COALESCE(n.has_web, 0) AS has_web,
@@ -116,5 +137,27 @@ export async function GET() {
     if (mapped) return mapped;
     console.error(err);
     return jsonError("加载失败", 500);
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    await requireAdmin();
+    const body = patchSchema.parse(await req.json());
+    await setUserIsPromoter(body.userId, body.isPromoter);
+    return jsonOk({
+      message: body.isPromoter ? "已设为推广者" : "已取消推广者",
+      userId: body.userId,
+      isPromoter: body.isPromoter,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return jsonError(err.issues[0]?.message || "参数错误");
+    }
+    const mapped = adminError(err);
+    if (mapped) return mapped;
+    if (err instanceof Error) return jsonError(err.message);
+    console.error(err);
+    return jsonError("更新失败", 500);
   }
 }

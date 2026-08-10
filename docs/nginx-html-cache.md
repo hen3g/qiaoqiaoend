@@ -80,7 +80,7 @@ nginx -s reload
 
 1. `git pull` → `npm run build` → 重启 Node  
 2. **清一次** `/www/server/nginx/proxy_cache_dir/*` 并 `nginx -s reload`（尤其刚改过缓存策略、或怀疑页面仍旧时）  
-3. 无痕窗口抽查关键页（`/`、`/account`、`/courses`）  
+3. 无痕窗口抽查关键页（`/`、`/account`）  
 4. 若再次出现「点链接新、刷新旧」，优先查 nginx HTML 缓存，而不是怀疑路由写错
 
 ## 相关路径（本机 / 服务器）

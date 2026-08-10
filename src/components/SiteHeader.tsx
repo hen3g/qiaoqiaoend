@@ -6,9 +6,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { VipBadge } from "@/components/VipBadge";
-import { ONLINE_CLIENT_URL } from "@/lib/online";
-
-const links = [{ href: "/redeem", label: "兑换" }];
 
 function AuthSlotSkeleton() {
   return (
@@ -44,30 +41,6 @@ function MenuIcon({ open }: { open: boolean }) {
   );
 }
 
-function OnlineCta({
-  compact = false,
-  onNavigate,
-}: {
-  compact?: boolean;
-  onNavigate?: () => void;
-}) {
-  return (
-    <a
-      href={ONLINE_CLIENT_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={onNavigate}
-      className={
-        compact
-          ? "inline-flex h-9 items-center rounded-md bg-accent px-3 text-xs font-semibold tracking-wide text-white shadow-[0_0_0_1px_rgba(43,109,232,0.35),0_0_18px_rgba(43,109,232,0.28)] transition hover:bg-accent-deep"
-          : "rounded-lg bg-accent px-4 py-2 font-medium text-white shadow-[0_0_0_1px_rgba(43,109,232,0.28),0_0_20px_rgba(43,109,232,0.22)] transition hover:bg-accent-deep"
-      }
-    >
-      {compact ? "在线版" : "在线版使用"}
-    </a>
-  );
-}
-
 export function SiteHeader() {
   const pathname = usePathname();
   const { user, status, logout } = useAuth();
@@ -85,9 +58,6 @@ export function SiteHeader() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
-
-  const navLinkClass = (href: string) =>
-    pathname === href ? "font-medium text-ink" : "hover:text-ink";
 
   const authContent =
     status === "loading" ? (
@@ -142,12 +112,11 @@ export function SiteHeader() {
       />
       <div className="relative mx-auto w-full max-w-6xl px-5 py-3.5 sm:px-8 sm:py-4">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="shrink-0" aria-label="宝贝英语首页">
+          <Link href="/" className="shrink-0" aria-label="敲敲英语首页">
             <BrandLogo size="header" priority />
           </Link>
 
           <div className="flex items-center gap-2 sm:hidden">
-            <OnlineCta compact />
             <button
               type="button"
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan/20 bg-white/70 text-ink transition hover:border-accent"
@@ -161,16 +130,6 @@ export function SiteHeader() {
           </div>
 
           <nav className="hidden items-center justify-end gap-5 text-sm text-muted sm:flex">
-            <OnlineCta />
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={navLinkClass(link.href)}
-              >
-                {link.label}
-              </Link>
-            ))}
             {authContent}
           </nav>
         </div>
@@ -185,19 +144,7 @@ export function SiteHeader() {
           aria-hidden={!menuOpen}
         >
           <div className="flex flex-col gap-1 rounded-xl border border-cyan/15 bg-white/90 p-2.5 text-sm text-muted shadow-[0_12px_40px_rgba(11,21,36,0.08)]">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className={`rounded-lg px-3.5 py-2.5 transition hover:bg-[#eef5ff] ${navLinkClass(link.href)}`}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="mt-0.5 border-t border-cyan/12 px-1 pt-2.5">
-              {authContent}
-            </div>
+            <div className="px-1 py-1">{authContent}</div>
           </div>
         </nav>
       </div>

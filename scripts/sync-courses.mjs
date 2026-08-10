@@ -160,6 +160,41 @@ async function ensureSchema(conn) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS courses (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      category_id BIGINT UNSIGNED NULL,
+      slug VARCHAR(128) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NULL,
+      level VARCHAR(32) NULL,
+      difficulty TINYINT NULL,
+      word_count INT NOT NULL DEFAULT 0,
+      duration_minutes INT NOT NULL DEFAULT 0,
+      download_url VARCHAR(500) NOT NULL,
+      r2_key VARCHAR(255) NULL,
+      is_free TINYINT(1) NOT NULL DEFAULT 0,
+      requires_vip TINYINT(1) NOT NULL DEFAULT 0,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_courses_slug (slug),
+      KEY idx_courses_category_id (category_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS user_courses (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id BIGINT UNSIGNED NOT NULL,
+      course_id BIGINT UNSIGNED NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_user_courses_user_course (user_id, course_id),
+      KEY idx_user_courses_course_id (course_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   const [cols] = await conn.query(`SHOW COLUMNS FROM courses`);
   const names = new Set(cols.map((c) => c.Field));
 

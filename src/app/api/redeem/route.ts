@@ -1,36 +1,43 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
+import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { redeemCode } from "@/lib/redeem";
 
 const schema = z.object({
   code: z.string().min(1, "请输入兑换码"),
 });
 
+export async function OPTIONS() {
+  return authPreflight();
+}
+
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(req);
     if (!user) {
-      return jsonError("请先登录后再兑换", 401);
+      return withAuthCors(jsonError("请先登录后再兑换", 401));
     }
 
     const body = schema.parse(await req.json());
     const result = await redeemCode(user.id, body.code);
-    const refreshed = await getCurrentUser();
+    const refreshed = await getCurrentUser(req);
 
-    return jsonOk({
-      message: result.message,
-      type: result.type,
-      user: refreshed,
-    });
+    return withAuthCors(
+      jsonOk({
+        message: result.message,
+        type: result.type,
+        user: refreshed,
+      }),
+    );
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return jsonError(err.issues[0]?.message || "参数错误");
+      return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     if (err instanceof Error) {
-      return jsonError(err.message);
+      return withAuthCors(jsonError(err.message));
     }
     console.error(err);
-    return jsonError("兑换失败，请稍后重试", 500);
+    return withAuthCors(jsonError("兑换失败，请稍后重试", 500));
   }
 }

@@ -2,14 +2,17 @@ import { jsonOk } from "@/lib/api";
 import {
   bumpUserTokenVersion,
   clearSessionCookie,
+  getSessionTokenFromRequest,
   readSessionUserId,
-  SESSION_COOKIE,
 } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 
-export async function POST() {
-  const jar = cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
+export async function OPTIONS() {
+  return authPreflight();
+}
+
+export async function POST(req: Request) {
+  const token = await getSessionTokenFromRequest(req);
   if (token) {
     const userId = await readSessionUserId(token);
     if (userId) {
@@ -17,5 +20,5 @@ export async function POST() {
     }
   }
   await clearSessionCookie();
-  return jsonOk({ message: "已退出登录" });
+  return withAuthCors(jsonOk({ message: "已退出登录" }));
 }

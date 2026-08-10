@@ -1,6 +1,6 @@
-# 宝贝英语官网
+# 敲敲英语
 
-Next.js 官方网站：注册 / 登录 / 修改密码、在线练习入口、兑换码。
+Next.js 后端服务站点：注册 / 登录 / 修改密码、账号管理与管理后台。主要用于 API 与后台，前端入口已精简。
 
 ## 本地运行
 
@@ -22,8 +22,6 @@ npm run dev
 | `/register` | 注册（用户名 + 密码 + Cap 人机验证） |
 | `/login` | 登录（用户名 + 密码 + Cap 人机验证） |
 | `/change-password` | 修改密码（需登录） |
-| `/courses` | 课程包下载 |
-| `/redeem` | 兑换码（延长会员 / 永久会员） |
 | `/account` | 账号信息、宣传短视频投稿 |
 | `/admin/promo` | 宣传投稿审核与发放会员（仅 `channg`，生产环境可用） |
 | `/admin/redeem-codes` | 本地开发专用：生成会员兑换码（仅 `channg`，`next build` 后不可用） |
@@ -49,10 +47,4 @@ npm run dev
 
 ### 同步课程到 R2 + 数据库
 
-```bash
-# 上传 zip 并写入/更新分类与课程元数据
-npm run sync:courses
-
-# 仅更新数据库（不重新上传）
-npm run sync:courses:db
-```
+见 `scripts/sync-courses.mjs`（`npm run sync:courses`）。

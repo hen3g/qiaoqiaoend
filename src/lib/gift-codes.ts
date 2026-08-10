@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2";
 import { execute, query } from "@/lib/db";
 import {
   ensureRedeemCodesCreatedByColumn,
+  ensureRedeemCodesIsPromoterColumn,
   generateCodeString,
   vipLabel,
 } from "@/lib/redeem";
@@ -78,6 +79,7 @@ async function countGeneratedToday(userId: number): Promise<number> {
     `SELECT COUNT(*) AS c
      FROM redeem_codes
      WHERE created_by = :userId
+       AND COALESCE(is_promoter_code, 0) = 0
        AND DATE(created_at) = :today`,
     { userId, today },
   );
@@ -89,13 +91,15 @@ export async function listGiftCodesForUser(
   page: number,
 ): Promise<GiftCodesPage> {
   await ensureRedeemCodesCreatedByColumn();
+  await ensureRedeemCodesIsPromoterColumn();
 
   const pageSize = GIFT_CODES_PAGE_SIZE;
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const offset = (safePage - 1) * pageSize;
 
   const countRows = await query<(RowDataPacket & { c: number })[]>(
-    `SELECT COUNT(*) AS c FROM redeem_codes WHERE created_by = :userId`,
+    `SELECT COUNT(*) AS c FROM redeem_codes
+     WHERE created_by = :userId AND COALESCE(is_promoter_code, 0) = 0`,
     { userId },
   );
   const total = Number(countRows[0]?.c ?? 0);
@@ -108,7 +112,7 @@ export async function listGiftCodesForUser(
        ON rl.code_id = rc.id
       AND rl.id = (SELECT MIN(id) FROM redeem_logs WHERE code_id = rc.id)
      LEFT JOIN users u ON u.id = rl.user_id
-     WHERE rc.created_by = :userId
+     WHERE rc.created_by = :userId AND COALESCE(rc.is_promoter_code, 0) = 0
      ORDER BY rc.id DESC
      LIMIT ${pageSize} OFFSET ${offset}`,
     { userId },
@@ -129,6 +133,7 @@ export async function createDailyGiftCode(
   userId: number,
 ): Promise<GiftCodeDto> {
   await ensureRedeemCodesCreatedByColumn();
+  await ensureRedeemCodesIsPromoterColumn();
 
   if ((await countGeneratedToday(userId)) > 0) {
     throw new Error("今天已经生成过激活码，请明天再来");
@@ -141,9 +146,9 @@ export async function createDailyGiftCode(
     try {
       const result = await execute(
         `INSERT INTO redeem_codes
-           (code, type, value, max_uses, used_count, expires_at, created_by)
+           (code, type, value, max_uses, used_count, expires_at, created_by, is_promoter_code)
          VALUES
-           (:code, 'vip_days', :value, 1, 0, NULL, :userId)`,
+           (:code, 'vip_days', :value, 1, 0, NULL, :userId, 0)`,
         { code, value, userId },
       );
       return {

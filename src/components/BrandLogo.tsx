@@ -26,7 +26,7 @@ export function BrandLogo({
   return (
     <Image
       src="/logo.png"
-      alt="宝贝英语"
+      alt="敲敲英语"
       width={s.width}
       height={s.height}
       priority={priority}

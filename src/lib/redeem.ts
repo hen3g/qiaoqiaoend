@@ -20,6 +20,7 @@ type RedeemCodeRow = RowDataPacket & {
   expires_at: Date | string | null;
   created_at?: Date | string;
   created_by?: number | null;
+  is_promoter_code?: number | boolean | null;
   creator_username?: string | null;
   creator_nickname?: string | null;
 };
@@ -96,6 +97,7 @@ export function mapRedeemCode(row: RedeemCodeRow): RedeemCodeDto {
 }
 
 let createdByEnsured = false;
+let isPromoterCodeEnsured = false;
 
 export async function ensureRedeemCodesCreatedByColumn(): Promise<void> {
   if (createdByEnsured) return;
@@ -111,6 +113,23 @@ export async function ensureRedeemCodesCreatedByColumn(): Promise<void> {
     );
   }
   createdByEnsured = true;
+}
+
+export async function ensureRedeemCodesIsPromoterColumn(): Promise<void> {
+  if (isPromoterCodeEnsured) return;
+  await ensureRedeemCodesCreatedByColumn();
+  type ColRow = RowDataPacket & { Field: string };
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM redeem_codes LIKE 'is_promoter_code'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE redeem_codes
+       ADD COLUMN is_promoter_code TINYINT(1) NOT NULL DEFAULT 0 AFTER created_by,
+       ADD KEY idx_redeem_codes_is_promoter (is_promoter_code)`,
+    );
+  }
+  isPromoterCodeEnsured = true;
 }
 
 /** 128-bit entropy; format fits redeem_codes.code varchar(64). */
@@ -129,8 +148,12 @@ export async function redeemCode(
     throw new Error("请输入兑换码");
   }
 
+  await ensureRedeemCodesCreatedByColumn();
+  await ensureRedeemCodesIsPromoterColumn();
+
   const rows = await query<RedeemCodeRow[]>(
-    `SELECT id, code, type, value, max_uses, used_count, expires_at
+    `SELECT id, code, type, value, max_uses, used_count, expires_at,
+            created_by, is_promoter_code
      FROM redeem_codes WHERE code = :code LIMIT 1`,
     { code },
   );
@@ -182,6 +205,15 @@ export async function redeemCode(
     `UPDATE redeem_codes SET used_count = used_count + 1 WHERE id = :id`,
     { id: row.id },
   );
+
+  const promoterId =
+    row.created_by == null || Number(row.created_by) < 1
+      ? null
+      : Number(row.created_by);
+  if (promoterId && Boolean(row.is_promoter_code)) {
+    const { bindUserToPromoter } = await import("@/lib/promoter");
+    await bindUserToPromoter(userId, promoterId);
+  }
 
   return { message, type: row.type };
 }

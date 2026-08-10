@@ -26,7 +26,7 @@ export default async function RegisterPage({
   return (
     <AuthShell
       asideTitle="创建你的账号"
-      asideText="注册后即可兑换权益、下载课程，开始用键盘敲句子学英语。"
+      asideText="注册后即可开始用键盘敲句子学英语，并管理你的账号。"
     >
       <AuthForm
         title="注册"

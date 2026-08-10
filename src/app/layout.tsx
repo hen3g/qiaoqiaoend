@@ -24,11 +24,11 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {
-    default: "宝贝英语官网",
-    template: "%s · 宝贝英语",
+    default: "敲敲英语",
+    template: "%s · 敲敲英语",
   },
   description:
-    "宝贝英语：用键盘敲句子学英语。看中文提示，敲出对应英文，从单词练到完整句子。注册账号、在线练习与会员兑换。",
+    "敲敲英语：用键盘敲句子学英语。看中文提示，敲出对应英文，从单词练到完整句子。",
   icons: {
     icon: "/favicon.ico",
   },
