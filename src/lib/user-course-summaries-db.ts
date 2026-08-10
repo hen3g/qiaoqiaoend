@@ -402,17 +402,21 @@ export async function listPlazaCourseSummaries(opts: {
     params,
   );
 
-  const added = new Set<string>();
+  const addedMap = new Map<string, string>();
   if (rows.length > 0) {
-    const owned = await query<(RowDataPacket & { source_course_key: string })[]>(
-      `SELECT source_course_key FROM user_course_summaries
+    const owned = await query<
+      (RowDataPacket & { course_id: string; source_course_key: string })[]
+    >(
+      `SELECT course_id, source_course_key FROM user_course_summaries
        WHERE user_id = :viewerId
          AND source_course_key IS NOT NULL
          AND source_course_key <> ''`,
       { viewerId: opts.viewerId },
     );
     for (const row of owned) {
-      if (row.source_course_key) added.add(row.source_course_key);
+      if (row.source_course_key && row.course_id) {
+        addedMap.set(row.source_course_key, row.course_id);
+      }
     }
   }
 
@@ -431,6 +435,7 @@ export async function listPlazaCourseSummaries(opts: {
         : null;
     const base = rowToSummary(row);
     const isMine = ownerUserId === opts.viewerId;
+    const copiedId = addedMap.get(sourceKey);
     return {
       ...base,
       ownerUserId,
@@ -438,7 +443,12 @@ export async function listPlazaCourseSummaries(opts: {
       authorName,
       authorAvatarUrl,
       sourceCourseKey: sourceKey,
-      alreadyAdded: isMine || added.has(sourceKey),
+      alreadyAdded: isMine || Boolean(copiedId),
+      ...(isMine
+        ? { myCourseId: base.id }
+        : copiedId
+          ? { myCourseId: copiedId }
+          : {}),
     };
   });
 

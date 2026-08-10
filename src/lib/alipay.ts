@@ -38,8 +38,26 @@ function getNotifyUrl(): string {
   return requireEnv("ALIPAY_NOTIFY_URL");
 }
 
+/** 开放平台「应用网关」地址；收 From 蚂蚁消息（如退款冲退完成）。 */
+function getAppGatewayUrl(): string {
+  return requireEnv("ALIPAY_APP_GATEWAY_URL");
+}
+
 export function getAlipayAppId(): string {
   return getAppId();
+}
+
+/** APP 支付异步通知地址（接口 notify_url）。 */
+export function getAlipayNotifyUrl(): string {
+  return getNotifyUrl();
+}
+
+/**
+ * 应用网关公网 URL（填入开放平台「应用网关」）。
+ * 用于 alipay.trade.refund.depositback.completed 等 From 蚂蚁 HTTP 消息。
+ */
+export function getAlipayAppGatewayUrl(): string {
+  return getAppGatewayUrl();
 }
 
 export function getAlipayGateway(): string {
@@ -47,6 +65,10 @@ export function getAlipayGateway(): string {
     process.env.ALIPAY_GATEWAY?.trim() || DEFAULT_GATEWAY
   ).replace(/\/$/, "");
 }
+
+/** From 蚂蚁：收单退款冲退完成通知 */
+export const ALIPAY_MSG_DEPOSITBACK_COMPLETED =
+  "alipay.trade.refund.depositback.completed";
 
 /**
  * Build Alipay sign content: key=value joined by & after ASCII sort.

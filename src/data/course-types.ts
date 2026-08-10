@@ -172,4 +172,6 @@ export type PlazaCourseSummary = CoursePackSummary & {
   ownerUserId: number;
   /** 当前登录用户是否已添加过该课 */
   alreadyAdded?: boolean;
+  /** 当前用户库中可练习的课程 id（自己的课或已添加的副本） */
+  myCourseId?: string;
 };
