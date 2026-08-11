@@ -10,7 +10,7 @@ type NotificationRow = RowDataPacket & {
   title: string;
   summary: string;
   image_url: string | null;
-  link_url: string;
+  link_url: string | null;
   created_at?: Date | string;
 };
 
@@ -21,7 +21,7 @@ export type NotificationDto = {
   title: string;
   summary: string;
   imageUrl: string | null;
-  linkUrl: string;
+  linkUrl: string | null;
   createdAt: string | null;
 };
 
@@ -39,7 +39,7 @@ export function mapNotification(row: NotificationRow): NotificationDto {
     title: row.title,
     summary: row.summary,
     imageUrl: row.image_url || null,
-    linkUrl: row.link_url,
+    linkUrl: row.link_url || null,
     createdAt: toIso(row.created_at),
   };
 }
@@ -74,7 +74,7 @@ export async function createNotification(input: {
   title: string;
   summary: string;
   imageUrl: string | null;
-  linkUrl: string;
+  linkUrl: string | null;
 }): Promise<NotificationDto> {
   const result = await execute(
     `INSERT INTO notifications (type, version, title, summary, image_url, link_url)

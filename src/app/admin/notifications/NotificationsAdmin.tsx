@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -24,7 +24,7 @@ type NotificationDto = {
   title: string;
   summary: string;
   imageUrl: string | null;
-  linkUrl: string;
+  linkUrl: string | null;
   createdAt: string | null;
 };
 
@@ -67,8 +67,7 @@ export function NotificationsAdmin() {
     void loadNotifications();
   }, [loadNotifications]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function publishNotification() {
     setError("");
     setBusy(true);
     try {
@@ -140,67 +139,70 @@ export function NotificationsAdmin() {
           发布更新通知或消息通知。公开接口 GET /api/notifications
           会返回各类型最新一条。
         </Typography.Paragraph>
-        <form onSubmit={onSubmit}>
-          <Form layout="vertical" style={{ maxWidth: 560 }}>
-            <Form.Item label="通知类型">
-              <Radio.Group
-                value={type}
-                onChange={(v) => setType(v as NotificationType)}
-              >
-                <Radio value="update">更新通知</Radio>
-                <Radio value="message">消息通知</Radio>
-              </Radio.Group>
-            </Form.Item>
-            {type === "update" ? (
-              <Form.Item label="版本号" required>
-                <Input
-                  value={version}
-                  onChange={setVersion}
-                  placeholder="例如 1.2.0"
-                  maxLength={64}
-                  required
-                />
-              </Form.Item>
-            ) : null}
-            <Form.Item label="标题" required>
+        <Form
+          layout="vertical"
+          style={{ maxWidth: 560 }}
+          onSubmit={() => {
+            void publishNotification();
+          }}
+        >
+          <Form.Item label="通知类型">
+            <Radio.Group
+              value={type}
+              onChange={(v) => setType(v as NotificationType)}
+            >
+              <Radio value="update">更新通知</Radio>
+              <Radio value="message">消息通知</Radio>
+            </Radio.Group>
+          </Form.Item>
+          {type === "update" ? (
+            <Form.Item label="版本号" required>
               <Input
-                value={title}
-                onChange={setTitle}
-                maxLength={200}
+                value={version}
+                onChange={setVersion}
+                placeholder="例如 1.2.0"
+                maxLength={64}
                 required
               />
             </Form.Item>
-            <Form.Item label="简介" required>
-              <Input.TextArea
-                value={summary}
-                onChange={setSummary}
-                maxLength={500}
-                autoSize={{ minRows: 3, maxRows: 6 }}
-                required
-              />
-            </Form.Item>
-            <Form.Item label="图片链接（可选）">
-              <Input
-                value={imageUrl}
-                onChange={setImageUrl}
-                placeholder="https://"
-                maxLength={500}
-              />
-            </Form.Item>
-            <Form.Item label="跳转链接" required>
-              <Input
-                value={linkUrl}
-                onChange={setLinkUrl}
-                placeholder="https://"
-                maxLength={500}
-                required
-              />
-            </Form.Item>
-            <Button type="primary" htmlType="submit" loading={busy}>
-              发布通知
-            </Button>
-          </Form>
-        </form>
+          ) : null}
+          <Form.Item label="标题" required>
+            <Input
+              value={title}
+              onChange={setTitle}
+              maxLength={200}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="简介" required>
+            <Input.TextArea
+              value={summary}
+              onChange={setSummary}
+              maxLength={500}
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="图片链接（可选）">
+            <Input
+              value={imageUrl}
+              onChange={setImageUrl}
+              placeholder="https://"
+              maxLength={500}
+            />
+          </Form.Item>
+          <Form.Item label="跳转链接（可选）">
+            <Input
+              value={linkUrl}
+              onChange={setLinkUrl}
+              placeholder="https://"
+              maxLength={500}
+            />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={busy}>
+            发布通知
+          </Button>
+        </Form>
       </Card>
 
       {error ? <Alert type="error" content={error} /> : null}
@@ -260,11 +262,13 @@ export function NotificationsAdmin() {
                       <Typography.Paragraph type="secondary">
                         {n.summary}
                       </Typography.Paragraph>
-                      <Typography.Text>
-                        <a href={n.linkUrl} target="_blank" rel="noreferrer">
-                          {n.linkUrl}
-                        </a>
-                      </Typography.Text>
+                      {n.linkUrl ? (
+                        <Typography.Text>
+                          <a href={n.linkUrl} target="_blank" rel="noreferrer">
+                            {n.linkUrl}
+                          </a>
+                        </Typography.Text>
+                      ) : null}
                     </div>
                   </Space>
                   <Button

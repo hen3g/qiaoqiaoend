@@ -26,7 +26,14 @@ const createSchema = z
       ])
       .optional()
       .transform((v) => (v && v.length > 0 ? v : null)),
-    linkUrl: z.string().trim().url("跳转链接无效").max(500),
+    linkUrl: z
+      .union([
+        z.string().trim().url("跳转链接无效").max(500),
+        z.literal(""),
+        z.null(),
+      ])
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : null)),
   })
   .superRefine((data, ctx) => {
     if (data.type === "update" && !data.version) {

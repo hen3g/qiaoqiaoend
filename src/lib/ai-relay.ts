@@ -90,11 +90,13 @@ export class AiRelayError extends Error {
   }
 }
 
-function costYuanFromUsage(usage: {
+type TokenUsage = {
   total_tokens?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
-} | null | undefined): number {
+};
+
+function costYuanFromUsage(usage: TokenUsage | null | undefined): number {
   if (!usage) return 0;
   const total =
     typeof usage.total_tokens === "number" && usage.total_tokens > 0
@@ -102,6 +104,26 @@ function costYuanFromUsage(usage: {
       : (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0);
   if (total <= 0) return 0;
   return (total * YUAN_PER_MILLION_TOKENS) / 1_000_000;
+}
+
+/** Rough token estimate: ~4 chars per token (no official usage on cancel). */
+function estimateTokensFromChars(chars: number): number {
+  if (chars <= 0) return 0;
+  return Math.ceil(chars / 4);
+}
+
+function estimateUsageFromText(
+  system: string,
+  user: string,
+  completion: string,
+): TokenUsage {
+  const prompt_tokens = estimateTokensFromChars(system.length + user.length);
+  const completion_tokens = estimateTokensFromChars(completion.length);
+  return {
+    prompt_tokens,
+    completion_tokens,
+    total_tokens: prompt_tokens + completion_tokens,
+  };
 }
 
 export type AiJsonResult = {
@@ -127,6 +149,8 @@ type AiJsonRequest = {
 /**
  * Call configured AI provider (DeepSeek or 腾讯云 hy3), then deduct diamonds
  * post-hoc (100 diamonds = ¥1, balance floored at 0).
+ * Cancel / disconnect after the upstream stream starts still settles an
+ * estimated charge so partial usage is not free.
  */
 export async function requestAiJson({
   userId,
@@ -165,6 +189,11 @@ export async function requestAiJsonStream({
   stream = true,
   chargeType,
 }: AiJsonRequest & { stream?: boolean }): Promise<AiJsonResult> {
+  const balance = await getUserDiamonds(userId);
+  if (balance <= 0) {
+    throw new AiRelayError("钻石不足，请先充值后再使用", 402);
+  }
+
   const cfg = resolveAiProvider(model);
   const ledgerType: DiamondTxType =
     chargeType === "ai_suggest_words"
@@ -200,7 +229,8 @@ export async function requestAiJsonStream({
       signal,
       body: JSON.stringify(body),
     });
-  } catch (err) {
+  } catch {
+    // Abort before a successful upstream response: no proven usage → no charge.
     if (signal?.aborted) throw new AiRelayError("已取消", 499);
     throw new AiRelayError("无法连接 AI 服务，请稍后重试。", 502);
   }
@@ -210,11 +240,7 @@ export async function requestAiJsonStream({
     let payload: {
       error?: { message?: string };
       choices?: { message?: { content?: string } }[];
-      usage?: {
-        total_tokens?: number;
-        prompt_tokens?: number;
-        completion_tokens?: number;
-      };
+      usage?: TokenUsage;
     };
     try {
       payload = JSON.parse(rawText) as typeof payload;
@@ -265,25 +291,42 @@ export async function requestAiJsonStream({
   const decoder = new TextDecoder();
   let buffer = "";
   let content = "";
-  let usage:
-    | {
-        total_tokens?: number;
-        prompt_tokens?: number;
-        completion_tokens?: number;
-      }
-    | undefined;
+  let usage: TokenUsage | undefined;
+
+  /** Stream body already open → prompt is typically billed; settle estimate then 499. */
+  const settleCancelAndThrow = async (): Promise<never> => {
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
+    }
+    await finalizeAiResult({
+      userId,
+      content,
+      headerYuan: NaN,
+      usage: estimateUsageFromText(system, user, content),
+      chargeType: ledgerType,
+      estimated: true,
+      cancelled: true,
+    });
+    throw new AiRelayError("已取消", 499);
+  };
 
   while (true) {
     if (signal?.aborted) {
-      try {
-        await reader.cancel();
-      } catch {
-        /* ignore */
-      }
-      throw new AiRelayError("已取消", 499);
+      await settleCancelAndThrow();
     }
 
-    const { done, value } = await reader.read();
+    let done: boolean;
+    let value: Uint8Array | undefined;
+    try {
+      ({ done, value } = await reader.read());
+    } catch {
+      if (signal?.aborted) {
+        await settleCancelAndThrow();
+      }
+      throw new AiRelayError("AI 流式读取中断，请重试。", 502);
+    }
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
@@ -297,11 +340,7 @@ export async function requestAiJsonStream({
 
       let chunk: {
         choices?: { delta?: { content?: string } }[];
-        usage?: {
-          total_tokens?: number;
-          prompt_tokens?: number;
-          completion_tokens?: number;
-        };
+        usage?: TokenUsage;
         error?: { message?: string };
       };
       try {
@@ -354,12 +393,10 @@ async function finalizeAiResult(input: {
   userId: number;
   content: string;
   headerYuan: number;
-  usage?: {
-    total_tokens?: number;
-    prompt_tokens?: number;
-    completion_tokens?: number;
-  };
+  usage?: TokenUsage;
   chargeType: DiamondTxType;
+  estimated?: boolean;
+  cancelled?: boolean;
 }): Promise<AiJsonResult> {
   const costYuan =
     Number.isFinite(input.headerYuan) && input.headerYuan > 0
@@ -375,6 +412,10 @@ async function finalizeAiResult(input: {
       meta: {
         costYuan,
         totalTokens: input.usage?.total_tokens ?? null,
+        promptTokens: input.usage?.prompt_tokens ?? null,
+        completionTokens: input.usage?.completion_tokens ?? null,
+        ...(input.estimated ? { estimated: true } : {}),
+        ...(input.cancelled ? { cancelled: true } : {}),
       },
     },
   );

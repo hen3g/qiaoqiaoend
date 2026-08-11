@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   title VARCHAR(200) NOT NULL,
   summary VARCHAR(500) NOT NULL,
   image_url VARCHAR(500) NULL,
-  link_url VARCHAR(500) NOT NULL,
+  link_url VARCHAR(500) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_notifications_type_id (type, id),
