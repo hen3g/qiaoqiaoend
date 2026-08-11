@@ -5,30 +5,39 @@ import {
 } from "@/lib/alipay";
 import { markOrderPaidAndFulfill } from "@/lib/payment-orders";
 
+async function parseNotifyParams(req: Request): Promise<Record<string, string>> {
+  const contentType = req.headers.get("content-type") || "";
+  const params: Record<string, string> = {};
+
+  if (contentType.includes("application/json")) {
+    const body = (await req.json()) as Record<string, unknown>;
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined && value !== null) {
+        params[key] = String(value);
+      }
+    }
+    return params;
+  }
+
+  // Alipay sends application/x-www-form-urlencoded; prefer text+URLSearchParams
+  // over formData() for consistent string decoding.
+  const raw = await req.text();
+  if (raw) {
+    const search = new URLSearchParams(raw);
+    for (const [key, value] of search.entries()) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
 /**
  * Alipay async notify. Must return plain text `success` or `failure`.
  * @see https://opendocs.alipay.com/open/204/105301
  */
 export async function POST(req: Request) {
   try {
-    const contentType = req.headers.get("content-type") || "";
-    let params: Record<string, string> = {};
-
-    if (contentType.includes("application/json")) {
-      const body = (await req.json()) as Record<string, unknown>;
-      for (const [key, value] of Object.entries(body)) {
-        if (value !== undefined && value !== null) {
-          params[key] = String(value);
-        }
-      }
-    } else {
-      const form = await req.formData();
-      for (const [key, value] of form.entries()) {
-        if (typeof value === "string") {
-          params[key] = value;
-        }
-      }
-    }
+    const params = await parseNotifyParams(req);
 
     if (!verifyAlipayNotify(params)) {
       console.error("[alipay/notify] invalid signature", params.out_trade_no);

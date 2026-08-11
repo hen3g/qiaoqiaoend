@@ -1,4 +1,4 @@
-import { createSign, createVerify } from "node:crypto";
+import { createPublicKey, createSign, createVerify } from "node:crypto";
 
 const DEFAULT_GATEWAY = "https://openapi.alipay.com/gateway.do";
 
@@ -16,9 +16,16 @@ function toPem(key: string, kind: "private" | "public"): string {
   if (trimmed.includes("BEGIN")) {
     return trimmed;
   }
+  // Guard against accidental double-paste (two keys concatenated).
   const body = trimmed.replace(/\s+/g, "");
+  const endMarker = "IDAQAB";
+  const firstEnd = body.indexOf(endMarker);
+  const normalized =
+    firstEnd >= 0 && body.indexOf(endMarker, firstEnd + endMarker.length) >= 0
+      ? body.slice(0, firstEnd + endMarker.length)
+      : body;
   const label = kind === "private" ? "PRIVATE KEY" : "PUBLIC KEY";
-  const lines = body.match(/.{1,64}/g) ?? [body];
+  const lines = normalized.match(/.{1,64}/g) ?? [normalized];
   return `-----BEGIN ${label}-----\n${lines.join("\n")}\n-----END ${label}-----`;
 }
 
@@ -31,7 +38,15 @@ function getPrivateKeyPem(): string {
 }
 
 function getAlipayPublicKeyPem(): string {
-  return toPem(requireEnv("ALIPAY_PUBLIC_KEY"), "public");
+  const pem = toPem(requireEnv("ALIPAY_PUBLIC_KEY"), "public");
+  try {
+    createPublicKey(pem);
+  } catch {
+    throw new Error(
+      "ALIPAY_PUBLIC_KEY 无效：请粘贴开放平台「支付宝公钥」（非应用公钥），且不要重复粘贴",
+    );
+  }
+  return pem;
 }
 
 function getNotifyUrl(): string {
@@ -200,4 +215,78 @@ export function formatAlipayAmount(yuan: number): string {
 
 export function yuanToFen(yuan: number): number {
   return Math.round(yuan * 100);
+}
+
+export type AlipayTradeQueryResult = {
+  code: string;
+  msg: string;
+  subCode?: string;
+  subMsg?: string;
+  tradeNo?: string;
+  outTradeNo?: string;
+  tradeStatus?: string;
+  totalAmount?: string;
+  appId?: string;
+};
+
+/**
+ * Server-side trade query (`alipay.trade.query`).
+ * Used as a fallback when async notify is delayed / missed.
+ */
+export async function queryAlipayTrade(input: {
+  outTradeNo: string;
+}): Promise<AlipayTradeQueryResult> {
+  const bizContent = JSON.stringify({
+    out_trade_no: input.outTradeNo,
+  });
+
+  const params: Record<string, string> = {
+    app_id: getAppId(),
+    method: "alipay.trade.query",
+    charset: "utf-8",
+    sign_type: "RSA2",
+    timestamp: formatTimestamp(),
+    version: "1.0",
+    biz_content: bizContent,
+  };
+
+  const content = buildSignContent(params);
+  params.sign = signRsa2(content);
+
+  const body = new URLSearchParams(params);
+  const res = await fetch(getAlipayGateway(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    throw new Error(`支付宝查单 HTTP ${res.status}`);
+  }
+
+  const json = (await res.json()) as {
+    alipay_trade_query_response?: Record<string, unknown>;
+    sign?: string;
+  };
+  const data = json.alipay_trade_query_response;
+  if (!data) {
+    throw new Error("支付宝查单响应异常");
+  }
+
+  return {
+    code: String(data.code ?? ""),
+    msg: String(data.msg ?? ""),
+    subCode: data.sub_code != null ? String(data.sub_code) : undefined,
+    subMsg: data.sub_msg != null ? String(data.sub_msg) : undefined,
+    tradeNo: data.trade_no != null ? String(data.trade_no) : undefined,
+    outTradeNo:
+      data.out_trade_no != null ? String(data.out_trade_no) : undefined,
+    tradeStatus:
+      data.trade_status != null ? String(data.trade_status) : undefined,
+    totalAmount:
+      data.total_amount != null ? String(data.total_amount) : undefined,
+    appId: data.app_id != null ? String(data.app_id) : getAppId(),
+  };
 }

@@ -2,6 +2,9 @@ import type { RowDataPacket } from "mysql2";
 import { execute, query } from "@/lib/db";
 import {
   formatAlipayAmount,
+  getAlipayAppId,
+  isAlipayTradeSuccess,
+  queryAlipayTrade,
   yuanToFen,
 } from "@/lib/alipay";
 import {
@@ -390,4 +393,35 @@ export async function markOrderPaidAndFulfill(input: {
   }
 
   return purchaseVipPlan(order.userId, order.planId);
+}
+
+/**
+ * If order is still pending, ask Alipay whether it was paid and fulfill.
+ * Idempotent; safe to call from client polling.
+ */
+export async function syncPendingOrderFromAlipay(
+  outTradeNo: string,
+): Promise<PaymentOrder | null> {
+  const order = await getOrderByOutTradeNo(outTradeNo);
+  if (!order) return null;
+  if (order.status !== "pending") return order;
+
+  const trade = await queryAlipayTrade({ outTradeNo });
+  if (trade.code !== "10000" || !isAlipayTradeSuccess(trade.tradeStatus)) {
+    return order;
+  }
+  if (!trade.tradeNo || !trade.totalAmount) {
+    console.error("[alipay/query] missing fields", outTradeNo, trade);
+    return order;
+  }
+
+  await markOrderPaidAndFulfill({
+    outTradeNo,
+    alipayTradeNo: trade.tradeNo,
+    totalAmountYuan: trade.totalAmount,
+    appId: trade.appId || getAlipayAppId(),
+    expectedAppId: getAlipayAppId(),
+  });
+
+  return getOrderByOutTradeNo(outTradeNo);
 }

@@ -2,7 +2,10 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser, mapUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { query } from "@/lib/db";
-import { getOrderByOutTradeNo } from "@/lib/payment-orders";
+import {
+  getOrderByOutTradeNo,
+  syncPendingOrderFromAlipay,
+} from "@/lib/payment-orders";
 import { getVipPlan } from "@/lib/vip";
 import {
   ensureShareCustomCoursesColumn,
@@ -30,9 +33,23 @@ export async function GET(req: Request, ctx: Ctx) {
       return withAuthCors(jsonError("缺少订单号"));
     }
 
-    const order = await getOrderByOutTradeNo(outTradeNo);
+    let order = await getOrderByOutTradeNo(outTradeNo);
     if (!order || order.userId !== user.id) {
       return withAuthCors(jsonError("订单不存在", 404));
+    }
+
+    // Fallback: client already saw SDK success, but async notify may have failed
+    // (e.g. bad ALIPAY_PUBLIC_KEY). Actively query Alipay and fulfill.
+    if (order.status === "pending") {
+      try {
+        order = (await syncPendingOrderFromAlipay(outTradeNo)) ?? order;
+      } catch (err) {
+        console.error(
+          "[vip/orders/:id] alipay query sync failed",
+          outTradeNo,
+          err,
+        );
+      }
     }
 
     const plan = getVipPlan(order.planId);
