@@ -210,6 +210,18 @@ CREATE TABLE IF NOT EXISTS user_skill_progress (
   PRIMARY KEY (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS user_course_groups (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_user_course_groups_user (user_id),
+  KEY idx_user_course_groups_user_sort (user_id, sort_order, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS user_course_summaries (
   user_id BIGINT NOT NULL,
   course_id VARCHAR(128) NOT NULL,
@@ -229,10 +241,13 @@ CREATE TABLE IF NOT EXISTS user_course_summaries (
   author_user_id BIGINT NULL,
   author_name VARCHAR(64) NULL,
   source_course_key VARCHAR(192) NULL,
+  note VARCHAR(500) NULL,
+  group_id BIGINT UNSIGNED NULL,
   updated_at DATETIME NOT NULL,
   PRIMARY KEY (user_id, course_id),
   KEY idx_user_title (user_id, title),
-  KEY idx_source_key (user_id, source_course_key)
+  KEY idx_source_key (user_id, source_course_key),
+  KEY idx_user_group (user_id, group_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS user_paper_summaries (

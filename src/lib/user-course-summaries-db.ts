@@ -2,6 +2,7 @@ import type {
   CourseDifficulty,
   CoursePack,
   CoursePackSummary,
+  MyCourseSummary,
   PlazaCourseSummary,
 } from "@/data/course-types";
 import { isPracticeMode } from "@/data/practice-modes";
@@ -27,6 +28,10 @@ type SummaryRow = RowDataPacket & {
   author_user_id?: number | null;
   author_name?: string | null;
   source_course_key?: string | null;
+  note?: string | null;
+  group_id?: number | null;
+  group_name?: string | null;
+  updated_at?: Date | string | null;
 };
 
 type PlazaRow = SummaryRow & {
@@ -93,6 +98,63 @@ export async function ensureAuthorColumns(): Promise<void> {
   }
 
   authorColsEnsured = true;
+}
+
+let myCourseMetaEnsured = false;
+
+/** Ensure note / group_id columns for 我的课程. */
+export async function ensureMyCourseMetaColumns(): Promise<void> {
+  if (myCourseMetaEnsured) return;
+  await ensureAuthorColumns();
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS user_course_groups (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id BIGINT NOT NULL,
+      name VARCHAR(64) NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_user_course_groups_user (user_id),
+      KEY idx_user_course_groups_user_sort (user_id, sort_order, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  type ColRow = RowDataPacket & { Field: string };
+
+  const noteCol = await query<ColRow[]>(
+    `SHOW COLUMNS FROM user_course_summaries LIKE 'note'`,
+  );
+  if (noteCol.length === 0) {
+    await execute(
+      `ALTER TABLE user_course_summaries
+       ADD COLUMN note VARCHAR(500) NULL AFTER source_course_key`,
+    );
+  }
+
+  const groupCol = await query<ColRow[]>(
+    `SHOW COLUMNS FROM user_course_summaries LIKE 'group_id'`,
+  );
+  if (groupCol.length === 0) {
+    await execute(
+      `ALTER TABLE user_course_summaries
+       ADD COLUMN group_id BIGINT UNSIGNED NULL AFTER note`,
+    );
+  }
+
+  type IndexRow = RowDataPacket & { Key_name: string };
+  const indexes = await query<IndexRow[]>(
+    `SHOW INDEX FROM user_course_summaries WHERE Key_name = 'idx_user_group'`,
+  );
+  if (indexes.length === 0) {
+    await execute(
+      `ALTER TABLE user_course_summaries
+       ADD KEY idx_user_group (user_id, group_id)`,
+    );
+  }
+
+  myCourseMetaEnsured = true;
 }
 
 function toDifficulty(value: unknown): CourseDifficulty {
@@ -488,4 +550,239 @@ export async function listPlazaCourseSummaries(opts: {
     pageSize,
     hasMore: safePage * pageSize < total,
   };
+}
+
+export const MY_COURSES_PAGE_SIZE = 20;
+
+export type MyCoursesSort =
+  | "updated_desc"
+  | "updated_asc"
+  | "title_asc"
+  | "title_desc";
+
+export type MyCoursesPage = {
+  courses: MyCourseSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+type MineRow = SummaryRow & {
+  group_name?: string | null;
+  updated_at?: Date | string | null;
+};
+
+function rowToMyCourse(row: MineRow): MyCourseSummary {
+  const base = rowToSummary(row);
+  const note =
+    typeof row.note === "string" && row.note.trim() ? row.note.trim() : "";
+  const groupId =
+    row.group_id != null && Number(row.group_id) > 0
+      ? Number(row.group_id)
+      : null;
+  const groupName =
+    typeof row.group_name === "string" && row.group_name.trim()
+      ? row.group_name.trim()
+      : null;
+  const fromPlaza = Boolean(
+    typeof row.source_course_key === "string" && row.source_course_key.trim(),
+  );
+  let updatedAt: string | undefined;
+  if (row.updated_at instanceof Date) {
+    updatedAt = row.updated_at.toISOString();
+  } else if (typeof row.updated_at === "string" && row.updated_at.trim()) {
+    updatedAt = row.updated_at.trim();
+  }
+  return {
+    ...base,
+    note,
+    groupId,
+    groupName,
+    fromPlaza,
+    ...(updatedAt ? { updatedAt } : {}),
+  };
+}
+
+function sortSql(sort: MyCoursesSort): string {
+  switch (sort) {
+    case "updated_asc":
+      return "s.updated_at ASC, s.course_id ASC";
+    case "title_asc":
+      return "s.title ASC, s.course_id ASC";
+    case "title_desc":
+      return "s.title DESC, s.course_id ASC";
+    case "updated_desc":
+    default:
+      return "s.updated_at DESC, s.course_id ASC";
+  }
+}
+
+/**
+ * 我的课程：当前用户全部自制课 + 广场添加的副本。
+ * 支持分页、按标题/备注搜索、按分组筛选、排序。
+ */
+export async function listMyCourseSummaries(opts: {
+  userId: number;
+  page?: number;
+  q?: string;
+  /** 指定分组；`ungrouped` = 未分组 */
+  groupId?: number | "ungrouped";
+  sort?: MyCoursesSort;
+}): Promise<MyCoursesPage> {
+  await ensureMyCourseMetaColumns();
+
+  const pageSize = MY_COURSES_PAGE_SIZE;
+  const safePage =
+    Number.isInteger(opts.page) && (opts.page ?? 0) > 0 ? Number(opts.page) : 1;
+  const offset = (safePage - 1) * pageSize;
+  const q = opts.q?.trim().slice(0, 64) || "";
+  const like = q ? `%${q.replace(/[%_\\]/g, "")}%` : "";
+  const sort = opts.sort ?? "updated_desc";
+
+  const whereParts = ["s.user_id = :userId"];
+  const params: Record<string, string | number> = { userId: opts.userId };
+
+  if (opts.groupId === "ungrouped") {
+    whereParts.push("(s.group_id IS NULL OR s.group_id = 0)");
+  } else if (
+    typeof opts.groupId === "number" &&
+    Number.isInteger(opts.groupId) &&
+    opts.groupId > 0
+  ) {
+    whereParts.push("s.group_id = :groupId");
+    params.groupId = opts.groupId;
+  }
+
+  if (like) {
+    whereParts.push(
+      "(s.title LIKE :like OR IFNULL(s.note, '') LIKE :like)",
+    );
+    params.like = like;
+  }
+
+  const where = whereParts.join(" AND ");
+
+  const countRows = await query<(RowDataPacket & { c: number })[]>(
+    `SELECT COUNT(*) AS c
+     FROM user_course_summaries s
+     WHERE ${where}`,
+    params,
+  );
+  const total = Number(countRows[0]?.c ?? 0);
+
+  const rows = await query<MineRow[]>(
+    `SELECT s.course_id, s.series_id, s.series_order, s.title, s.description,
+            s.difficulty, s.duration_minutes, s.word_count, s.exercise_count,
+            s.lesson_count, s.stage, s.practice_mode, s.is_user_created,
+            s.audio_ready, s.author_user_id, s.author_name, s.source_course_key,
+            s.note, s.group_id, s.updated_at,
+            g.name AS group_name
+     FROM user_course_summaries s
+     LEFT JOIN user_course_groups g
+       ON g.id = s.group_id AND g.user_id = s.user_id
+     WHERE ${where}
+     ORDER BY ${sortSql(sort)}
+     LIMIT ${pageSize} OFFSET ${offset}`,
+    params,
+  );
+
+  return {
+    courses: rows.map(rowToMyCourse),
+    total,
+    page: safePage,
+    pageSize,
+    hasMore: safePage * pageSize < total,
+  };
+}
+
+export async function updateMyCourseMeta(
+  userId: number,
+  courseId: string,
+  patch: {
+    note?: string | null;
+    groupId?: number | null;
+  },
+): Promise<MyCourseSummary | null> {
+  await ensureMyCourseMetaColumns();
+
+  const existing = await query<MineRow[]>(
+    `SELECT s.course_id, s.series_id, s.series_order, s.title, s.description,
+            s.difficulty, s.duration_minutes, s.word_count, s.exercise_count,
+            s.lesson_count, s.stage, s.practice_mode, s.is_user_created,
+            s.audio_ready, s.author_user_id, s.author_name, s.source_course_key,
+            s.note, s.group_id, s.updated_at,
+            g.name AS group_name
+     FROM user_course_summaries s
+     LEFT JOIN user_course_groups g
+       ON g.id = s.group_id AND g.user_id = s.user_id
+     WHERE s.user_id = :userId AND s.course_id = :courseId
+     LIMIT 1`,
+    { userId, courseId },
+  );
+  if (!existing[0]) return null;
+
+  const sets: string[] = [];
+  const params: Record<string, string | number | null> = {
+    userId,
+    courseId,
+  };
+
+  if ("note" in patch) {
+    const note =
+      patch.note == null
+        ? null
+        : String(patch.note).trim().slice(0, 500) || null;
+    sets.push("note = :note");
+    params.note = note;
+  }
+
+  if ("groupId" in patch) {
+    const groupId =
+      patch.groupId == null ||
+      !Number.isInteger(patch.groupId) ||
+      patch.groupId <= 0
+        ? null
+        : Number(patch.groupId);
+    if (groupId != null) {
+      const groupRows = await query<RowDataPacket[]>(
+        `SELECT id FROM user_course_groups
+         WHERE user_id = :userId AND id = :groupId
+         LIMIT 1`,
+        { userId, groupId },
+      );
+      if (groupRows.length === 0) {
+        throw new Error("分组不存在");
+      }
+    }
+    sets.push("group_id = :groupId");
+    params.groupId = groupId;
+  }
+
+  if (sets.length === 0) {
+    return rowToMyCourse(existing[0]);
+  }
+
+  await execute(
+    `UPDATE user_course_summaries
+     SET ${sets.join(", ")}
+     WHERE user_id = :userId AND course_id = :courseId`,
+    params,
+  );
+
+  const updated = await query<MineRow[]>(
+    `SELECT s.course_id, s.series_id, s.series_order, s.title, s.description,
+            s.difficulty, s.duration_minutes, s.word_count, s.exercise_count,
+            s.lesson_count, s.stage, s.practice_mode, s.is_user_created,
+            s.audio_ready, s.author_user_id, s.author_name, s.source_course_key,
+            s.note, s.group_id, s.updated_at,
+            g.name AS group_name
+     FROM user_course_summaries s
+     LEFT JOIN user_course_groups g
+       ON g.id = s.group_id AND g.user_id = s.user_id
+     WHERE s.user_id = :userId AND s.course_id = :courseId
+     LIMIT 1`,
+    { userId, courseId },
+  );
+  return updated[0] ? rowToMyCourse(updated[0]) : null;
 }

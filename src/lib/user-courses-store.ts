@@ -3,12 +3,15 @@ import { createUserCourseId, validateCoursePack } from "@/lib/course-validate";
 import {
   countAllUserCourseSummaries,
   deleteUserCourseSummary,
+  listMyCourseSummaries,
   listPlazaCourseSummaries,
   listUserCourseSummariesFromDb,
   makeSourceCourseKey,
   toCourseSummary,
+  updateMyCourseMeta,
   upsertUserCourseSummary,
   viewerHasSourceCourse,
+  type MyCoursesSort,
 } from "@/lib/user-course-summaries-db";
 import {
   r2Delete,
@@ -137,7 +140,32 @@ export async function deleteUserCourseForUser(
   return true;
 }
 
-export { listPlazaCourseSummaries };
+/** 批量删除自制课与广场添加的副本（同一用户库）。 */
+export async function batchDeleteUserCoursesForUser(
+  userId: number,
+  ids: string[],
+): Promise<{ deleted: string[]; failed: string[] }> {
+  const deleted: string[] = [];
+  const failed: string[] = [];
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  for (const id of unique.slice(0, 100)) {
+    try {
+      assertSafeCourseId(id);
+      await deleteUserCourseForUser(userId, id);
+      deleted.push(id);
+    } catch {
+      failed.push(id);
+    }
+  }
+  return { deleted, failed };
+}
+
+export {
+  listPlazaCourseSummaries,
+  listMyCourseSummaries,
+  updateMyCourseMeta,
+};
+export type { MyCoursesSort };
 
 export class PlazaCopyError extends Error {
   status: number;

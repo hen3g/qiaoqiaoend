@@ -24,6 +24,12 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     roles: ["promoter"],
   },
   {
+    key: "promoter-orders",
+    path: "/admin/promoter-orders",
+    label: "推广订单",
+    roles: ["promoter"],
+  },
+  {
     key: "users",
     path: "/admin/users",
     label: "用户后台",

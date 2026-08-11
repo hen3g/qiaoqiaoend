@@ -40,6 +40,7 @@ const { Header, Sider, Content } = Layout;
 const MENU_ICONS: Record<string, React.ReactNode> = {
   "promoter-cards": <IconIdcard />,
   "promoter-users": <IconUserGroup />,
+  "promoter-orders": <IconFile />,
   users: <IconUser />,
   orders: <IconFile />,
   "user-content": <IconBook />,

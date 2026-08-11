@@ -167,6 +167,25 @@ export type CoursePackSummary = {
   sourceCourseKey?: string;
 };
 
+/** 我的课程分组 */
+export type UserCourseGroup = {
+  id: number;
+  name: string;
+  sortOrder: number;
+  courseCount?: number;
+};
+
+/** 我的课程列表条目（自制 + 广场添加） */
+export type MyCourseSummary = CoursePackSummary & {
+  /** 用户备注 */
+  note?: string;
+  groupId?: number | null;
+  groupName?: string | null;
+  /** true = 从课程广场添加的副本 */
+  fromPlaza: boolean;
+  updatedAt?: string;
+};
+
 /** 课程广场条目 */
 export type PlazaCourseSummary = CoursePackSummary & {
   ownerUserId: number;

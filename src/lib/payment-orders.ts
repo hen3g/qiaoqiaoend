@@ -172,9 +172,16 @@ function mapAdminOrder(row: AdminOrderRow): AdminPaymentOrder {
 function buildAdminOrderFilters(options: {
   status?: PaymentOrderStatus;
   q?: string;
+  /** When set, only orders from users bound to this promoter. */
+  promoterId?: number;
 }): { whereSql: string; params: Record<string, string | number> } {
   const clauses: string[] = [];
   const params: Record<string, string | number> = {};
+
+  if (options.promoterId != null) {
+    clauses.push("u.promoter_id = :promoterId");
+    params.promoterId = options.promoterId;
+  }
 
   if (options.status) {
     clauses.push("o.status = :status");
@@ -212,20 +219,28 @@ function buildAdminOrderFilters(options: {
   };
 }
 
-/** List payment orders for admin console with server-side pagination. */
-export async function listAdminPaymentOrders(options?: {
-  status?: PaymentOrderStatus;
-  q?: string;
-  page?: number;
-  pageSize?: number;
-}): Promise<AdminPaymentOrderListResult> {
+async function listPaymentOrdersWithFilters(
+  filterOptions: {
+    status?: PaymentOrderStatus;
+    q?: string;
+    promoterId?: number;
+  },
+  pageOptions?: {
+    page?: number;
+    pageSize?: number;
+  },
+): Promise<AdminPaymentOrderListResult> {
   await ensurePaymentOrdersTable();
-  const page = Math.max(Math.floor(options?.page ?? 1), 1);
-  const pageSize = Math.min(Math.max(Math.floor(options?.pageSize ?? 20), 1), 100);
+  const page = Math.max(Math.floor(pageOptions?.page ?? 1), 1);
+  const pageSize = Math.min(
+    Math.max(Math.floor(pageOptions?.pageSize ?? 20), 1),
+    100,
+  );
   const offset = (page - 1) * pageSize;
   const { whereSql, params } = buildAdminOrderFilters({
-    status: options?.status,
-    q: options?.q,
+    status: filterOptions.status,
+    q: filterOptions.q,
+    promoterId: filterOptions.promoterId,
   });
 
   const countRows = await query<(RowDataPacket & { total: number })[]>(
@@ -283,6 +298,39 @@ export async function listAdminPaymentOrders(options?: {
     pageSize,
     summary,
   };
+}
+
+/** List payment orders for admin console with server-side pagination. */
+export async function listAdminPaymentOrders(options?: {
+  status?: PaymentOrderStatus;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<AdminPaymentOrderListResult> {
+  return listPaymentOrdersWithFilters(
+    { status: options?.status, q: options?.q },
+    { page: options?.page, pageSize: options?.pageSize },
+  );
+}
+
+/** List VIP payment orders from users bound to a promoter. */
+export async function listPromoterReferredOrders(
+  promoterId: number,
+  options?: {
+    status?: PaymentOrderStatus;
+    q?: string;
+    page?: number;
+    pageSize?: number;
+  },
+): Promise<AdminPaymentOrderListResult> {
+  return listPaymentOrdersWithFilters(
+    {
+      status: options?.status,
+      q: options?.q,
+      promoterId,
+    },
+    { page: options?.page, pageSize: options?.pageSize },
+  );
 }
 
 export function orderAmountYuan(order: PaymentOrder): string {
