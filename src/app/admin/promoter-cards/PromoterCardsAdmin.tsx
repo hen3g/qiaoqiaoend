@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -68,8 +68,7 @@ export function PromoterCardsAdmin() {
     void loadCodes();
   }, [loadCodes]);
 
-  async function onCreate(e: FormEvent) {
-    e.preventDefault();
+  async function createCode() {
     setError("");
     setBusy(true);
     try {
@@ -183,58 +182,62 @@ export function PromoterCardsAdmin() {
         <Typography.Paragraph type="secondary">
           最多创建 3 个兑换码，可选 7 天或 30 天会员。用户兑换后将绑定为你的推广用户。
         </Typography.Paragraph>
-        <form onSubmit={(e) => void onCreate(e)}>
-          <Form layout="vertical" style={{ maxWidth: 480 }}>
-            <Form.Item
-              label="兑换码文本"
-              extra="至少 4 位，仅英文或数字"
-              required
+        <Form
+          layout="vertical"
+          style={{ maxWidth: 480 }}
+          onSubmit={() => {
+            void createCode();
+          }}
+        >
+          <Form.Item
+            label="兑换码文本"
+            extra="至少 4 位，仅英文或数字"
+            required
+          >
+            <Input
+              value={codeText}
+              onChange={setCodeText}
+              placeholder="例如 MYCODE01"
+              maxLength={64}
+              disabled={!canCreate || busy}
+              style={{ textTransform: "uppercase", fontFamily: "monospace" }}
+            />
+          </Form.Item>
+          <Form.Item label="会员天数">
+            <Radio.Group
+              type="button"
+              value={days}
+              onChange={(v) => setDays(v as (typeof DAY_OPTIONS)[number])}
+              disabled={!canCreate || busy}
             >
-              <Input
-                value={codeText}
-                onChange={setCodeText}
-                placeholder="例如 MYCODE01"
-                maxLength={64}
-                disabled={!canCreate || busy}
-                style={{ textTransform: "uppercase", fontFamily: "monospace" }}
-              />
-            </Form.Item>
-            <Form.Item label="会员天数">
-              <Radio.Group
-                type="button"
-                value={days}
-                onChange={(v) => setDays(v as (typeof DAY_OPTIONS)[number])}
-                disabled={!canCreate || busy}
-              >
-                {DAY_OPTIONS.map((d) => (
-                  <Radio key={d} value={d}>
-                    {d} 天
-                  </Radio>
-                ))}
-              </Radio.Group>
-            </Form.Item>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              默认可使用 999999 次
-            </Typography.Text>
-            {!canCreate ? (
-              <Alert
-                type="warning"
-                content="已达 3 个上限，请先删除后再创建。"
-                style={{ marginTop: 12, marginBottom: 12 }}
-              />
-            ) : null}
-            <div style={{ marginTop: 16 }}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={busy}
-                disabled={!canCreate || !codeText.trim()}
-              >
-                创建兑换码
-              </Button>
-            </div>
-          </Form>
-        </form>
+              {DAY_OPTIONS.map((d) => (
+                <Radio key={d} value={d}>
+                  {d} 天
+                </Radio>
+              ))}
+            </Radio.Group>
+          </Form.Item>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            默认可使用 999999 次
+          </Typography.Text>
+          {!canCreate ? (
+            <Alert
+              type="warning"
+              content="已达 3 个上限，请先删除后再创建。"
+              style={{ marginTop: 12, marginBottom: 12 }}
+            />
+          ) : null}
+          <div style={{ marginTop: 16 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={busy}
+              disabled={!canCreate || !codeText.trim()}
+            >
+              创建兑换码
+            </Button>
+          </div>
+        </Form>
       </Card>
 
       {error ? <Alert type="error" content={error} /> : null}

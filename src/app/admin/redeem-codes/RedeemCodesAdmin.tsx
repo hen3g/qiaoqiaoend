@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
@@ -99,8 +99,7 @@ export function RedeemCodesAdmin() {
     void loadCodes();
   }, [loadCodes]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function createCodes() {
     setError("");
     setCreated([]);
     setBusy(true);
@@ -248,54 +247,58 @@ export function RedeemCodesAdmin() {
         <Typography.Paragraph type="secondary">
           生成会员兑换码。使用次数设为 1 即为一次性兑换码。
         </Typography.Paragraph>
-        <form onSubmit={onSubmit}>
-          <Form layout="vertical" style={{ maxWidth: 480 }}>
-            <Form.Item label="会员时长">
-              <Radio.Group
-                value={permanent ? "permanent" : "days"}
-                onChange={(v) => setPermanent(v === "permanent")}
-              >
-                <Radio value="days">按天数</Radio>
-                <Radio value="permanent">永久会员</Radio>
-              </Radio.Group>
-            </Form.Item>
-            {!permanent ? (
-              <Form.Item label="天数">
-                <InputNumber
-                  min={1}
-                  max={36500}
-                  value={days}
-                  onChange={(v) => setDays(Number(v) || 1)}
-                  style={{ width: 160 }}
-                />
-              </Form.Item>
-            ) : null}
-            <Form.Item
-              label="使用次数"
-              extra="1 = 一次性；同一用户仍只能兑一次"
+        <Form
+          layout="vertical"
+          style={{ maxWidth: 480 }}
+          onSubmit={() => {
+            void createCodes();
+          }}
+        >
+          <Form.Item label="会员时长">
+            <Radio.Group
+              value={permanent ? "permanent" : "days"}
+              onChange={(v) => setPermanent(v === "permanent")}
             >
+              <Radio value="days">按天数</Radio>
+              <Radio value="permanent">永久会员</Radio>
+            </Radio.Group>
+          </Form.Item>
+          {!permanent ? (
+            <Form.Item label="天数">
               <InputNumber
                 min={1}
-                max={10000}
-                value={maxUses}
-                onChange={(v) => setMaxUses(Number(v) || 1)}
+                max={36500}
+                value={days}
+                onChange={(v) => setDays(Number(v) || 1)}
                 style={{ width: 160 }}
               />
             </Form.Item>
-            <Form.Item label="生成数量">
-              <InputNumber
-                min={1}
-                max={50}
-                value={quantity}
-                onChange={(v) => setQuantity(Number(v) || 1)}
-                style={{ width: 160 }}
-              />
-            </Form.Item>
-            <Button type="primary" htmlType="submit" loading={busy}>
-              生成兑换码
-            </Button>
-          </Form>
-        </form>
+          ) : null}
+          <Form.Item
+            label="使用次数"
+            extra="1 = 一次性；同一用户仍只能兑一次"
+          >
+            <InputNumber
+              min={1}
+              max={10000}
+              value={maxUses}
+              onChange={(v) => setMaxUses(Number(v) || 1)}
+              style={{ width: 160 }}
+            />
+          </Form.Item>
+          <Form.Item label="生成数量">
+            <InputNumber
+              min={1}
+              max={50}
+              value={quantity}
+              onChange={(v) => setQuantity(Number(v) || 1)}
+              style={{ width: 160 }}
+            />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={busy}>
+            生成兑换码
+          </Button>
+        </Form>
       </Card>
 
       {error ? <Alert type="error" content={error} /> : null}
