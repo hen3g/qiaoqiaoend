@@ -125,6 +125,166 @@ export async function getOrderByOutTradeNo(
   return rows[0] ? mapOrder(rows[0]) : null;
 }
 
+export type AdminPaymentOrder = PaymentOrder & {
+  username: string | null;
+  nickname: string | null;
+};
+
+export type AdminPaymentOrderSummary = {
+  total: number;
+  paidCount: number;
+  pendingCount: number;
+  closedCount: number;
+  paidFen: number;
+};
+
+export type AdminPaymentOrderListResult = {
+  orders: AdminPaymentOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: AdminPaymentOrderSummary;
+};
+
+type AdminOrderRow = OrderRow & {
+  username: string | null;
+  nickname: string | null;
+};
+
+function toIso(value: Date | string | null): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toISOString();
+}
+
+function mapAdminOrder(row: AdminOrderRow): AdminPaymentOrder {
+  return {
+    ...mapOrder(row),
+    username: row.username,
+    nickname: row.nickname,
+    paidAt: toIso(row.paid_at),
+    createdAt: toIso(row.created_at) ?? String(row.created_at),
+    updatedAt: toIso(row.updated_at) ?? String(row.updated_at),
+  };
+}
+
+function buildAdminOrderFilters(options: {
+  status?: PaymentOrderStatus;
+  q?: string;
+}): { whereSql: string; params: Record<string, string | number> } {
+  const clauses: string[] = [];
+  const params: Record<string, string | number> = {};
+
+  if (options.status) {
+    clauses.push("o.status = :status");
+    params.status = options.status;
+  }
+
+  const q = options.q?.trim();
+  if (q) {
+    params.qLike = `%${q}%`;
+    const userId = Number(q);
+    if (Number.isInteger(userId) && userId > 0) {
+      params.qUserId = userId;
+      clauses.push(
+        `(o.out_trade_no LIKE :qLike
+          OR o.alipay_trade_no LIKE :qLike
+          OR u.username LIKE :qLike
+          OR u.nickname LIKE :qLike
+          OR o.plan_id LIKE :qLike
+          OR o.user_id = :qUserId)`,
+      );
+    } else {
+      clauses.push(
+        `(o.out_trade_no LIKE :qLike
+          OR o.alipay_trade_no LIKE :qLike
+          OR u.username LIKE :qLike
+          OR u.nickname LIKE :qLike
+          OR o.plan_id LIKE :qLike)`,
+      );
+    }
+  }
+
+  return {
+    whereSql: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
+  };
+}
+
+/** List payment orders for admin console with server-side pagination. */
+export async function listAdminPaymentOrders(options?: {
+  status?: PaymentOrderStatus;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<AdminPaymentOrderListResult> {
+  await ensurePaymentOrdersTable();
+  const page = Math.max(Math.floor(options?.page ?? 1), 1);
+  const pageSize = Math.min(Math.max(Math.floor(options?.pageSize ?? 20), 1), 100);
+  const offset = (page - 1) * pageSize;
+  const { whereSql, params } = buildAdminOrderFilters({
+    status: options?.status,
+    q: options?.q,
+  });
+
+  const countRows = await query<(RowDataPacket & { total: number })[]>(
+    `SELECT COUNT(*) AS total
+     FROM payment_orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     ${whereSql}`,
+    params,
+  );
+  const total = Number(countRows[0]?.total ?? 0);
+
+  const summaryRows = await query<
+    (RowDataPacket & {
+      paid_count: number;
+      pending_count: number;
+      closed_count: number;
+      paid_fen: number | string;
+    })[]
+  >(
+    `SELECT
+       SUM(o.status = 'paid') AS paid_count,
+       SUM(o.status = 'pending') AS pending_count,
+       SUM(o.status = 'closed') AS closed_count,
+       COALESCE(SUM(CASE WHEN o.status = 'paid' THEN o.amount_fen ELSE 0 END), 0) AS paid_fen
+     FROM payment_orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     ${whereSql}`,
+    params,
+  );
+  const summaryRow = summaryRows[0];
+  const summary: AdminPaymentOrderSummary = {
+    total,
+    paidCount: Number(summaryRow?.paid_count ?? 0),
+    pendingCount: Number(summaryRow?.pending_count ?? 0),
+    closedCount: Number(summaryRow?.closed_count ?? 0),
+    paidFen: Number(summaryRow?.paid_fen ?? 0),
+  };
+
+  const rows = await query<AdminOrderRow[]>(
+    `SELECT o.id, o.out_trade_no, o.user_id, o.plan_id, o.amount_fen, o.status,
+            o.alipay_trade_no, o.paid_at, o.created_at, o.updated_at,
+            u.username, u.nickname
+     FROM payment_orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     ${whereSql}
+     ORDER BY o.id DESC
+     LIMIT ${pageSize} OFFSET ${offset}`,
+    params,
+  );
+
+  return {
+    orders: rows.map(mapAdminOrder),
+    total,
+    page,
+    pageSize,
+    summary,
+  };
+}
+
 export function orderAmountYuan(order: PaymentOrder): string {
   return formatAlipayAmount(order.amountFen / 100);
 }

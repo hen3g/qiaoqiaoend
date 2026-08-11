@@ -10,6 +10,9 @@ import {
 
 export const PERMANENT_VIP_VALUE = "permanent";
 
+/** Promoter codes can only be redeemed within this window after registration. */
+export const PROMOTER_CODE_MAX_ACCOUNT_AGE_MS = 24 * 60 * 60 * 1000;
+
 type RedeemCodeRow = RowDataPacket & {
   id: number;
   code: string;
@@ -174,6 +177,26 @@ export async function redeemCode(
   );
   if (used[0]) {
     throw new Error("你已经兑换过该兑换码");
+  }
+
+  if (Boolean(row.is_promoter_code)) {
+    const userRows = await query<
+      (RowDataPacket & { created_at: Date | string | null })[]
+    >(`SELECT created_at FROM users WHERE id = :userId LIMIT 1`, { userId });
+    const createdAt = userRows[0]?.created_at;
+    if (!createdAt) {
+      throw new Error("用户不存在");
+    }
+    const createdMs =
+      createdAt instanceof Date
+        ? createdAt.getTime()
+        : new Date(createdAt).getTime();
+    if (
+      Number.isNaN(createdMs) ||
+      Date.now() - createdMs > PROMOTER_CODE_MAX_ACCOUNT_AGE_MS
+    ) {
+      throw new Error("只有新用户可以使用此兑换码");
+    }
   }
 
   let message = "兑换成功";

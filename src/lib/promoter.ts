@@ -265,3 +265,135 @@ export async function listPromoterCodeUsers(
     redeemedAt: toIso(row.redeemed_at),
   }));
 }
+
+export type PromoterReferredUserDto = {
+  id: number;
+  username: string;
+  nickname: string | null;
+  isVip: boolean;
+  vipExpiresAt: string | null;
+  diamonds: number;
+  createdAt: string | null;
+  redeemCode: string | null;
+  redeemedAt: string | null;
+};
+
+export type PromoterReferredUsersResult = {
+  users: PromoterReferredUserDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+type ReferredUserRow = RowDataPacket & {
+  id: number;
+  username: string;
+  nickname: string | null;
+  vip_expires_at: Date | string | null;
+  diamonds: number | null;
+  created_at: Date | string | null;
+  redeem_code: string | null;
+  redeemed_at: Date | string | null;
+};
+
+function isVipActive(vipExpiresAt: Date | string | null): boolean {
+  if (!vipExpiresAt) return false;
+  const d =
+    vipExpiresAt instanceof Date ? vipExpiresAt : new Date(vipExpiresAt);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() > Date.now();
+}
+
+/** All users bound to this promoter via users.promoter_id. */
+export async function listPromoterReferredUsers(
+  promoterId: number,
+  options?: { page?: number; pageSize?: number; q?: string },
+): Promise<PromoterReferredUsersResult> {
+  await ensureUserPromoterColumns();
+  await ensureRedeemCodesCreatedByColumn();
+  await ensureRedeemCodesIsPromoterColumn();
+
+  const page = Math.max(Math.floor(options?.page ?? 1), 1);
+  const pageSize = Math.min(
+    Math.max(Math.floor(options?.pageSize ?? 20), 1),
+    100,
+  );
+  const offset = (page - 1) * pageSize;
+
+  const clauses = ["u.promoter_id = :promoterId"];
+  const params: Record<string, string | number> = { promoterId };
+
+  const q = options?.q?.trim();
+  if (q) {
+    params.qLike = `%${q}%`;
+    const userId = Number(q);
+    if (Number.isInteger(userId) && userId > 0) {
+      params.qUserId = userId;
+      clauses.push(
+        `(u.username LIKE :qLike OR u.nickname LIKE :qLike OR u.id = :qUserId)`,
+      );
+    } else {
+      clauses.push(`(u.username LIKE :qLike OR u.nickname LIKE :qLike)`);
+    }
+  }
+
+  const whereSql = `WHERE ${clauses.join(" AND ")}`;
+
+  const countRows = await query<(RowDataPacket & { total: number })[]>(
+    `SELECT COUNT(*) AS total FROM users u ${whereSql}`,
+    params,
+  );
+  const total = Number(countRows[0]?.total ?? 0);
+
+  const rows = await query<ReferredUserRow[]>(
+    `SELECT
+       u.id,
+       u.username,
+       u.nickname,
+       u.vip_expires_at,
+       u.diamonds,
+       u.created_at,
+       (
+         SELECT rc.code
+         FROM redeem_logs rl
+         INNER JOIN redeem_codes rc ON rc.id = rl.code_id
+         WHERE rl.user_id = u.id
+           AND rc.created_by = :promoterId
+           AND rc.is_promoter_code = 1
+         ORDER BY rl.id ASC
+         LIMIT 1
+       ) AS redeem_code,
+       (
+         SELECT rl.created_at
+         FROM redeem_logs rl
+         INNER JOIN redeem_codes rc ON rc.id = rl.code_id
+         WHERE rl.user_id = u.id
+           AND rc.created_by = :promoterId
+           AND rc.is_promoter_code = 1
+         ORDER BY rl.id ASC
+         LIMIT 1
+       ) AS redeemed_at
+     FROM users u
+     ${whereSql}
+     ORDER BY u.id DESC
+     LIMIT ${pageSize} OFFSET ${offset}`,
+    params,
+  );
+
+  return {
+    users: rows.map((row) => ({
+      id: row.id,
+      username: row.username,
+      nickname: row.nickname,
+      isVip: isVipActive(row.vip_expires_at),
+      vipExpiresAt: toIso(row.vip_expires_at),
+      diamonds: Number(row.diamonds ?? 0),
+      createdAt: toIso(row.created_at),
+      redeemCode: row.redeem_code,
+      redeemedAt: toIso(row.redeemed_at),
+    })),
+    total,
+    page,
+    pageSize,
+  };
+}

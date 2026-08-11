@@ -330,25 +330,15 @@ export default function AccountPage() {
 
 function buildLinks(user: SessionUser) {
   const isAdmin = user.username.toLowerCase() === "channg";
-  return [
-    { href: "/change-password", label: "修改密码" },
-    ...(user.isPromoter
-      ? [{ href: "/promoter/cards", label: "推广卡片" }]
-      : []),
-    ...(isAdmin
-      ? [
-          { href: "/admin/promo", label: "宣传后台" },
-          { href: "/admin/feedback", label: "反馈合作" },
-          { href: "/admin/checkin", label: "打卡后台" },
-          { href: "/admin/users", label: "用户后台" },
-          { href: "/admin/user-content", label: "课程与套卷" },
-          { href: "/admin/redeem-codes", label: "兑换码后台" },
-          { href: "/admin/notifications", label: "通知设置" },
-          { href: "/admin/notification-stats", label: "通知统计" },
-          { href: "/admin/stats", label: "日活统计" },
-        ]
-      : []),
-  ];
+  if (isAdmin || user.isPromoter) {
+    return [
+      {
+        href: "/admin",
+        label: isAdmin ? "管理后台" : "推广后台",
+      },
+    ];
+  }
+  return [];
 }
 
 function AccountContent({

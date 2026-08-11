@@ -1,10 +1,10 @@
 import { getCurrentUser, type SessionUser } from "@/lib/auth";
+import {
+  DEV_ADMIN_USERNAME,
+  isAdminUsername,
+} from "@/lib/admin-username";
 
-export const DEV_ADMIN_USERNAME = "channg";
-
-export function isAdminUsername(username: string): boolean {
-  return username.toLowerCase() === DEV_ADMIN_USERNAME;
-}
+export { DEV_ADMIN_USERNAME, isAdminUsername };
 
 /** Production-safe admin gate: only username `channg`. */
 export async function requireAdmin(): Promise<SessionUser> {

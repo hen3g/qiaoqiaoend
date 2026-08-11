@@ -1,5 +1,5 @@
-import { PromoterCards } from "./PromoterCards";
+import { redirect } from "next/navigation";
 
 export default function PromoterCardsPage() {
-  return <PromoterCards />;
+  redirect("/admin/promoter-cards");
 }

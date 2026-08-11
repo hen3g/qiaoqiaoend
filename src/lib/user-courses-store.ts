@@ -1,6 +1,7 @@
 import type { CoursePack, CoursePackSummary } from "@/data/course-types";
 import { createUserCourseId, validateCoursePack } from "@/lib/course-validate";
 import {
+  countAllUserCourseSummaries,
   deleteUserCourseSummary,
   listPlazaCourseSummaries,
   listUserCourseSummariesFromDb,
@@ -65,11 +66,18 @@ export async function listUserCourseSummariesForUser(
     return fromDb.sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
   }
 
+  // 库里已有记录（例如只有广场添加的课）时，不再回填 R2，避免把复制课又列出来
+  const total = await countAllUserCourseSummaries(userId);
+  if (total > 0) return [];
+
   const keys = await r2ListKeys(userCoursesPrefix(userId));
   const hasCourses = keys.some((key) => key.endsWith(".json"));
   if (!hasCourses) return [];
 
-  return backfillSummariesFromR2(userId);
+  const backfilled = await backfillSummariesFromR2(userId);
+  return backfilled
+    .filter((c) => !c.sourceCourseKey?.trim())
+    .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
 }
 
 export async function loadUserCourseForUser(

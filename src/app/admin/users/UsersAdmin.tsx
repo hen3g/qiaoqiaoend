@@ -1,8 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PageShell } from "@/components/PageShell";
+import {
+  Alert,
+  Button,
+  Card,
+  Input,
+  Message,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from "@arco-design/web-react";
+import type { ColumnProps } from "@arco-design/web-react/es/Table";
 import type { SessionUser } from "@/lib/auth";
 
 type ClientUsage = "none" | "client" | "web" | "both";
@@ -45,36 +55,30 @@ function usageLabel(u: AdminUser): ClientUsage {
 }
 
 export function UsersAdmin() {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loaded, setLoaded] = useState(false);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [queryText, setQueryText] = useState("");
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const loadUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users");
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      setError(data.error || "加载失败");
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || "加载失败");
+        return;
+      }
+      setUsers(data.users ?? []);
+      setError("");
+    } finally {
+      setLoading(false);
     }
-    setUsers(data.users ?? []);
-    setError("");
   }, []);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then(async (data) => {
-        const u = data.user ?? null;
-        setUser(u);
-        if (u?.username?.toLowerCase() === "channg") {
-          await loadUsers();
-        }
-      })
-      .finally(() => setLoaded(true));
+    void loadUsers();
   }, [loadUsers]);
 
   const filtered = useMemo(() => {
@@ -88,11 +92,7 @@ export function UsersAdmin() {
     );
   }, [users, queryText]);
 
-  const vipCount = useMemo(
-    () => users.filter((u) => u.isVip).length,
-    [users],
-  );
-
+  const vipCount = useMemo(() => users.filter((u) => u.isVip).length, [users]);
   const promoterCount = useMemo(
     () => users.filter((u) => u.isPromoter).length,
     [users],
@@ -113,7 +113,6 @@ export function UsersAdmin() {
 
   async function togglePromoter(target: AdminUser) {
     setError("");
-    setMessage("");
     setTogglingId(target.id);
     try {
       const next = !target.isPromoter;
@@ -132,7 +131,7 @@ export function UsersAdmin() {
           u.id === target.id ? { ...u, isPromoter: next } : u,
         ),
       );
-      setMessage(data.message || (next ? "已设为推广者" : "已取消推广者"));
+      Message.success(data.message || (next ? "已设为推广者" : "已取消推广者"));
     } catch {
       setError("网络错误");
     } finally {
@@ -140,187 +139,124 @@ export function UsersAdmin() {
     }
   }
 
-  if (!loaded) {
-    return (
-      <PageShell>
-        <p className="text-muted">加载中…</p>
-      </PageShell>
-    );
-  }
-
-  if (!user) {
-    return (
-      <PageShell>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
-          用户后台
-        </h1>
-        <p className="mt-4 text-muted">
-          请先以管理员账号{" "}
-          <Link href="/login" className="text-accent-deep hover:underline">
-            登录
-          </Link>
-          。
-        </p>
-      </PageShell>
-    );
-  }
-
-  if (user.username.toLowerCase() !== "channg") {
-    return (
-      <PageShell>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
-          用户后台
-        </h1>
-        <p className="mt-4 text-muted">当前账号无权限访问此页面。</p>
-      </PageShell>
-    );
-  }
+  const columns: ColumnProps<AdminUser>[] = [
+    { title: "ID", dataIndex: "id", width: 80 },
+    { title: "用户名", dataIndex: "username", width: 120 },
+    {
+      title: "昵称",
+      dataIndex: "nickname",
+      width: 120,
+      render: (v) => v || "—",
+    },
+    {
+      title: "星级",
+      dataIndex: "unlockedDifficulty",
+      width: 80,
+      render: (v) => `${v ?? 1} 星`,
+    },
+    {
+      title: "客户端",
+      width: 160,
+      render: (_, u) => {
+        const usage = usageLabel(u);
+        if (usage === "none") {
+          return <Typography.Text type="secondary">{USAGE_LABEL.none}</Typography.Text>;
+        }
+        return (
+          <div>
+            <Typography.Text>{USAGE_LABEL[usage]}</Typography.Text>
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                最近 {u.lastNotificationAt ?? "—"} · {u.notificationHitCount} 次
+              </Typography.Text>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "会员",
+      width: 120,
+      render: (_, u) =>
+        u.isVip ? (
+          <Tag color="arcoblue">{vipLabel(u)}</Tag>
+        ) : (
+          <Typography.Text type="secondary">{vipLabel(u)}</Typography.Text>
+        ),
+    },
+    {
+      title: "钻石",
+      dataIndex: "diamonds",
+      width: 80,
+      render: (v) => v ?? 0,
+    },
+    {
+      title: "推广者",
+      width: 120,
+      render: (_, u) => (
+        <Button
+          size="mini"
+          type={u.isPromoter ? "primary" : "outline"}
+          loading={togglingId === u.id}
+          onClick={() => void togglePromoter(u)}
+        >
+          {u.isPromoter ? "推广者" : "设为推广者"}
+        </Button>
+      ),
+    },
+    {
+      title: "到期时间",
+      width: 160,
+      render: (_, u) =>
+        u.isPermanentVip
+          ? "永久"
+          : u.vipExpiresAt
+            ? new Date(u.vipExpiresAt).toLocaleString("zh-CN")
+            : "—",
+    },
+    {
+      title: "注册时间",
+      width: 160,
+      render: (_, u) =>
+        u.createdAt ? new Date(u.createdAt).toLocaleString("zh-CN") : "—",
+    },
+    { title: "token_version", dataIndex: "tokenVersion", width: 120 },
+  ];
 
   return (
-    <PageShell>
-      <div className="mx-auto max-w-5xl">
-        <p className="text-sm text-muted">仅管理员 channg 可访问</p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
-          用户后台
-        </h1>
-        <p className="mt-3 text-muted">
-          查看全部注册用户信息。共 {users.length} 人，其中会员 {vipCount}{" "}
-          人，推广者 {promoterCount} 人；客户端 {usageCounts.clientOnly}{" "}
-          人，在线版 {usageCounts.webOnly} 人，都使用了 {usageCounts.both} 人。
-        </p>
-
-        <div className="mt-8 flex flex-wrap items-end gap-3">
-          <label className="block min-w-[14rem] flex-1">
-            <span className="mb-1.5 block text-sm text-muted">搜索</span>
-            <input
-              type="search"
-              value={queryText}
-              onChange={(e) => setQueryText(e.target.value)}
-              placeholder="用户名 / 昵称 / ID"
-              className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => void loadUsers()}
-            className="rounded-full border border-line/10 px-4 py-2.5 text-sm text-ink hover:border-accent"
-          >
+    <Space direction="vertical" size="large" style={{ width: "100%" }}>
+      <Card title="用户后台">
+        <Typography.Paragraph type="secondary">
+          共 {users.length} 人，会员 {vipCount} 人，推广者 {promoterCount}{" "}
+          人；客户端 {usageCounts.clientOnly} 人，在线版 {usageCounts.webOnly}{" "}
+          人，都使用了 {usageCounts.both} 人。
+        </Typography.Paragraph>
+        <Space wrap>
+          <Input.Search
+            allowClear
+            placeholder="用户名 / 昵称 / ID"
+            value={queryText}
+            onChange={setQueryText}
+            style={{ width: 260 }}
+          />
+          <Button onClick={() => void loadUsers()} loading={loading}>
             刷新
-          </button>
-        </div>
+          </Button>
+        </Space>
+      </Card>
 
-        {error ? (
-          <p className="mt-4 rounded-xl bg-[#fff1eb] px-3 py-2 text-sm text-[#c24b1e]">
-            {error}
-          </p>
-        ) : null}
-        {message ? (
-          <p className="mt-4 rounded-xl bg-[#eaf2ff] px-3 py-2 text-sm text-accent-deep">
-            {message}
-          </p>
-        ) : null}
+      {error ? <Alert type="error" content={error} /> : null}
 
-        {filtered.length === 0 ? (
-          <p className="mt-6 text-sm text-muted">
-            {users.length === 0 ? "暂无用户" : "无匹配用户"}
-          </p>
-        ) : (
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[64rem] text-left text-sm">
-              <thead>
-                <tr className="border-b border-line/10 text-muted">
-                  <th className="py-2 pr-3 font-medium">ID</th>
-                  <th className="py-2 pr-3 font-medium">用户名</th>
-                  <th className="py-2 pr-3 font-medium">昵称</th>
-                  <th className="py-2 pr-3 font-medium">星级</th>
-                  <th className="py-2 pr-3 font-medium">客户端</th>
-                  <th className="py-2 pr-3 font-medium">会员</th>
-                  <th className="py-2 pr-3 font-medium">钻石</th>
-                  <th className="py-2 pr-3 font-medium">推广者</th>
-                  <th className="py-2 pr-3 font-medium">到期时间</th>
-                  <th className="py-2 pr-3 font-medium">注册时间</th>
-                  <th className="py-2 font-medium">token_version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((u) => {
-                  const usage = usageLabel(u);
-                  return (
-                    <tr key={u.id} className="border-b border-line/60">
-                      <td className="py-2.5 pr-3 align-top text-muted">{u.id}</td>
-                      <td className="py-2.5 pr-3 align-top font-medium text-ink">
-                        {u.username}
-                      </td>
-                      <td className="py-2.5 pr-3 align-top text-muted">
-                        {u.nickname || "—"}
-                      </td>
-                      <td className="py-2.5 pr-3 align-top text-ink">
-                        {u.unlockedDifficulty ?? 1} 星
-                      </td>
-                      <td className="py-2.5 pr-3 align-top">
-                        {usage === "none" ? (
-                          <span className="text-muted">{USAGE_LABEL.none}</span>
-                        ) : (
-                          <span className="text-accent-deep">
-                            {USAGE_LABEL[usage]}
-                            <span className="mt-0.5 block text-xs font-normal text-muted">
-                              最近 {u.lastNotificationAt ?? "—"} ·{" "}
-                              {u.notificationHitCount} 次
-                            </span>
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className={`py-2.5 pr-3 align-top ${
-                          u.isVip ? "text-accent-deep" : "text-muted"
-                        }`}
-                      >
-                        {vipLabel(u)}
-                      </td>
-                      <td className="py-2.5 pr-3 align-top text-ink">
-                        {u.diamonds ?? 0}
-                      </td>
-                      <td className="py-2.5 pr-3 align-top">
-                        <button
-                          type="button"
-                          disabled={togglingId === u.id}
-                          onClick={() => void togglePromoter(u)}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
-                            u.isPromoter
-                              ? "bg-accent text-white hover:bg-accent-deep"
-                              : "border border-line/15 text-muted hover:border-accent hover:text-ink"
-                          }`}
-                        >
-                          {togglingId === u.id
-                            ? "…"
-                            : u.isPromoter
-                              ? "推广者"
-                              : "设为推广者"}
-                        </button>
-                      </td>
-                      <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
-                        {u.isPermanentVip
-                          ? "永久"
-                          : u.vipExpiresAt
-                            ? new Date(u.vipExpiresAt).toLocaleString("zh-CN")
-                            : "—"}
-                      </td>
-                      <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
-                        {u.createdAt
-                          ? new Date(u.createdAt).toLocaleString("zh-CN")
-                          : "—"}
-                      </td>
-                      <td className="py-2.5 align-top text-muted">
-                        {u.tokenVersion}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </PageShell>
+      <Card>
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          data={filtered}
+          pagination={{ pageSize: 20, showTotal: true }}
+          scroll={{ x: 1200 }}
+        />
+      </Card>
+    </Space>
   );
 }

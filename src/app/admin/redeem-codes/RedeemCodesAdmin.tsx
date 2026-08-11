@@ -1,9 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { PageShell } from "@/components/PageShell";
-import type { SessionUser } from "@/lib/auth";
+import {
+  Alert,
+  Button,
+  Card,
+  Form,
+  InputNumber,
+  Message,
+  Modal,
+  Radio,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from "@arco-design/web-react";
+import type { ColumnProps } from "@arco-design/web-react/es/Table";
 
 type RedeemCodeDto = {
   id: number;
@@ -22,30 +35,28 @@ type RedeemCodeDto = {
 
 type SourceFilter = "all" | "user" | "admin";
 
-function codeStatus(c: RedeemCodeDto): { text: string; className: string } {
+function codeStatus(c: RedeemCodeDto): { text: string; color: string } {
   if (c.usedCount >= c.maxUses) {
-    return { text: "已用尽", className: "text-[#c24b1e]" };
+    return { text: "已用尽", color: "red" };
   }
   if (c.expiresAt && new Date(c.expiresAt).getTime() < Date.now()) {
-    return { text: "已过期", className: "text-muted" };
+    return { text: "已过期", color: "gray" };
   }
   if (c.usedCount > 0) {
-    return { text: "部分使用", className: "text-amber-800" };
+    return { text: "部分使用", color: "orangered" };
   }
-  return { text: "可用", className: "text-accent-deep" };
+  return { text: "可用", color: "green" };
 }
 
 export function RedeemCodesAdmin() {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loaded, setLoaded] = useState(false);
   const [codes, setCodes] = useState<RedeemCodeDto[]>([]);
   const [created, setCreated] = useState<RedeemCodeDto[]>([]);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<number[]>([]);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [permanent, setPermanent] = useState(false);
   const [days, setDays] = useState(30);
@@ -68,34 +79,29 @@ export function RedeemCodesAdmin() {
   );
 
   const loadCodes = useCallback(async () => {
-    const res = await fetch("/api/admin/redeem-codes");
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      setError(data.error || "加载失败");
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/redeem-codes");
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || "加载失败");
+        return;
+      }
+      setCodes(data.codes ?? []);
+      setSelected([]);
+      setError("");
+    } finally {
+      setLoading(false);
     }
-    setCodes(data.codes ?? []);
-    setSelected(new Set());
-    setError("");
   }, []);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then(async (data) => {
-        const u = data.user ?? null;
-        setUser(u);
-        if (u?.username?.toLowerCase() === "channg") {
-          await loadCodes();
-        }
-      })
-      .finally(() => setLoaded(true));
+    void loadCodes();
   }, [loadCodes]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setMessage("");
     setCreated([]);
     setBusy(true);
     try {
@@ -115,7 +121,7 @@ export function RedeemCodesAdmin() {
         return;
       }
       setCreated(data.codes ?? []);
-      setMessage(data.message || "生成成功");
+      Message.success(data.message || "生成成功");
       await loadCodes();
     } catch {
       setError("网络错误");
@@ -127,7 +133,7 @@ export function RedeemCodesAdmin() {
   async function copyText(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setMessage(`已复制 ${text}`);
+      Message.success(`已复制 ${text}`);
     } catch {
       setError("复制失败，请手动选择");
     }
@@ -139,384 +145,253 @@ export function RedeemCodesAdmin() {
       ids.length === 1
         ? "确定删除该兑换码？相关兑换记录也会一并删除。"
         : `确定删除选中的 ${ids.length} 个兑换码？相关兑换记录也会一并删除。`;
-    if (!window.confirm(tip)) return;
 
-    setError("");
-    setMessage("");
-    setDeletingId(ids.length === 1 ? ids[0]! : -1);
-    try {
-      const res = await fetch("/api/admin/redeem-codes", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ids.length === 1 ? { id: ids[0] } : { ids }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setError(data.error || "删除失败");
-        return;
-      }
-      setMessage(data.message || "已删除");
-      setCreated((prev) => prev.filter((c) => !ids.includes(c.id)));
-      await loadCodes();
-    } catch {
-      setError("网络错误");
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  function toggleSelect(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    Modal.confirm({
+      title: "确认删除",
+      content: tip,
+      okButtonProps: { status: "danger" },
+      onOk: async () => {
+        setError("");
+        setDeleting(true);
+        try {
+          const res = await fetch("/api/admin/redeem-codes", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(ids.length === 1 ? { id: ids[0] } : { ids }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            setError(data.error || "删除失败");
+            return;
+          }
+          Message.success(data.message || "已删除");
+          setCreated((prev) => prev.filter((c) => !ids.includes(c.id)));
+          await loadCodes();
+        } catch {
+          setError("网络错误");
+        } finally {
+          setDeleting(false);
+        }
+      },
     });
   }
 
-  function toggleSelectAll() {
-    if (
-      filteredCodes.length > 0 &&
-      filteredCodes.every((c) => selected.has(c.id))
-    ) {
-      setSelected(new Set());
-      return;
-    }
-    setSelected(new Set(filteredCodes.map((c) => c.id)));
-  }
-
-  if (!loaded) {
-    return (
-      <PageShell>
-        <p className="text-muted">加载中…</p>
-      </PageShell>
-    );
-  }
-
-  if (!user) {
-    return (
-      <PageShell>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
-          兑换码后台
-        </h1>
-        <p className="mt-4 text-muted">
-          请先以管理员账号{" "}
-          <Link href="/login" className="text-accent-deep hover:underline">
-            登录
-          </Link>
-          。
-        </p>
-      </PageShell>
-    );
-  }
-
-  if (user.username.toLowerCase() !== "channg") {
-    return (
-      <PageShell>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-ink">
-          兑换码后台
-        </h1>
-        <p className="mt-4 text-muted">当前账号无权限访问此页面。</p>
-      </PageShell>
-    );
-  }
+  const columns: ColumnProps<RedeemCodeDto>[] = [
+    {
+      title: "兑换码",
+      dataIndex: "code",
+      width: 220,
+      render: (code) => (
+        <Button type="text" onClick={() => void copyText(code)}>
+          <Typography.Text code>{code}</Typography.Text>
+        </Button>
+      ),
+    },
+    { title: "权益", dataIndex: "label", width: 120 },
+    {
+      title: "来源",
+      width: 140,
+      render: (_, c) =>
+        c.isUserGenerated ? (
+          <div>
+            <Tag color="arcoblue">用户生成</Tag>
+            {c.createdByName ? (
+              <div>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {c.createdByName}
+                </Typography.Text>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <Tag>后台生成</Tag>
+        ),
+    },
+    {
+      title: "使用",
+      width: 90,
+      render: (_, c) => `${c.usedCount}/${c.maxUses}`,
+    },
+    {
+      title: "状态",
+      width: 100,
+      render: (_, c) => {
+        const status = codeStatus(c);
+        return <Tag color={status.color}>{status.text}</Tag>;
+      },
+    },
+    {
+      title: "创建",
+      width: 160,
+      render: (_, c) =>
+        c.createdAt ? new Date(c.createdAt).toLocaleString("zh-CN") : "—",
+    },
+    {
+      title: "操作",
+      width: 90,
+      render: (_, c) => (
+        <Button
+          type="text"
+          status="danger"
+          loading={deleting}
+          onClick={() => void deleteCodes([c.id])}
+        >
+          删除
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <PageShell>
-      <div className="mx-auto max-w-4xl">
-        <p className="text-sm text-muted">仅管理员 channg 可访问</p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
-          兑换码后台
-        </h1>
-        <p className="mt-3 text-muted">
-          生成会员兑换码，查看全部记录，并可删除无效码。使用次数设为 1
-          即为一次性兑换码。
-        </p>
-
-        <form onSubmit={onSubmit} className="mt-8 space-y-5">
-          <h2 className="text-lg font-medium text-ink">生成兑换码</h2>
-          <fieldset className="space-y-3">
-            <legend className="text-sm text-muted">会员时长</legend>
-            <label className="flex items-center gap-2 text-ink">
-              <input
-                type="radio"
-                name="vipType"
-                checked={!permanent}
-                onChange={() => setPermanent(false)}
-              />
-              按天数
-            </label>
+    <Space direction="vertical" size="large" style={{ width: "100%" }}>
+      <Card title="生成兑换码">
+        <Typography.Paragraph type="secondary">
+          生成会员兑换码。使用次数设为 1 即为一次性兑换码。
+        </Typography.Paragraph>
+        <form onSubmit={onSubmit}>
+          <Form layout="vertical" style={{ maxWidth: 480 }}>
+            <Form.Item label="会员时长">
+              <Radio.Group
+                value={permanent ? "permanent" : "days"}
+                onChange={(v) => setPermanent(v === "permanent")}
+              >
+                <Radio value="days">按天数</Radio>
+                <Radio value="permanent">永久会员</Radio>
+              </Radio.Group>
+            </Form.Item>
             {!permanent ? (
-              <label className="block pl-6">
-                <span className="mb-1.5 block text-sm text-muted">天数</span>
-                <input
-                  type="number"
+              <Form.Item label="天数">
+                <InputNumber
                   min={1}
                   max={36500}
                   value={days}
-                  onChange={(e) => setDays(Number(e.target.value))}
-                  className="w-40 rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
-                  required={!permanent}
+                  onChange={(v) => setDays(Number(v) || 1)}
+                  style={{ width: 160 }}
                 />
-              </label>
+              </Form.Item>
             ) : null}
-            <label className="flex items-center gap-2 text-ink">
-              <input
-                type="radio"
-                name="vipType"
-                checked={permanent}
-                onChange={() => setPermanent(true)}
-              />
-              永久会员
-            </label>
-          </fieldset>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-sm text-muted">使用次数</span>
-              <input
-                type="number"
+            <Form.Item
+              label="使用次数"
+              extra="1 = 一次性；同一用户仍只能兑一次"
+            >
+              <InputNumber
                 min={1}
                 max={10000}
                 value={maxUses}
-                onChange={(e) => setMaxUses(Number(e.target.value))}
-                className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
-                required
+                onChange={(v) => setMaxUses(Number(v) || 1)}
+                style={{ width: 160 }}
               />
-              <span className="mt-1 block text-xs text-muted">
-                1 = 一次性；同一用户仍只能兑一次
-              </span>
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-sm text-muted">生成数量</span>
-              <input
-                type="number"
+            </Form.Item>
+            <Form.Item label="生成数量">
+              <InputNumber
                 min={1}
                 max={50}
                 value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
-                className="w-full rounded-2xl border border-line/10 bg-white/90 px-4 py-2.5 text-ink outline-none focus:border-accent"
-                required
+                onChange={(v) => setQuantity(Number(v) || 1)}
+                style={{ width: 160 }}
               />
-            </label>
-          </div>
-
-          {error ? (
-            <p className="rounded-xl bg-[#fff1eb] px-3 py-2 text-sm text-[#c24b1e]">
-              {error}
-            </p>
-          ) : null}
-          {message ? (
-            <p className="rounded-xl bg-[#e8fff8] px-3 py-2 text-sm text-accent-deep">
-              {message}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-full bg-accent px-6 py-3 text-base font-medium text-white shadow-lg shadow-[var(--glow)] transition hover:bg-accent-deep disabled:opacity-60"
-          >
-            {busy ? "生成中…" : "生成兑换码"}
-          </button>
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={busy}>
+              生成兑换码
+            </Button>
+          </Form>
         </form>
+      </Card>
 
-        {created.length > 0 ? (
-          <div className="mt-8">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-medium text-ink">
-                本次生成
-                <span className="ml-2 text-sm font-normal text-muted">
-                  {created.length} 个
-                </span>
-              </h2>
-              <button
-                type="button"
-                onClick={() => {
-                  void (async () => {
-                    const text = created.map((c) => c.code).join("\n");
-                    try {
-                      await navigator.clipboard.writeText(text);
-                      setMessage(`已批量复制 ${created.length} 个兑换码`);
-                      setError("");
-                    } catch {
-                      setError("复制失败，请手动选择");
-                    }
-                  })();
-                }}
-                className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-deep"
+      {error ? <Alert type="error" content={error} /> : null}
+
+      {created.length > 0 ? (
+        <Card
+          title={`本次生成（${created.length}）`}
+          extra={
+            <Button
+              type="primary"
+              onClick={() => {
+                void (async () => {
+                  const text = created.map((c) => c.code).join("\n");
+                  try {
+                    await navigator.clipboard.writeText(text);
+                    Message.success(`已批量复制 ${created.length} 个兑换码`);
+                  } catch {
+                    setError("复制失败，请手动选择");
+                  }
+                })();
+              }}
+            >
+              批量复制全部
+            </Button>
+          }
+        >
+          <Space direction="vertical" style={{ width: "100%" }}>
+            {created.map((c) => (
+              <Space
+                key={c.id}
+                style={{ width: "100%", justifyContent: "space-between" }}
               >
-                批量复制全部
-              </button>
-            </div>
-            <ul className="mt-3 space-y-2">
-              {created.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line/10 bg-white/80 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <code className="break-all text-sm tracking-wide text-ink">
-                      {c.code}
-                    </code>
-                    <p className="mt-0.5 text-sm text-muted">
+                <div>
+                  <Typography.Text code>{c.code}</Typography.Text>
+                  <div>
+                    <Typography.Text type="secondary">
                       {c.label} · 可用 {c.maxUses} 次
-                    </p>
+                    </Typography.Text>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void copyText(c.code)}
-                    className="rounded-full border border-line/10 px-3 py-1.5 text-sm text-ink hover:border-accent"
-                  >
-                    复制
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+                </div>
+                <Button size="small" onClick={() => void copyText(c.code)}>
+                  复制
+                </Button>
+              </Space>
+            ))}
+          </Space>
+        </Card>
+      ) : null}
 
-        <div className="mt-10">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium text-ink">
-              全部兑换码
-              <span className="ml-2 text-sm font-normal text-muted">
-                共 {codes.length} 个 · 用户生成 {userGeneratedCount} 个
-              </span>
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              <label className="flex items-center gap-2 text-sm text-muted">
-                <span>来源</span>
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => {
-                    setSourceFilter(e.target.value as SourceFilter);
-                    setSelected(new Set());
-                  }}
-                  className="rounded-full border border-line/10 bg-white/90 px-3 py-1.5 text-ink outline-none focus:border-accent"
-                >
-                  <option value="all">全部</option>
-                  <option value="user">用户生成</option>
-                  <option value="admin">后台生成</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => void loadCodes()}
-                className="rounded-full border border-line/10 px-3 py-1.5 text-sm text-ink hover:border-accent"
-              >
-                刷新
-              </button>
-              <button
-                type="button"
-                disabled={selected.size === 0 || deletingId !== null}
-                onClick={() => void deleteCodes([...selected])}
-                className="rounded-full border border-[#e8c4b8] bg-[#fff1eb] px-3 py-1.5 text-sm text-[#c24b1e] hover:border-[#c24b1e] disabled:opacity-50"
-              >
-                删除选中 ({selected.size})
-              </button>
-            </div>
-          </div>
-
-          {filteredCodes.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">
-              {codes.length === 0 ? "暂无兑换码" : "当前筛选下没有兑换码"}
-            </p>
-          ) : (
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[46rem] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line/10 text-muted">
-                    <th className="py-2 pr-2 font-medium">
-                      <input
-                        type="checkbox"
-                        checked={
-                          filteredCodes.length > 0 &&
-                          filteredCodes.every((c) => selected.has(c.id))
-                        }
-                        onChange={toggleSelectAll}
-                        aria-label="全选"
-                      />
-                    </th>
-                    <th className="py-2 pr-3 font-medium">兑换码</th>
-                    <th className="py-2 pr-3 font-medium">权益</th>
-                    <th className="py-2 pr-3 font-medium">来源</th>
-                    <th className="py-2 pr-3 font-medium">使用</th>
-                    <th className="py-2 pr-3 font-medium">状态</th>
-                    <th className="py-2 pr-3 font-medium">创建</th>
-                    <th className="py-2 font-medium">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCodes.map((c) => {
-                    const status = codeStatus(c);
-                    return (
-                      <tr key={c.id} className="border-b border-line/60">
-                        <td className="py-2.5 pr-2 align-top">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(c.id)}
-                            onChange={() => toggleSelect(c.id)}
-                            aria-label={`选择 ${c.code}`}
-                          />
-                        </td>
-                        <td className="max-w-[14rem] py-2.5 pr-3 align-top">
-                          <button
-                            type="button"
-                            onClick={() => copyText(c.code)}
-                            className="break-all text-left font-mono text-xs tracking-wide text-ink hover:text-accent-deep"
-                            title="点击复制"
-                          >
-                            {c.code}
-                          </button>
-                        </td>
-                        <td className="py-2.5 pr-3 align-top text-muted">
-                          {c.label}
-                        </td>
-                        <td className="py-2.5 pr-3 align-top">
-                          {c.isUserGenerated ? (
-                            <span className="text-accent-deep">
-                              用户生成
-                              {c.createdByName ? (
-                                <span className="mt-0.5 block text-xs text-muted">
-                                  {c.createdByName}
-                                </span>
-                              ) : null}
-                            </span>
-                          ) : (
-                            <span className="text-muted">后台生成</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 pr-3 align-top text-muted">
-                          {c.usedCount}/{c.maxUses}
-                        </td>
-                        <td className={`py-2.5 pr-3 align-top ${status.className}`}>
-                          {status.text}
-                        </td>
-                        <td className="whitespace-nowrap py-2.5 pr-3 align-top text-muted">
-                          {c.createdAt
-                            ? new Date(c.createdAt).toLocaleString("zh-CN")
-                            : "—"}
-                        </td>
-                        <td className="py-2.5 align-top">
-                          <button
-                            type="button"
-                            disabled={deletingId !== null}
-                            onClick={() => void deleteCodes([c.id])}
-                            className="text-[#c24b1e] hover:underline disabled:opacity-50"
-                          >
-                            {deletingId === c.id ? "删除中…" : "删除"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-    </PageShell>
+      <Card
+        title={`全部兑换码（共 ${codes.length} · 用户生成 ${userGeneratedCount}）`}
+        extra={
+          <Space>
+            <Select
+              value={sourceFilter}
+              onChange={(v) => {
+                setSourceFilter(v as SourceFilter);
+                setSelected([]);
+              }}
+              style={{ width: 140 }}
+              options={[
+                { label: "全部", value: "all" },
+                { label: "用户生成", value: "user" },
+                { label: "后台生成", value: "admin" },
+              ]}
+            />
+            <Button onClick={() => void loadCodes()} loading={loading}>
+              刷新
+            </Button>
+            <Button
+              status="danger"
+              disabled={selected.length === 0}
+              loading={deleting}
+              onClick={() => void deleteCodes(selected)}
+            >
+              删除选中 ({selected.length})
+            </Button>
+          </Space>
+        }
+      >
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          data={filteredCodes}
+          pagination={{ pageSize: 20, showTotal: true }}
+          rowSelection={{
+            selectedRowKeys: selected,
+            onChange: (keys) => setSelected(keys as number[]),
+            checkboxProps: () => ({}),
+            checkAll: true,
+            checkCrossPage: false,
+          }}
+          scroll={{ x: 900 }}
+        />
+      </Card>
+    </Space>
   );
 }

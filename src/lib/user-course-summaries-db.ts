@@ -233,10 +233,26 @@ export async function listUserCourseSummariesFromDb(
             author_user_id, author_name, source_course_key
      FROM user_course_summaries
      WHERE user_id = :userId
+       AND (source_course_key IS NULL OR source_course_key = '')
      ORDER BY title ASC`,
     { userId },
   );
   return rows.map(rowToSummary);
+}
+
+async function countUserCourseSummaries(userId: number): Promise<number> {
+  await ensureAuthorColumns();
+  const rows = await query<(RowDataPacket & { c: number })[]>(
+    `SELECT COUNT(*) AS c FROM user_course_summaries WHERE user_id = :userId`,
+    { userId },
+  );
+  return Number(rows[0]?.c ?? 0);
+}
+
+export async function countAllUserCourseSummaries(
+  userId: number,
+): Promise<number> {
+  return countUserCourseSummaries(userId);
 }
 
 export async function upsertUserCourseSummary(
