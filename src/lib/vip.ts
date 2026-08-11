@@ -35,21 +35,24 @@ export const VIP_PLANS: Record<VipPlanId, VipPlan> = {
   month: {
     id: "month",
     title: "月会员",
-    price: 8,
+    // TODO: restore production price (8); temporarily 0.01 yuan (1 fen) for Alipay testing
+    price: 0.01,
     days: 31,
     diamonds: 300,
   },
   quarter: {
     id: "quarter",
     title: "季度会员",
-    price: 15,
+    // TODO: restore production price (15); temporarily 0.01 yuan (1 fen) for Alipay testing
+    price: 0.01,
     days: 92,
     diamonds: 800,
   },
   year: {
     id: "year",
     title: "年度会员",
-    price: 40,
+    // TODO: restore production price (40); temporarily 0.01 yuan (1 fen) for Alipay testing
+    price: 0.01,
     days: 365,
     diamonds: 2600,
   },
