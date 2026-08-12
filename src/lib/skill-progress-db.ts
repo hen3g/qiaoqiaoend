@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 
 import { execute, query } from "@/lib/db";
+import { syncStarRankingAggregates } from "@/lib/ranking-db";
 
 export type ClearStars = 1 | 2 | 3;
 export type PackStarsMap = Record<string, ClearStars>;
@@ -209,6 +210,7 @@ export async function saveSkillProgress(
     : current.jumpUnlockedSeriesIds;
 
   const completedPackIds = completedFromStars(packStars);
+  const previousStars = current.packStars;
 
   await execute(
     `INSERT INTO user_skill_progress
@@ -232,6 +234,12 @@ export async function saveSkillProgress(
       lastPackId,
     },
   );
+
+  try {
+    await syncStarRankingAggregates(userId, previousStars, packStars);
+  } catch (err) {
+    console.error("syncStarRankingAggregates failed", err);
+  }
 
   return getSkillProgress(userId);
 }

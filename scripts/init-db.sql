@@ -206,9 +206,20 @@ CREATE TABLE IF NOT EXISTS user_skill_progress (
   -- App1 闯关：每关星级 1–3；last_pack_id 为继续学习指针
   pack_stars JSON NULL,
   last_pack_id VARCHAR(128) NULL,
+  total_stars INT UNSIGNED NOT NULL DEFAULT 0,
   updated_at DATETIME NOT NULL,
-  PRIMARY KEY (user_id)
+  PRIMARY KEY (user_id),
+  KEY idx_usp_total_stars (total_stars, user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_daily_star_gains (
+  user_id BIGINT NOT NULL,
+  stat_date DATE NOT NULL,
+  stars_gained INT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (user_id, stat_date),
+  KEY idx_daily_stars_date_gained (stat_date, stars_gained, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_course_groups (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
