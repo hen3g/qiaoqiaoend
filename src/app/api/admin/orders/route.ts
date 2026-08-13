@@ -6,6 +6,7 @@ import {
   type PaymentOrderStatus,
 } from "@/lib/payment-orders";
 import { VIP_PLANS, type VipPlanId } from "@/lib/vip";
+import { paymentPlanTitle } from "@/lib/payment-orders";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
           username: o.username,
           nickname: o.nickname,
           planId: o.planId,
-          planTitle: plan?.title ?? o.planId,
+          planTitle: plan?.title ?? paymentPlanTitle(o.planId),
           amountFen: o.amountFen,
           amountYuan: (o.amountFen / 100).toFixed(2),
           status: o.status,

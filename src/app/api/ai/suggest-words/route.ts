@@ -5,6 +5,11 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { parseSuggestedWordsResult } from "@/lib/word-utils";
+import {
+  getUserDiamonds,
+  INSUFFICIENT_DIAMONDS_CODE,
+  INSUFFICIENT_DIAMONDS_MESSAGE,
+} from "@/lib/vip";
 
 const schema = z.object({
   request: z.string().optional(),
@@ -23,6 +28,16 @@ export async function POST(req: Request) {
     const user = await getCurrentUser(req);
     if (!user) {
       return withAuthCors(jsonError("请先登录", 401));
+    }
+
+    const diamonds = await getUserDiamonds(user.id);
+    if (diamonds <= 0) {
+      return withAuthCors(
+        jsonError(INSUFFICIENT_DIAMONDS_MESSAGE, 402, {
+          code: INSUFFICIENT_DIAMONDS_CODE,
+          diamonds,
+        }),
+      );
     }
 
     const body = schema.parse(await req.json());

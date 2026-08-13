@@ -8,6 +8,7 @@ export type DiamondTxType =
   | "ai_generate_course"
   | "ai_suggest_words"
   | "vip_purchase"
+  | "diamond_purchase"
   | "admin_adjust";
 
 export type DiamondTransactionDto = {
@@ -82,6 +83,8 @@ export function diamondTxTitle(type: string): string {
       return "推荐单词";
     case "vip_purchase":
       return "会员赠送";
+    case "diamond_purchase":
+      return "充值钻石";
     case "admin_adjust":
       return "系统调整";
     default:

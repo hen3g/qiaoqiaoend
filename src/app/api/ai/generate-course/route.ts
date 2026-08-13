@@ -21,6 +21,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { authCorsHeaders, authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { parseAndValidateCourse } from "@/lib/course-validate";
 import { createJsonSse } from "@/lib/sse";
+import {
+  getUserDiamonds,
+  INSUFFICIENT_DIAMONDS_CODE,
+  INSUFFICIENT_DIAMONDS_MESSAGE,
+} from "@/lib/vip";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -215,6 +220,16 @@ export async function POST(req: Request) {
     const user = await getCurrentUser(req);
     if (!user) {
       return withAuthCors(jsonError("请先登录", 401));
+    }
+
+    const diamonds = await getUserDiamonds(user.id);
+    if (diamonds <= 0) {
+      return withAuthCors(
+        jsonError(INSUFFICIENT_DIAMONDS_MESSAGE, 402, {
+          code: INSUFFICIENT_DIAMONDS_CODE,
+          diamonds,
+        }),
+      );
     }
 
     let body: Body;

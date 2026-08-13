@@ -3,10 +3,13 @@ import { getCurrentUser, mapUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { query } from "@/lib/db";
 import {
+  getDiamondPack,
+  isDiamondPackId,
+} from "@/lib/diamond-packs";
+import {
   getOrderByOutTradeNo,
   syncPendingOrderFromAlipay,
 } from "@/lib/payment-orders";
-import { getVipPlan, isVipPlanId } from "@/lib/vip";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
@@ -20,7 +23,7 @@ export async function OPTIONS() {
 
 type Ctx = { params: { outTradeNo: string } };
 
-/** Poll order status after Alipay SDK returns. */
+/** Poll diamond order status after Alipay SDK returns. */
 export async function GET(req: Request, ctx: Ctx) {
   try {
     const user = await getCurrentUser(req);
@@ -34,39 +37,33 @@ export async function GET(req: Request, ctx: Ctx) {
     }
 
     let order = await getOrderByOutTradeNo(outTradeNo);
-    if (!order || order.userId !== user.id) {
-      return withAuthCors(jsonError("订单不存在", 404));
-    }
-    if (!isVipPlanId(order.planId)) {
+    if (!order || order.userId !== user.id || !isDiamondPackId(order.planId)) {
       return withAuthCors(jsonError("订单不存在", 404));
     }
 
-    // Fallback: client already saw SDK success, but async notify may have failed
-    // (e.g. bad ALIPAY_PUBLIC_KEY). Actively query Alipay and fulfill.
     if (order.status === "pending") {
       try {
         order = (await syncPendingOrderFromAlipay(outTradeNo)) ?? order;
       } catch (err) {
         console.error(
-          "[vip/orders/:id] alipay query sync failed",
+          "[diamonds/orders/:id] alipay query sync failed",
           outTradeNo,
           err,
         );
       }
     }
 
-    if (!isVipPlanId(order.planId)) {
+    if (!isDiamondPackId(order.planId)) {
       return withAuthCors(jsonError("订单不存在", 404));
     }
 
-    const plan = getVipPlan(order.planId);
+    const pack = getDiamondPack(order.planId);
     const payload: Record<string, unknown> = {
       outTradeNo: order.outTradeNo,
       status: order.status,
-      planId: order.planId,
-      price: plan.price,
-      days: plan.days,
-      diamonds: plan.diamonds,
+      packId: pack.id,
+      price: pack.price,
+      diamonds: pack.diamonds,
       alipayTradeNo: order.alipayTradeNo,
       paidAt: order.paidAt,
     };
@@ -96,15 +93,14 @@ export async function GET(req: Request, ctx: Ctx) {
       );
       if (rows[0]) {
         payload.user = mapUser(rows[0]);
-        payload.daysGranted = plan.days;
-        payload.diamondsGranted = plan.diamonds;
+        payload.diamondsGranted = pack.diamonds;
       }
     }
 
     return withAuthCors(jsonOk(payload));
   } catch (err) {
     if (err instanceof Error) {
-      console.error("[vip/orders/:id]", err.message);
+      console.error("[diamonds/orders/:id]", err.message);
       return withAuthCors(jsonError(err.message));
     }
     console.error(err);

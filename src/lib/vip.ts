@@ -66,6 +66,10 @@ export function getVipPlan(planId: VipPlanId): VipPlan {
 /** 100 diamonds = ¥1 (AI relay cost conversion). */
 export const DIAMONDS_PER_YUAN = 100;
 
+/** Client/API code when a custom-course AI call is blocked for empty balance. */
+export const INSUFFICIENT_DIAMONDS_CODE = "INSUFFICIENT_DIAMONDS";
+export const INSUFFICIENT_DIAMONDS_MESSAGE = "钻石不足，请充值后再试";
+
 export function yuanToDiamonds(yuan: number): number {
   if (!Number.isFinite(yuan) || yuan <= 0) return 0;
   return Math.ceil(yuan * DIAMONDS_PER_YUAN);

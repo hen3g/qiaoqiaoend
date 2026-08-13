@@ -13,6 +13,10 @@ npm run dev
 
 打开 [http://localhost:4891](http://localhost:4891)。
 
+## 服务端部署
+
+日常：本机 `git push` → 服务器 `git pull` → `npm run build` → `pm2 restart qiaoqiaoend`。完整步骤见 [docs/server-deploy.md](docs/server-deploy.md)。
+
 部署后若页面刷新仍是旧版、站内跳转却是新版，见 [docs/nginx-html-cache.md](docs/nginx-html-cache.md)（nginx 缓存 HTML）。
 
 ## 功能

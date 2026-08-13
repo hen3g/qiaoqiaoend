@@ -8,7 +8,14 @@ import {
   yuanToFen,
 } from "@/lib/alipay";
 import {
+  getDiamondPack,
+  isDiamondPackId,
+  purchaseDiamondPack,
+  type DiamondPackId,
+} from "@/lib/diamond-packs";
+import {
   getVipPlan,
+  isVipPlanId,
   purchaseVipPlan,
   type PurchaseVipResult,
   type VipPlanId,
@@ -16,11 +23,13 @@ import {
 
 export type PaymentOrderStatus = "pending" | "paid" | "closed";
 
+export type PaymentPlanId = VipPlanId | DiamondPackId;
+
 export type PaymentOrder = {
   id: number;
   outTradeNo: string;
   userId: number;
-  planId: VipPlanId;
+  planId: PaymentPlanId;
   amountFen: number;
   status: PaymentOrderStatus;
   alipayTradeNo: string | null;
@@ -72,7 +81,7 @@ function mapOrder(row: OrderRow): PaymentOrder {
     id: row.id,
     outTradeNo: row.out_trade_no,
     userId: Number(row.user_id),
-    planId: row.plan_id as VipPlanId,
+    planId: row.plan_id as PaymentPlanId,
     amountFen: Number(row.amount_fen),
     status: row.status,
     alipayTradeNo: row.alipay_trade_no,
@@ -83,10 +92,19 @@ function mapOrder(row: OrderRow): PaymentOrder {
 }
 
 /** Generate a unique merchant order no (≤64 chars). */
-export function createOutTradeNo(userId: number): string {
+export function createOutTradeNo(
+  userId: number,
+  prefix: "VIP" | "DIA" = "VIP",
+): string {
   const ts = Date.now().toString(36).toUpperCase();
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `VIP${userId}_${ts}${rand}`.slice(0, 64);
+  return `${prefix}${userId}_${ts}${rand}`.slice(0, 64);
+}
+
+export function paymentPlanTitle(planId: string): string {
+  if (isVipPlanId(planId)) return getVipPlan(planId).title;
+  if (isDiamondPackId(planId)) return getDiamondPack(planId).title;
+  return planId;
 }
 
 export async function createPendingVipOrder(
@@ -104,6 +122,30 @@ export async function createPendingVipOrder(
      VALUES
        (:outTradeNo, :userId, :planId, :amountFen, 'pending')`,
     { outTradeNo, userId, planId, amountFen },
+  );
+
+  const order = await getOrderByOutTradeNo(outTradeNo);
+  if (!order) {
+    throw new Error("创建订单失败");
+  }
+  return order;
+}
+
+export async function createPendingDiamondOrder(
+  userId: number,
+  packId: DiamondPackId,
+): Promise<PaymentOrder> {
+  await ensurePaymentOrdersTable();
+  const pack = getDiamondPack(packId);
+  const outTradeNo = createOutTradeNo(userId, "DIA");
+  const amountFen = yuanToFen(pack.price);
+
+  await execute(
+    `INSERT INTO payment_orders
+       (out_trade_no, user_id, plan_id, amount_fen, status)
+     VALUES
+       (:outTradeNo, :userId, :planId, :amountFen, 'pending')`,
+    { outTradeNo, userId, planId: packId, amountFen },
   );
 
   const order = await getOrderByOutTradeNo(outTradeNo);
@@ -345,13 +387,22 @@ export function orderAmountYuan(order: PaymentOrder): string {
  * Returns fulfillment result when this call performed the grant;
  * returns null when already paid / not applicable.
  */
+export type OrderFulfillResult =
+  | (PurchaseVipResult & { kind: "vip" })
+  | {
+      kind: "diamonds";
+      pack: ReturnType<typeof getDiamondPack>;
+      diamondsGranted: number;
+      user: PurchaseVipResult["user"];
+    };
+
 export async function markOrderPaidAndFulfill(input: {
   outTradeNo: string;
   alipayTradeNo: string;
   totalAmountYuan: string;
   appId: string;
   expectedAppId: string;
-}): Promise<PurchaseVipResult | null> {
+}): Promise<OrderFulfillResult | null> {
   await ensurePaymentOrdersTable();
   const order = await getOrderByOutTradeNo(input.outTradeNo);
   if (!order) {
@@ -374,7 +425,7 @@ export async function markOrderPaidAndFulfill(input: {
     throw new Error("订单状态不可支付");
   }
 
-  const result = await execute(
+  const updated = await execute(
     `UPDATE payment_orders
      SET status = 'paid',
          alipay_trade_no = :alipayTradeNo,
@@ -388,11 +439,19 @@ export async function markOrderPaidAndFulfill(input: {
   );
 
   // Another notify already fulfilled
-  if (result.affectedRows === 0) {
+  if (updated.affectedRows === 0) {
     return null;
   }
 
-  return purchaseVipPlan(order.userId, order.planId);
+  if (isDiamondPackId(order.planId)) {
+    const granted = await purchaseDiamondPack(order.userId, order.planId);
+    return { kind: "diamonds", ...granted };
+  }
+  if (!isVipPlanId(order.planId)) {
+    throw new Error("未知商品类型");
+  }
+  const granted = await purchaseVipPlan(order.userId, order.planId);
+  return { kind: "vip", ...granted };
 }
 
 /**
