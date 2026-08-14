@@ -17,7 +17,12 @@ export type DiamondChangeOpts = {
   meta?: Record<string, unknown> | null;
 };
 
-export type VipPlanId = "month" | "quarter" | "year";
+export type VipPlanId =
+  | "month"
+  | "quarter"
+  | "year"
+  | "quarter18"
+  | "year38";
 
 export type VipPlan = {
   id: VipPlanId;
@@ -30,7 +35,11 @@ export type VipPlan = {
   diamonds: number;
 };
 
-/** Membership plans — prices and diamond gifts. Purchases stack. */
+/**
+ * Membership plans — purchases stack.
+ * quarter / year are kept for older app versions;
+ * current clients buy month + quarter18 + year38.
+ */
 export const VIP_PLANS: Record<VipPlanId, VipPlan> = {
   month: {
     id: "month",
@@ -53,10 +62,30 @@ export const VIP_PLANS: Record<VipPlanId, VipPlan> = {
     days: 365,
     diamonds: 2600,
   },
+  quarter18: {
+    id: "quarter18",
+    title: "季度会员",
+    price: 18,
+    days: 92,
+    diamonds: 800,
+  },
+  year38: {
+    id: "year38",
+    title: "年度会员",
+    price: 38,
+    days: 365,
+    diamonds: 2600,
+  },
 };
 
 export function isVipPlanId(value: unknown): value is VipPlanId {
-  return value === "month" || value === "quarter" || value === "year";
+  return (
+    value === "month" ||
+    value === "quarter" ||
+    value === "year" ||
+    value === "quarter18" ||
+    value === "year38"
+  );
 }
 
 export function getVipPlan(planId: VipPlanId): VipPlan {

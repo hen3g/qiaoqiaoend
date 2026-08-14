@@ -5,7 +5,7 @@ import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { isVipPlanId, purchaseVipPlan, VIP_PLANS } from "@/lib/vip";
 
 const schema = z.object({
-  planId: z.enum(["month", "quarter", "year"]),
+  planId: z.enum(["month", "quarter", "year", "quarter18", "year38"]),
 });
 
 export async function OPTIONS() {
