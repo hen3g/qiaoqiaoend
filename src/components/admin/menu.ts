@@ -72,6 +72,12 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     roles: ["admin"],
   },
   {
+    key: "ai-model",
+    path: "/admin/ai-model",
+    label: "AI 模型",
+    roles: ["admin"],
+  },
+  {
     key: "stats",
     path: "/admin/stats",
     label: "日活统计",

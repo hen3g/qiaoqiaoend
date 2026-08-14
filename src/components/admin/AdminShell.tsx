@@ -24,6 +24,7 @@ import {
   IconUser,
   IconUserGroup,
   IconBook,
+  IconSettings,
 } from "@arco-design/web-react/icon";
 import { useAuth } from "@/components/AuthProvider";
 import { AdminGuard } from "@/components/admin/AdminGuard";
@@ -48,6 +49,7 @@ const MENU_ICONS: Record<string, React.ReactNode> = {
   feedback: <IconMessage />,
   notifications: <IconNotification />,
   "notification-stats": <IconDashboard />,
+  "ai-model": <IconSettings />,
   stats: <IconCalendar />,
 };
 

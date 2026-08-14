@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getAppSetting, setAppSetting } from "@/lib/app-settings";
 import {
   deductDiamondsFloorZero,
   getUserDiamonds,
@@ -7,8 +8,73 @@ import {
 } from "@/lib/vip";
 import type { DiamondTxType } from "@/lib/diamond-transactions";
 
-/** Active provider: `deepseek` | `hy3`. Switch via AI_PROVIDER. */
-export type AiProvider = "deepseek" | "hy3";
+/** Active provider. Admin override, else AI_PROVIDER. */
+export const AI_PROVIDER_IDS = ["deepseek", "hy3", "hy3-deepseek"] as const;
+export type AiProvider = (typeof AI_PROVIDER_IDS)[number];
+
+const AI_PROVIDER_SETTING_KEY = "ai_provider";
+
+type ProviderDef = {
+  label: string;
+  envAliases?: string[];
+  token: () => string;
+  baseUrl: () => string;
+  model: () => string;
+  deepseekExtras: boolean;
+  missingTokenMessage: string;
+};
+
+function tokenhubToken(): string {
+  return process.env.AI_HY3_TOKEN?.trim() || "";
+}
+
+function tokenhubBaseUrl(): string {
+  return (
+    process.env.AI_HY3_BASE_URL?.trim() || "https://tokenhub.tencentmaas.com/v1"
+  );
+}
+
+const PROVIDER_DEFS: Record<AiProvider, ProviderDef> = {
+  deepseek: {
+    label: "DeepSeek 官方",
+    token: () =>
+      process.env.AI_RELAY_TOKEN?.trim() ||
+      process.env.NEWAPI_TOKEN?.trim() ||
+      "",
+    baseUrl: () =>
+      process.env.AI_RELAY_BASE_URL?.trim() || "https://api.deepseek.com/v1",
+    model: () => process.env.AI_RELAY_MODEL?.trim() || "deepseek-v4-flash",
+    deepseekExtras: true,
+    missingTokenMessage: "DeepSeek 未配置 AI_RELAY_TOKEN，无法切换",
+  },
+  hy3: {
+    label: "腾讯云 hy3",
+    envAliases: ["tencent", "tokenhub"],
+    token: tokenhubToken,
+    baseUrl: tokenhubBaseUrl,
+    model: () => process.env.AI_HY3_MODEL?.trim() || "hy3",
+    deepseekExtras: false,
+    missingTokenMessage: "腾讯云未配置 AI_HY3_TOKEN，无法切换",
+  },
+  "hy3-deepseek": {
+    label: "腾讯云 DeepSeek v4 Flash",
+    envAliases: ["tencent-deepseek", "tokenhub-deepseek"],
+    token: tokenhubToken,
+    baseUrl: tokenhubBaseUrl,
+    model: () =>
+      process.env.AI_HY3_DEEPSEEK_MODEL?.trim() || "deepseek-v4-flash",
+    deepseekExtras: true,
+    missingTokenMessage: "腾讯云未配置 AI_HY3_TOKEN，无法切换",
+  },
+};
+
+export const AI_PROVIDER_OPTIONS: {
+  provider: AiProvider;
+  label: string;
+}[] = AI_PROVIDER_IDS.map((provider) => ({
+  provider,
+  label: PROVIDER_DEFS[provider].label,
+}));
 
 type ProviderConfig = {
   provider: AiProvider;
@@ -19,67 +85,6 @@ type ProviderConfig = {
   deepseekExtras: boolean;
 };
 
-function normalizeProvider(raw: string | undefined): AiProvider {
-  const v = raw?.trim().toLowerCase();
-  if (v === "hy3" || v === "tencent" || v === "tokenhub") return "hy3";
-  return "deepseek";
-}
-
-/**
- * Resolve which upstream to call from AI_PROVIDER.
- * - deepseek: AI_RELAY_* (default)
- * - hy3: AI_HY3_* → 腾讯云 TokenHub
- */
-export function resolveAiProvider(modelOverride?: string): ProviderConfig {
-  const provider = normalizeProvider(process.env.AI_PROVIDER);
-  if (provider === "hy3") {
-    const token = process.env.AI_HY3_TOKEN?.trim() || "";
-    if (!token) {
-      throw new AiRelayError("腾讯云 hy3 未配置 AI_HY3_TOKEN，请联系管理员", 503);
-    }
-    return {
-      provider: "hy3",
-      baseUrl: (
-        process.env.AI_HY3_BASE_URL?.trim() ||
-        "https://tokenhub.tencentmaas.com/v1"
-      ).replace(/\/$/, ""),
-      token,
-      model:
-        modelOverride?.trim() ||
-        process.env.AI_HY3_MODEL?.trim() ||
-        "hy3",
-      deepseekExtras: false,
-    };
-  }
-
-  const token =
-    process.env.AI_RELAY_TOKEN?.trim() ||
-    process.env.NEWAPI_TOKEN?.trim() ||
-    "";
-  if (!token) {
-    throw new AiRelayError("AI 服务未配置，请联系管理员", 503);
-  }
-  return {
-    provider: "deepseek",
-    baseUrl: (
-      process.env.AI_RELAY_BASE_URL?.trim() || "https://api.deepseek.com/v1"
-    ).replace(/\/$/, ""),
-    token,
-    model:
-      modelOverride?.trim() ||
-      process.env.AI_RELAY_MODEL?.trim() ||
-      "deepseek-v4-flash",
-    deepseekExtras: true,
-  };
-}
-
-/** @deprecated Prefer resolveAiProvider().model — kept for callers. */
-export const DEFAULT_AI_MODEL =
-  process.env.AI_RELAY_MODEL?.trim() || "deepseek-v4-flash";
-
-/** User-facing diamond rate: ¥10 / 1M tokens → 1000 diamonds / 1M tokens. */
-const YUAN_PER_MILLION_TOKENS = 10;
-
 export class AiRelayError extends Error {
   status: number;
 
@@ -89,6 +94,144 @@ export class AiRelayError extends Error {
     this.status = status;
   }
 }
+
+function parseStoredProvider(raw: string | undefined): AiProvider | null {
+  const v = raw?.trim().toLowerCase();
+  if (v && (AI_PROVIDER_IDS as readonly string[]).includes(v)) {
+    return v as AiProvider;
+  }
+  return null;
+}
+
+function normalizeProvider(raw: string | undefined): AiProvider {
+  const v = raw?.trim().toLowerCase();
+  if (!v) return "deepseek";
+  const stored = parseStoredProvider(v);
+  if (stored) return stored;
+  for (const id of AI_PROVIDER_IDS) {
+    if (PROVIDER_DEFS[id].envAliases?.includes(v)) return id;
+  }
+  return "deepseek";
+}
+
+function tokenForProvider(provider: AiProvider): string {
+  return PROVIDER_DEFS[provider].token();
+}
+
+function modelForProvider(provider: AiProvider): string {
+  return PROVIDER_DEFS[provider].model();
+}
+
+function buildProviderConfig(provider: AiProvider): ProviderConfig {
+  const def = PROVIDER_DEFS[provider];
+  const token = def.token();
+  if (!token) {
+    throw new AiRelayError(
+      provider === "deepseek"
+        ? "AI 服务未配置，请联系管理员"
+        : "腾讯云 TokenHub 未配置 AI_HY3_TOKEN，请联系管理员",
+      503,
+    );
+  }
+  return {
+    provider,
+    baseUrl: def.baseUrl().replace(/\/$/, ""),
+    token,
+    model: def.model(),
+    deepseekExtras: def.deepseekExtras,
+  };
+}
+
+async function readProviderOverride(): Promise<{
+  provider: AiProvider;
+  updatedAt: string | null;
+} | null> {
+  const row = await getAppSetting(AI_PROVIDER_SETTING_KEY);
+  if (!row) return null;
+  const provider = parseStoredProvider(row.value);
+  if (!provider) return null;
+  return { provider, updatedAt: row.updatedAt };
+}
+
+async function resolveActiveProvider(): Promise<{
+  provider: AiProvider;
+  source: "admin" | "env";
+  updatedAt: string | null;
+}> {
+  const override = await readProviderOverride();
+  if (override) {
+    return {
+      provider: override.provider,
+      source: "admin",
+      updatedAt: override.updatedAt,
+    };
+  }
+  return {
+    provider: normalizeProvider(process.env.AI_PROVIDER),
+    source: "env",
+    updatedAt: null,
+  };
+}
+
+/**
+ * Resolve which upstream to call.
+ * Admin override in app_settings wins; otherwise AI_PROVIDER env (default deepseek).
+ */
+export async function resolveAiProvider(): Promise<ProviderConfig> {
+  const { provider } = await resolveActiveProvider();
+  return buildProviderConfig(provider);
+}
+
+export type AiProviderOptionStatus = {
+  provider: AiProvider;
+  label: string;
+  model: string;
+  tokenConfigured: boolean;
+};
+
+export type AiRuntimeStatus = {
+  provider: AiProvider;
+  source: "admin" | "env";
+  model: string;
+  tokenConfigured: boolean;
+  updatedAt: string | null;
+  options: AiProviderOptionStatus[];
+};
+
+export async function getAiRuntimeStatus(): Promise<AiRuntimeStatus> {
+  const active = await resolveActiveProvider();
+  const options = AI_PROVIDER_OPTIONS.map((opt) => ({
+    provider: opt.provider,
+    label: opt.label,
+    model: modelForProvider(opt.provider),
+    tokenConfigured: Boolean(tokenForProvider(opt.provider)),
+  }));
+  return {
+    provider: active.provider,
+    source: active.source,
+    model: modelForProvider(active.provider),
+    tokenConfigured: Boolean(tokenForProvider(active.provider)),
+    updatedAt: active.updatedAt,
+    options,
+  };
+}
+
+export async function setActiveAiProvider(
+  provider: AiProvider,
+): Promise<AiRuntimeStatus> {
+  if (!tokenForProvider(provider)) {
+    throw new AiRelayError(PROVIDER_DEFS[provider].missingTokenMessage, 400);
+  }
+  await setAppSetting(AI_PROVIDER_SETTING_KEY, provider);
+  return getAiRuntimeStatus();
+}
+
+/** @deprecated Prefer resolveAiProvider().model — kept for callers. */
+export const DEFAULT_AI_MODEL =
+  process.env.AI_RELAY_MODEL?.trim() || "deepseek-v4-flash";
+
+/** User-facing diamond rate: ¥10 / 1M tokens → 1000 diamonds / 1M tokens. */
+const YUAN_PER_MILLION_TOKENS = 10;
 
 type TokenUsage = {
   total_tokens?: number;
@@ -135,7 +278,6 @@ export type AiJsonResult = {
 
 type AiJsonRequest = {
   userId: number;
-  model?: string;
   system: string;
   user: string;
   temperature?: number;
@@ -147,14 +289,13 @@ type AiJsonRequest = {
 };
 
 /**
- * Call configured AI provider (DeepSeek or 腾讯云 hy3), then deduct diamonds
+ * Call configured AI provider (DeepSeek / 腾讯云 TokenHub), then deduct diamonds
  * post-hoc (100 diamonds = ¥1, balance floored at 0).
  * Cancel / disconnect after the upstream stream starts still settles an
  * estimated charge so partial usage is not free.
  */
 export async function requestAiJson({
   userId,
-  model,
   system,
   user,
   temperature = 0.5,
@@ -163,7 +304,6 @@ export async function requestAiJson({
 }: AiJsonRequest): Promise<AiJsonResult> {
   return requestAiJsonStream({
     userId,
-    model,
     system,
     user,
     temperature,
@@ -179,7 +319,6 @@ export async function requestAiJson({
  */
 export async function requestAiJsonStream({
   userId,
-  model,
   system,
   user,
   temperature = 0.5,
@@ -194,7 +333,7 @@ export async function requestAiJsonStream({
     throw new AiRelayError("钻石不足，请先充值后再使用", 402);
   }
 
-  const cfg = resolveAiProvider(model);
+  const cfg = await resolveAiProvider();
   const ledgerType: DiamondTxType =
     chargeType === "ai_suggest_words"
       ? "ai_suggest_words"
@@ -239,7 +378,9 @@ export async function requestAiJsonStream({
     const rawText = await upstream.text();
     let payload: {
       error?: { message?: string };
-      choices?: { message?: { content?: string } }[];
+      choices?: {
+        message?: { content?: string; reasoning_content?: string };
+      }[];
       usage?: TokenUsage;
     };
     try {
@@ -258,7 +399,8 @@ export async function requestAiJsonStream({
       );
     }
 
-    const content = payload.choices?.[0]?.message?.content;
+    const message = payload.choices?.[0]?.message;
+    const content = message?.content || message?.reasoning_content;
     if (!content) throw new AiRelayError("AI 没有返回内容，请重试。", 502);
 
     return finalizeAiResult({
@@ -379,14 +521,13 @@ function upstreamErrorMessage(
   message: string | undefined,
   status: number,
 ): string {
-  return (
-    message ||
-    (status === 401
-      ? "AI 服务凭证无效，请联系管理员"
-      : status === 402
-        ? "AI 服务额度不足，请稍后重试或联系管理员"
-        : `AI 请求失败（HTTP ${status}）`)
-  );
+  if (message) return message;
+  if (status === 401) return "AI 服务凭证无效，请联系管理员";
+  if (status === 402) return "AI 服务额度不足，请稍后重试或联系管理员";
+  if (status === 504 || status === 408) {
+    return "AI 服务超时，请稍后重试";
+  }
+  return `AI 请求失败（HTTP ${status}）`;
 }
 
 async function finalizeAiResult(input: {

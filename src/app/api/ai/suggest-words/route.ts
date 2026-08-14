@@ -16,7 +16,6 @@ const schema = z.object({
   theme: z.string().optional(),
   count: z.number().optional(),
   exclude: z.array(z.string()).optional(),
-  model: z.string().optional(),
 });
 
 export async function OPTIONS() {
@@ -67,7 +66,6 @@ export async function POST(req: Request) {
 
     const result = await requestAiJson({
       userId: user.id,
-      model: body.model,
       system: SYSTEM_SUGGEST_WORDS,
       user: userContent,
       temperature: 0.8,

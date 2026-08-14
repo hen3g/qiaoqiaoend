@@ -43,7 +43,6 @@ type Body = {
   words?: WordInput[];
   article?: string;
   existingCourse?: CoursePack;
-  model?: string;
   /** When true, respond with SSE progress events. */
   stream?: boolean;
 };
@@ -253,7 +252,6 @@ export async function POST(req: Request) {
     if (!useStream) {
       const result = await requestAiJson({
         userId: user.id,
-        model: body.model,
         system: prompt.system,
         user: prompt.userContent,
         temperature: 0.7,
@@ -282,7 +280,6 @@ export async function POST(req: Request) {
         let lastMsg = "";
         const result = await requestAiJsonStream({
           userId: user.id,
-          model: body.model,
           system: prompt.system,
           user: prompt.userContent,
           temperature: 0.7,
