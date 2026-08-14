@@ -13,7 +13,7 @@ import {
 } from "@/lib/payment-orders";
 
 const schema = z.object({
-  packId: z.enum(["pack6", "pack25"]),
+  packId: z.enum(["pack6", "pack25", "pack28"]),
 });
 
 export async function OPTIONS() {

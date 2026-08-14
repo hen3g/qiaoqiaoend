@@ -8,7 +8,7 @@ import {
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 
-export type DiamondPackId = "pack6" | "pack25";
+export type DiamondPackId = "pack6" | "pack25" | "pack28";
 
 export type DiamondPack = {
   id: DiamondPackId;
@@ -19,7 +19,10 @@ export type DiamondPack = {
   diamonds: number;
 };
 
-/** Standalone diamond recharge packs. */
+/**
+ * Standalone diamond recharge packs.
+ * pack25 is kept for older app versions; current clients buy pack28.
+ */
 export const DIAMOND_PACKS: Record<DiamondPackId, DiamondPack> = {
   pack6: {
     id: "pack6",
@@ -33,10 +36,16 @@ export const DIAMOND_PACKS: Record<DiamondPackId, DiamondPack> = {
     price: 25,
     diamonds: 3000,
   },
+  pack28: {
+    id: "pack28",
+    title: "3000 钻石",
+    price: 28,
+    diamonds: 3000,
+  },
 };
 
 export function isDiamondPackId(value: unknown): value is DiamondPackId {
-  return value === "pack6" || value === "pack25";
+  return value === "pack6" || value === "pack25" || value === "pack28";
 }
 
 export function getDiamondPack(packId: DiamondPackId): DiamondPack {
