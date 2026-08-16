@@ -4,22 +4,23 @@ import { compactVerify, decodeProtectedHeader } from "jose";
 import { getAppleBundleId } from "@/lib/apple-products";
 
 /**
- * Apple Root CA - G3 (ECC), public.
+ * Apple Root CA - G3 (ECC), official PEM.
  * https://www.apple.com/certificateauthority/AppleRootCA-G3.cer
  */
 const APPLE_ROOT_CA_G3_PEM = `-----BEGIN CERTIFICATE-----
 MIICQzCCAcmgAwIBAgIILcX8iNLFS5UwCgYIKoZIzj0EAwMwZzEbMBkGA1UEAwwS
-QXBwbGUgUm9vdCBDQSAtIEczMSYwJAYDVQQKDB1BcHBsZSBJbmMuIC0gQ29weXJp
-Z2h0IDI3IDIwMTUxGjAYBgNVBAsMEUFwcGxlIENlcnRpZmljYXRpb24wHhcNMTQw
-NDMwMTgxMDA5WhcNMzUwNDMwMTgxMDA5WjBnMRswGQYDVQQDDBJBcHBsZSBSb290
-IENBIC0gRzMxJjAkBgNVBAoMHUFwcGxlIEluYy4gLSBDb3B5cmlnaHQgMjcgMjAx
-NTEaMBgGA1UECwwRQXBwbGUgQ2VydGlmaWNhdGlvbjB2MBAGByqGSM49AgEGBSuB
-BAAiA2IABJjpLz1AcqYOHaYNB1LOFxKr9FiWA/ZPqbqD4iEO93D4HzJb44H9rs9G
-8WAz9k9kQP3/Rl9JGJRQ1pVKTpRd+QkLvKFqqsYDk4WWLVu6PHswsUdwZVFBJd5G
-xOkRjALzzaswOqeNVWkwEQYDVR0OBAYECERiz81EUb5RMA8GA1UdEwEB/wQFMAMB
-Af8wCgYIKoZIzj0EAwMDaAAwZQIxANnbWlHY5a5fOA77RHKFP8VyYoqXHV4sqkbE
-/whOS8G3XLoEovdrprTgkgK5VrukSgIwQ7jNkkJDf/Tmf3rSgG1KQtppcWObE4QY
-SZT4USPdmPfsW4JpB0KUwhpx6CqLfCgx
+QXBwbGUgUm9vdCBDQSAtIEczMSYwJAYDVQQLDB1BcHBsZSBDZXJ0aWZpY2F0aW9u
+IEF1dGhvcml0eTETMBEGA1UECgwKQXBwbGUgSW5jLjELMAkGA1UEBhMCVVMwHhcN
+MTQwNDMwMTgxOTA2WhcNMzkwNDMwMTgxOTA2WjBnMRswGQYDVQQDDBJBcHBsZSBS
+b290IENBIC0gRzMxJjAkBgNVBAsMHUFwcGxlIENlcnRpZmljYXRpb24gQXV0aG9y
+aXR5MRMwEQYDVQQKDApBcHBsZSBJbmMuMQswCQYDVQQGEwJVUzB2MBAGByqGSM49
+AgEGBSuBBAAiA2IABJjpLz1AcqTtkyJygRMc3RCV8cWjTnHcFBbZDuWmBSp3ZHtf
+TjjTuxxEtX/1H7YyYl3J6YRbTzBPEVoA/VhYDKX1DyxNB0cTddqXl5dvMVztK517
+IDvYuVTZXpmkOlEKMaNCMEAwHQYDVR0OBBYEFLuw3qFYM4iapIqZ3r6966/ayySr
+MA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMDA2gA
+MGUCMQCD6cHEFl4aXTQY2e3v9GwOAEZLuN+yRhHFD/3meoyhpmvOwgPUnPWTxnS4
+at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM
+6BgD56KyKA==
 -----END CERTIFICATE-----`;
 
 export type AppleEnvironment = "Sandbox" | "Production";
@@ -73,11 +74,7 @@ function certFromX5c(entry: unknown): X509Certificate {
   if (typeof entry !== "string" || !entry.trim()) {
     throw new Error("Apple 凭证证书无效");
   }
-  try {
-    return new X509Certificate(x5cToPem(entry));
-  } catch {
-    return new X509Certificate(Buffer.from(normalizeX5cB64(entry), "base64"));
-  }
+  return new X509Certificate(x5cToPem(entry));
 }
 
 function assertAppleChain(x5c: unknown[]): X509Certificate {

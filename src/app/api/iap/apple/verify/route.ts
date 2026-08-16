@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     }
     if (err instanceof Error) {
       console.error("[iap/apple/verify]", err.message);
-      const message = /asn1|x509|certificate|DECODER|too long/i.test(
+      const message = /asn1 encoding|error:06|DECODER routines/i.test(
         err.message,
       )
         ? "Apple 凭证校验失败，请稍后重试"
