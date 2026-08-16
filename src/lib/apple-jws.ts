@@ -37,6 +37,11 @@ export type AppleSignedTransaction = {
   transactionReason?: string;
   revocationDate?: number;
   appAccountToken?: string;
+  /** 1 = introductory, 2 = promotional, 3 = offer code, 4 = win-back */
+  offerType?: number;
+  offerDiscountType?: string;
+  /** Price in milliunits of the currency (1000 = ¥1.00). */
+  price?: number;
 };
 
 export type AppleNotificationPayload = {
@@ -173,6 +178,9 @@ export async function verifyAppleSignedTransaction(
     transactionReason: asString(claims.transactionReason) || undefined,
     revocationDate: asNumber(claims.revocationDate),
     appAccountToken: asString(claims.appAccountToken) || undefined,
+    offerType: asNumber(claims.offerType),
+    offerDiscountType: asString(claims.offerDiscountType) || undefined,
+    price: asNumber(claims.price),
   };
 }
 

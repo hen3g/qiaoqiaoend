@@ -33,6 +33,12 @@ export const APPLE_PRODUCTS: Record<string, AppleProduct> = {
     grantId: "year38",
     billing: "consumable",
   },
+  "com.yancitech.qiaoqiaoenglish.vip.month6": {
+    sku: "com.yancitech.qiaoqiaoenglish.vip.month6",
+    kind: "vip",
+    grantId: "month6",
+    billing: "auto-renewable",
+  },
   /** Legacy auto-renewing subscriptions. Kept for existing subscribers. */
   "com.yancitech.qiaoqiaoenglish.vip.month": {
     sku: "com.yancitech.qiaoqiaoenglish.vip.month",

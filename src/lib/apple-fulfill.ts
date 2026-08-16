@@ -42,13 +42,49 @@ export type AppleFulfillResult = {
   user: SessionUser;
 };
 
+function isIntroductoryOffer(tx: AppleSignedTransaction): boolean {
+  if (tx.offerType === 1) return true;
+  // 1000 milliunits = ¥1.00
+  return typeof tx.price === "number" && tx.price > 0 && tx.price <= 1000;
+}
+
 function shouldGrantSubscriptionDiamonds(tx: AppleSignedTransaction): boolean {
   const reason = (tx.transactionReason || "PURCHASE").toUpperCase();
   return reason !== "RENEWAL";
 }
 
+function diamondsForVipGrant(
+  product: ReturnType<typeof getAppleProduct>,
+  plan: ReturnType<typeof getVipPlan>,
+  tx: AppleSignedTransaction,
+): number {
+  if (!product) return 0;
+  if (isAppleConsumableProduct(product)) return plan.diamonds;
+  if (product.grantId === "month6") {
+    return isIntroductoryOffer(tx)
+      ? (plan.introDiamonds ?? 50)
+      : plan.diamonds;
+  }
+  return shouldGrantSubscriptionDiamonds(tx) ? plan.diamonds : 0;
+}
+
 function isAppleVipExpired(tx: AppleSignedTransaction): boolean {
   return Boolean(tx.expiresDate && tx.expiresDate <= Date.now());
+}
+
+function remainingVipDays(expiresAt: string | Date | null | undefined): number {
+  if (!expiresAt) return 0;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / 86_400_000));
+}
+
+function subscriptionDaysGranted(
+  tx: AppleSignedTransaction,
+  fallback: number,
+): number {
+  if (!tx.expiresDate) return fallback;
+  const start = tx.purchaseDate || Date.now();
+  return Math.max(1, Math.ceil((tx.expiresDate - start) / 86_400_000));
 }
 
 async function alreadyProcessedResult(
@@ -67,8 +103,11 @@ async function alreadyProcessedResult(
   let diamondsGranted = Math.max(0, Number(existing.diamondsGranted) || 0);
   if (existing.kind === "vip" && isVipPlanId(existing.grantId)) {
     const plan = getVipPlan(existing.grantId);
-    daysGranted = plan.days;
     const product = getAppleProduct(existing.productId);
+    daysGranted =
+      product && !isAppleConsumableProduct(product)
+        ? remainingVipDays(user.vipExpiresAt)
+        : plan.days;
     if (
       diamondsGranted <= 0 &&
       product &&
@@ -132,13 +171,10 @@ export async function fulfillAppleTransaction(input: {
         throw new Error("未知的会员方案");
       }
       const plan = getVipPlan(product.grantId);
-      daysGranted = plan.days;
-      if (
-        isAppleConsumableProduct(product) ||
-        shouldGrantSubscriptionDiamonds(input.tx)
-      ) {
-        diamondsGranted = plan.diamonds;
-      }
+      daysGranted = isAppleConsumableProduct(product)
+        ? plan.days
+        : subscriptionDaysGranted(input.tx, plan.days);
+      diamondsGranted = diamondsForVipGrant(product, plan, input.tx);
     } else if (product.kind === "diamonds") {
       if (!isDiamondPackId(product.grantId)) {
         throw new Error("未知的钻石套餐");
@@ -183,9 +219,10 @@ export async function fulfillAppleTransaction(input: {
           type: "vip_purchase",
           meta: {
             planId: plan.id,
-            days: plan.days,
+            days: daysGranted,
             channel: "apple",
             transactionId: input.tx.transactionId,
+            offerType: input.tx.offerType ?? null,
           },
         });
       }

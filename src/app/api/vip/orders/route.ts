@@ -10,7 +10,7 @@ import {
 import { getVipPlan, isVipPlanId } from "@/lib/vip";
 
 const schema = z.object({
-  planId: z.enum(["month", "quarter", "year", "quarter18", "year38"]),
+  planId: z.enum(["month", "quarter", "year", "quarter18", "year38", "month6"]),
 });
 
 export async function OPTIONS() {

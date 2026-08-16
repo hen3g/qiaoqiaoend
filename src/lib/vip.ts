@@ -22,7 +22,8 @@ export type VipPlanId =
   | "quarter"
   | "year"
   | "quarter18"
-  | "year38";
+  | "year38"
+  | "month6";
 
 export type VipPlan = {
   id: VipPlanId;
@@ -31,16 +32,27 @@ export type VipPlan = {
   price: number;
   /** Membership days granted (stackable) */
   days: number;
-  /** Diamonds granted (stackable) */
+  /** Diamonds granted (stackable). month6 regular / renewal amount. */
   diamonds: number;
+  /** month6 introductory (¥1) diamond gift. */
+  introDiamonds?: number;
 };
 
 /**
- * Membership plans — purchases stack.
- * quarter / year are kept for older app versions;
- * current clients buy month + quarter18 + year38.
+ * Membership plans — one-time purchases stack days.
+ * month6 is Apple auto-renew only (Alipay / test purchase must reject it).
+ * quarter / year stay for older app versions;
+ * current clients buy month + quarter18 + year38 (+ month6 on iOS).
  */
 export const VIP_PLANS: Record<VipPlanId, VipPlan> = {
+  month6: {
+    id: "month6",
+    title: "连续包月",
+    price: 6,
+    days: 31,
+    diamonds: 300,
+    introDiamonds: 50,
+  },
   month: {
     id: "month",
     title: "月会员",
@@ -84,8 +96,14 @@ export function isVipPlanId(value: unknown): value is VipPlanId {
     value === "quarter" ||
     value === "year" ||
     value === "quarter18" ||
-    value === "year38"
+    value === "year38" ||
+    value === "month6"
   );
+}
+
+/** Apple auto-renewing subscription. Not sold via Alipay. */
+export function isAppleSubscriptionPlanId(planId: VipPlanId): boolean {
+  return planId === "month6";
 }
 
 export function getVipPlan(planId: VipPlanId): VipPlan {
@@ -187,6 +205,9 @@ export async function purchaseVipPlan(
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
+  if (isAppleSubscriptionPlanId(planId)) {
+    throw new Error("该方案仅支持 App Store 订阅");
+  }
   const plan = getVipPlan(planId);
 
   await extendVip(userId, plan.days);

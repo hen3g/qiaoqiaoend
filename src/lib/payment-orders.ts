@@ -15,6 +15,7 @@ import {
 } from "@/lib/diamond-packs";
 import {
   getVipPlan,
+  isAppleSubscriptionPlanId,
   isVipPlanId,
   purchaseVipPlan,
   type PurchaseVipResult,
@@ -112,6 +113,9 @@ export async function createPendingVipOrder(
   planId: VipPlanId,
 ): Promise<PaymentOrder> {
   await ensurePaymentOrdersTable();
+  if (isAppleSubscriptionPlanId(planId)) {
+    throw new Error("该方案仅支持 App Store 订阅");
+  }
   const plan = getVipPlan(planId);
   const outTradeNo = createOutTradeNo(userId);
   const amountFen = yuanToFen(plan.price);
