@@ -9,6 +9,7 @@ export type DiamondTxType =
   | "ai_suggest_words"
   | "vip_purchase"
   | "diamond_purchase"
+  | "apple_refund"
   | "admin_adjust";
 
 export type DiamondTransactionDto = {
@@ -85,6 +86,8 @@ export function diamondTxTitle(type: string): string {
       return "会员赠送";
     case "diamond_purchase":
       return "充值钻石";
+    case "apple_refund":
+      return "Apple 退款收回";
     case "admin_adjust":
       return "系统调整";
     default:

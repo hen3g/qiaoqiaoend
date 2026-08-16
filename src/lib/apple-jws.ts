@@ -144,6 +144,7 @@ function asNumber(value: unknown): number | undefined {
 
 export async function verifyAppleSignedTransaction(
   jws: string,
+  opts?: { allowRevoked?: boolean },
 ): Promise<AppleSignedTransaction> {
   const claims = await verifyAppleJws(jws);
   const bundleId = asString(claims.bundleId);
@@ -163,7 +164,8 @@ export async function verifyAppleSignedTransaction(
   if (environment !== "Sandbox" && environment !== "Production") {
     throw new Error("Apple 凭证环境无效");
   }
-  if (asNumber(claims.revocationDate)) {
+  const revocationDate = asNumber(claims.revocationDate);
+  if (revocationDate && !opts?.allowRevoked) {
     throw new Error("该笔 Apple 交易已退款");
   }
   return {
@@ -176,7 +178,7 @@ export async function verifyAppleSignedTransaction(
     type: asString(claims.type) || undefined,
     environment,
     transactionReason: asString(claims.transactionReason) || undefined,
-    revocationDate: asNumber(claims.revocationDate),
+    revocationDate,
     appAccountToken: asString(claims.appAccountToken) || undefined,
     offerType: asNumber(claims.offerType),
     offerDiscountType: asString(claims.offerDiscountType) || undefined,
@@ -194,7 +196,7 @@ export async function verifyAppleNotification(
   const notification = claims as AppleNotificationPayload;
   const signedTx = notification.data?.signedTransactionInfo;
   const transaction = signedTx
-    ? await verifyAppleSignedTransaction(signedTx)
+    ? await verifyAppleSignedTransaction(signedTx, { allowRevoked: true })
     : null;
   return { notification, transaction };
 }

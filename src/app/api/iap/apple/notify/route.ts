@@ -1,5 +1,8 @@
 import { jsonError, jsonOk } from "@/lib/api";
-import { fulfillAppleNotificationTx } from "@/lib/apple-fulfill";
+import {
+  clawbackAppleRefundDiamonds,
+  fulfillAppleNotificationTx,
+} from "@/lib/apple-fulfill";
 import { verifyAppleNotification } from "@/lib/apple-jws";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +13,8 @@ const GRANT_TYPES = new Set([
   "OFFER_REDEEMED",
   "ONE_TIME_CHARGE",
 ]);
+
+const REFUND_TYPES = new Set(["REFUND"]);
 
 /**
  * App Store Server Notifications V2.
@@ -27,7 +32,28 @@ export async function POST(req: Request) {
       await verifyAppleNotification(signedPayload);
     const type = String(notification.notificationType || "");
 
-    if (!transaction || !GRANT_TYPES.has(type)) {
+    if (transaction && REFUND_TYPES.has(type)) {
+      try {
+        const result = await clawbackAppleRefundDiamonds(transaction);
+        return jsonOk({
+          notificationType: type,
+          processed: !result.alreadyProcessed,
+          alreadyProcessed: result.alreadyProcessed,
+          diamondsClawed: result.diamondsClawed,
+          transactionId: transaction.transactionId,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "退款处理失败";
+        console.error("[apple/notify] refund", message);
+        return jsonOk({
+          ignored: true,
+          notificationType: type,
+          error: message,
+        });
+      }
+    }
+
+    if (!transaction || !GRANT_TYPES.has(type) || transaction.revocationDate) {
       return jsonOk({
         ignored: true,
         notificationType: type,
@@ -60,3 +86,4 @@ export async function POST(req: Request) {
     return jsonError("通知处理失败", 500);
   }
 }
+

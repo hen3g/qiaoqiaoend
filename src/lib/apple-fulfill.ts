@@ -4,6 +4,7 @@ import {
   getAppleOriginalOwner,
   getAppleTransaction,
   insertAppleTransaction,
+  claimAppleDiamondRefund,
 } from "@/lib/apple-transactions";
 import {
   getAppleProduct,
@@ -18,6 +19,7 @@ import {
 import { withTransaction } from "@/lib/db";
 import {
   addDiamonds,
+  deductDiamondsFloorZero,
   getVipPlan,
   isVipPlanId,
 } from "@/lib/vip";
@@ -149,6 +151,19 @@ export async function fulfillAppleTransaction(input: {
     throw new Error("未知的 Apple 商品");
   }
 
+  if (!isAppleConsumableProduct(product)) {
+    const tokenUserId = userIdFromAppleAppAccountToken(
+      input.tx.appAccountToken,
+    );
+    if (tokenUserId && tokenUserId !== input.userId) {
+      throw new Error("该 Apple 购买不属于当前账号");
+    }
+    const owner = await getAppleOriginalOwner(input.tx.originalTransactionId);
+    if (owner && owner.userId !== input.userId) {
+      throw new Error("该订阅已绑定其他账号，请使用原账号登录后恢复购买");
+    }
+  }
+
   if (
     product.kind === "vip" &&
     !isAppleConsumableProduct(product) &&
@@ -276,4 +291,57 @@ export async function fulfillAppleNotificationTx(
     return null;
   }
   return fulfillAppleTransaction({ tx, userId });
+}
+
+export type AppleRefundResult = {
+  alreadyProcessed: boolean;
+  diamondsClawed: number;
+  userId: number | null;
+};
+
+/**
+ * Apple refund: claw back diamonds granted by this transaction only.
+ * VIP / subscription time is left unchanged.
+ */
+export async function clawbackAppleRefundDiamonds(
+  tx: AppleSignedTransaction,
+): Promise<AppleRefundResult> {
+  await ensureUserDiamondsColumn();
+  await ensureDiamondTransactionsTable();
+  await ensureAppleTransactionsTable();
+
+  return withTransaction(async () => {
+    const existing = await getAppleTransaction(tx.transactionId);
+    if (!existing) {
+      return { alreadyProcessed: true, diamondsClawed: 0, userId: null };
+    }
+    if (existing.diamondsGranted <= 0 || existing.diamondsRefunded > 0) {
+      return {
+        alreadyProcessed: true,
+        diamondsClawed: 0,
+        userId: existing.userId,
+      };
+    }
+    const claimed = await claimAppleDiamondRefund(tx.transactionId);
+    if (!claimed) {
+      return {
+        alreadyProcessed: true,
+        diamondsClawed: 0,
+        userId: existing.userId,
+      };
+    }
+    await deductDiamondsFloorZero(claimed.userId, claimed.amount, {
+      type: "apple_refund",
+      meta: {
+        channel: "apple",
+        transactionId: tx.transactionId,
+        productId: tx.productId,
+      },
+    });
+    return {
+      alreadyProcessed: false,
+      diamondsClawed: claimed.amount,
+      userId: claimed.userId,
+    };
+  });
 }

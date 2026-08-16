@@ -12,6 +12,7 @@ export type AppleTransactionRow = {
   grantId: string;
   environment: string;
   diamondsGranted: number;
+  diamondsRefunded: number;
 };
 
 type Row = RowDataPacket & {
@@ -23,9 +24,11 @@ type Row = RowDataPacket & {
   grant_id: string;
   environment: string;
   diamonds_granted: number;
+  diamonds_refunded?: number;
 };
 
 let tableEnsured = false;
+let refundColumnEnsured = false;
 
 export async function ensureAppleTransactionsTable(): Promise<void> {
   if (tableEnsured) return;
@@ -46,6 +49,22 @@ export async function ensureAppleTransactionsTable(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
   tableEnsured = true;
+  await ensureAppleDiamondsRefundedColumn();
+}
+
+async function ensureAppleDiamondsRefundedColumn(): Promise<void> {
+  if (refundColumnEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM apple_transactions LIKE 'diamonds_refunded'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE apple_transactions
+       ADD COLUMN diamonds_refunded INT NOT NULL DEFAULT 0 AFTER diamonds_granted`,
+    );
+  }
+  refundColumnEnsured = true;
 }
 
 function mapRow(row: Row): AppleTransactionRow {
@@ -58,6 +77,7 @@ function mapRow(row: Row): AppleTransactionRow {
     grantId: row.grant_id,
     environment: row.environment,
     diamondsGranted: Number(row.diamonds_granted ?? 0),
+    diamondsRefunded: Number(row.diamonds_refunded ?? 0),
   };
 }
 
@@ -67,7 +87,7 @@ export async function getAppleTransaction(
   await ensureAppleTransactionsTable();
   const rows = await query<Row[]>(
     `SELECT transaction_id, original_transaction_id, user_id, product_id, kind,
-            grant_id, environment, diamonds_granted
+            grant_id, environment, diamonds_granted, diamonds_refunded
      FROM apple_transactions WHERE transaction_id = :transactionId LIMIT 1`,
     { transactionId },
   );
@@ -80,7 +100,7 @@ export async function getAppleOriginalOwner(
   await ensureAppleTransactionsTable();
   const rows = await query<Row[]>(
     `SELECT transaction_id, original_transaction_id, user_id, product_id, kind,
-            grant_id, environment, diamonds_granted
+            grant_id, environment, diamonds_granted, diamonds_refunded
      FROM apple_transactions
      WHERE original_transaction_id = :originalTransactionId
      ORDER BY created_at ASC
@@ -91,7 +111,7 @@ export async function getAppleOriginalOwner(
 }
 
 export async function insertAppleTransaction(
-  row: AppleTransactionRow,
+  row: Omit<AppleTransactionRow, "diamondsRefunded">,
 ): Promise<boolean> {
   await ensureAppleTransactionsTable();
   const result = await execute(
@@ -104,4 +124,23 @@ export async function insertAppleTransaction(
     row,
   );
   return (result.affectedRows ?? 0) > 0;
+}
+
+/** Mark this tx's gifted diamonds as refunded. Returns the amount if this caller won the race. */
+export async function claimAppleDiamondRefund(
+  transactionId: string,
+): Promise<{ userId: number; amount: number } | null> {
+  await ensureAppleTransactionsTable();
+  const result = await execute(
+    `UPDATE apple_transactions
+     SET diamonds_refunded = diamonds_granted
+     WHERE transaction_id = :transactionId
+       AND diamonds_granted > 0
+       AND diamonds_refunded = 0`,
+    { transactionId },
+  );
+  if ((result.affectedRows ?? 0) === 0) return null;
+  const row = await getAppleTransaction(transactionId);
+  if (!row) return null;
+  return { userId: row.userId, amount: row.diamondsGranted };
 }
