@@ -1,5 +1,5 @@
-import { createPublicKey, X509Certificate } from "node:crypto";
-import { compactVerify, decodeProtectedHeader } from "jose";
+import { X509Certificate } from "node:crypto";
+import { compactVerify, decodeProtectedHeader, importX509 } from "jose";
 
 import { getAppleBundleId } from "@/lib/apple-products";
 
@@ -117,8 +117,9 @@ async function verifyAppleJws(jws: string): Promise<Record<string, unknown>> {
   if (!Array.isArray(x5c) || x5c.length < 1) {
     throw new Error("Apple 凭证缺少证书");
   }
-  const leaf = assertAppleChain(x5c);
-  const key = createPublicKey(leaf.publicKey);
+  assertAppleChain(x5c);
+  const alg = typeof header.alg === "string" && header.alg ? header.alg : "ES256";
+  const key = await importX509(x5cToPem(String(x5c[0])), alg);
   const { payload } = await compactVerify(trimmed, key);
   return JSON.parse(new TextDecoder().decode(payload)) as Record<
     string,
