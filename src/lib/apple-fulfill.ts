@@ -57,6 +57,7 @@ async function alreadyProcessedResult(
     kind: "vip" | "diamonds";
     grantId: string;
     productId: string;
+    diamondsGranted: number;
   },
   userId: number,
 ): Promise<AppleFulfillResult> {
@@ -65,13 +66,34 @@ async function alreadyProcessedResult(
   }
   const user = await getSessionUserById(userId);
   if (!user) throw new Error("用户不存在");
+  let daysGranted = 0;
+  let diamondsGranted = Math.max(0, Number(existing.diamondsGranted) || 0);
+  if (existing.kind === "vip" && isVipPlanId(existing.grantId)) {
+    const plan = getVipPlan(existing.grantId);
+    daysGranted = plan.days;
+    const product = getAppleProduct(existing.productId);
+    if (
+      diamondsGranted <= 0 &&
+      product &&
+      isAppleConsumableProduct(product)
+    ) {
+      diamondsGranted = plan.diamonds;
+    }
+  } else if (
+    existing.kind === "diamonds" &&
+    isDiamondPackId(existing.grantId)
+  ) {
+    if (diamondsGranted <= 0) {
+      diamondsGranted = getDiamondPack(existing.grantId).diamonds;
+    }
+  }
   return {
     alreadyProcessed: true,
     kind: existing.kind,
     grantId: existing.grantId,
     productId: existing.productId,
-    daysGranted: 0,
-    diamondsGranted: 0,
+    daysGranted,
+    diamondsGranted,
     user,
   };
 }
