@@ -66,6 +66,7 @@ Next.js 生产环境会自动读取项目根目录的 `.env.local`。服务器�
 | `AUTH_SECRET` | 登录 / OAuth 签名 |
 | `OAUTH_CLIENT_ID` / `OAUTH_REDIRECT_URIS` | 客户端登录回调 |
 | `ALIPAY_*` | APP 支付与异步通知 |
+| （无需密钥）Apple IAP | App Store Connect 服务器通知填 `https://qiaoqiaoengapp.word19.com/api/iap/apple/notify`（生产与沙盒同一地址） |
 | `R2_*` | 课程包存储 |
 | `AI_PROVIDER` 及对应 Token | 自制课程 AI |
 | `SECRET_ID` / `SECRET_KEY` / `TENCENT_SES_*` | 邮箱验证码 |
@@ -127,7 +128,7 @@ chown -R www:www /www/wwwroot/qiaoqiaoend
 
 ## 反向代理
 
-Nginx（宝塔）把 `www.word19.com` / `qiaoqiaoengapp.word19.com` 反代到 `http://127.0.0.1:4891`。支付宝通知、应用网关必须走公网 HTTPS，不要只反代到本机 IP。
+Nginx（宝塔）把 `www.word19.com` / `qiaoqiaoengapp.word19.com` 反代到 `http://127.0.0.1:4891`。支付宝通知、应用网关、Apple IAP 通知必须走公网 HTTPS，不要只反代到本机 IP。
 
 ## 常见问题
 

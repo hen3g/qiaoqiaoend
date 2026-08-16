@@ -1,15 +1,20 @@
 import { getSessionUserById, type SessionUser } from "@/lib/auth";
 import {
+  ensureAppleTransactionsTable,
   getAppleOriginalOwner,
   getAppleTransaction,
   insertAppleTransaction,
 } from "@/lib/apple-transactions";
-import { getAppleProduct } from "@/lib/apple-products";
+import {
+  getAppleProduct,
+  userIdFromAppleAppAccountToken,
+} from "@/lib/apple-products";
 import type { AppleSignedTransaction } from "@/lib/apple-jws";
 import {
   extendVip,
   setVipExpiresAtLeast,
 } from "@/lib/courses";
+import { withTransaction } from "@/lib/db";
 import {
   addDiamonds,
   getVipPlan,
@@ -19,6 +24,7 @@ import {
   getDiamondPack,
   isDiamondPackId,
 } from "@/lib/diamond-packs";
+import { ensureDiamondTransactionsTable } from "@/lib/diamond-transactions";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
@@ -40,6 +46,35 @@ function shouldGrantSubscriptionDiamonds(tx: AppleSignedTransaction): boolean {
   return reason !== "RENEWAL";
 }
 
+function isAppleVipExpired(tx: AppleSignedTransaction): boolean {
+  return Boolean(tx.expiresDate && tx.expiresDate <= Date.now());
+}
+
+async function alreadyProcessedResult(
+  existing: {
+    userId: number;
+    kind: "vip" | "diamonds";
+    grantId: string;
+    productId: string;
+  },
+  userId: number,
+): Promise<AppleFulfillResult> {
+  if (existing.userId !== userId) {
+    throw new Error("该 Apple 交易已绑定其他账号");
+  }
+  const user = await getSessionUserById(userId);
+  if (!user) throw new Error("用户不存在");
+  return {
+    alreadyProcessed: true,
+    kind: existing.kind,
+    grantId: existing.grantId,
+    productId: existing.productId,
+    daysGranted: 0,
+    diamondsGranted: 0,
+    user,
+  };
+}
+
 export async function fulfillAppleTransaction(input: {
   tx: AppleSignedTransaction;
   userId: number;
@@ -47,137 +82,143 @@ export async function fulfillAppleTransaction(input: {
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
+  await ensureDiamondTransactionsTable();
+  await ensureAppleTransactionsTable();
 
   const product = getAppleProduct(input.tx.productId);
   if (!product) {
     throw new Error("未知的 Apple 商品");
   }
 
-  const existing = await getAppleTransaction(input.tx.transactionId);
-  if (existing) {
-    if (existing.userId !== input.userId) {
-      throw new Error("该 Apple 交易已绑定其他账号");
-    }
-    const user = await getSessionUserById(input.userId);
-    if (!user) throw new Error("用户不存在");
-    return {
-      alreadyProcessed: true,
-      kind: existing.kind,
-      grantId: existing.grantId,
-      productId: existing.productId,
-      daysGranted: 0,
-      diamondsGranted: 0,
-      user,
-    };
+  const tokenUserId = userIdFromAppleAppAccountToken(input.tx.appAccountToken);
+  if (tokenUserId && tokenUserId !== input.userId) {
+    throw new Error("该 Apple 购买已绑定其他账号");
   }
 
-  const originalOwner = await getAppleOriginalOwner(
-    input.tx.originalTransactionId,
-  );
-  if (originalOwner && originalOwner.userId !== input.userId) {
-    throw new Error("该 Apple 订阅已绑定其他账号");
+  if (product.kind === "vip" && isAppleVipExpired(input.tx)) {
+    throw new Error("该 Apple 订阅已过期");
   }
 
-  let daysGranted = 0;
-  let diamondsGranted = 0;
-  const expired = Boolean(
-    input.tx.expiresDate && input.tx.expiresDate <= Date.now(),
-  );
+  return withTransaction(async () => {
+    const existing = await getAppleTransaction(input.tx.transactionId);
+    if (existing) {
+      return alreadyProcessedResult(existing, input.userId);
+    }
 
-  if (product.kind === "vip" && !expired) {
-    if (!isVipPlanId(product.grantId)) {
-      throw new Error("未知的会员方案");
+    const originalOwner = await getAppleOriginalOwner(
+      input.tx.originalTransactionId,
+    );
+    if (originalOwner && originalOwner.userId !== input.userId) {
+      throw new Error("该 Apple 订阅已绑定其他账号");
     }
-    const plan = getVipPlan(product.grantId);
-    if (input.tx.expiresDate) {
-      await setVipExpiresAtLeast(input.userId, new Date(input.tx.expiresDate));
+
+    let daysGranted = 0;
+    let diamondsGranted = 0;
+
+    if (product.kind === "vip") {
+      if (!isVipPlanId(product.grantId)) {
+        throw new Error("未知的会员方案");
+      }
+      const plan = getVipPlan(product.grantId);
       daysGranted = plan.days;
-    } else {
-      await extendVip(input.userId, plan.days);
-      daysGranted = plan.days;
+      if (shouldGrantSubscriptionDiamonds(input.tx)) {
+        diamondsGranted = plan.diamonds;
+      }
+    } else if (product.kind === "diamonds") {
+      if (!isDiamondPackId(product.grantId)) {
+        throw new Error("未知的钻石套餐");
+      }
+      diamondsGranted = getDiamondPack(product.grantId).diamonds;
     }
-    if (shouldGrantSubscriptionDiamonds(input.tx)) {
-      await addDiamonds(input.userId, plan.diamonds, {
-        type: "vip_purchase",
+
+    const inserted = await insertAppleTransaction({
+      transactionId: input.tx.transactionId,
+      originalTransactionId: input.tx.originalTransactionId,
+      userId: input.userId,
+      productId: input.tx.productId,
+      kind: product.kind,
+      grantId: product.grantId,
+      environment: input.tx.environment,
+      diamondsGranted,
+    });
+
+    if (!inserted) {
+      const raced = await getAppleTransaction(input.tx.transactionId);
+      if (raced) {
+        return alreadyProcessedResult(raced, input.userId);
+      }
+      throw new Error("该 Apple 交易已处理");
+    }
+
+    if (product.kind === "vip") {
+      if (!isVipPlanId(product.grantId)) {
+        throw new Error("未知的会员方案");
+      }
+      const plan = getVipPlan(product.grantId);
+      if (input.tx.expiresDate) {
+        await setVipExpiresAtLeast(input.userId, new Date(input.tx.expiresDate));
+      } else {
+        await extendVip(input.userId, plan.days);
+      }
+      if (diamondsGranted > 0) {
+        await addDiamonds(input.userId, diamondsGranted, {
+          type: "vip_purchase",
+          meta: {
+            planId: plan.id,
+            days: plan.days,
+            channel: "apple",
+            transactionId: input.tx.transactionId,
+          },
+        });
+      }
+    } else if (product.kind === "diamonds") {
+      if (!isDiamondPackId(product.grantId)) {
+        throw new Error("未知的钻石套餐");
+      }
+      const pack = getDiamondPack(product.grantId);
+      await addDiamonds(input.userId, pack.diamonds, {
+        type: "diamond_purchase",
         meta: {
-          planId: plan.id,
-          days: plan.days,
+          packId: pack.id,
+          price: pack.price,
           channel: "apple",
           transactionId: input.tx.transactionId,
         },
       });
-      diamondsGranted = plan.diamonds;
     }
-  } else if (product.kind === "diamonds") {
-    if (!isDiamondPackId(product.grantId)) {
-      throw new Error("未知的钻石套餐");
-    }
-    const pack = getDiamondPack(product.grantId);
-    await addDiamonds(input.userId, pack.diamonds, {
-      type: "diamond_purchase",
-      meta: {
-        packId: pack.id,
-        price: pack.price,
-        channel: "apple",
-        transactionId: input.tx.transactionId,
-      },
-    });
-    diamondsGranted = pack.diamonds;
-  }
 
-  const inserted = await insertAppleTransaction({
-    transactionId: input.tx.transactionId,
-    originalTransactionId: input.tx.originalTransactionId,
-    userId: input.userId,
-    productId: input.tx.productId,
-    kind: product.kind,
-    grantId: product.grantId,
-    environment: input.tx.environment,
-    diamondsGranted,
+    const user = await getSessionUserById(input.userId);
+    if (!user) throw new Error("用户不存在");
+    return {
+      alreadyProcessed: false,
+      kind: product.kind,
+      grantId: product.grantId,
+      productId: input.tx.productId,
+      daysGranted,
+      diamondsGranted,
+      user,
+    };
   });
-
-  if (!inserted) {
-    const raced = await getAppleTransaction(input.tx.transactionId);
-    if (raced && raced.userId === input.userId) {
-      const user = await getSessionUserById(input.userId);
-      if (!user) throw new Error("用户不存在");
-      return {
-        alreadyProcessed: true,
-        kind: raced.kind,
-        grantId: raced.grantId,
-        productId: raced.productId,
-        daysGranted: 0,
-        diamondsGranted: 0,
-        user,
-      };
-    }
-    throw new Error("该 Apple 交易已处理");
-  }
-
-  const user = await getSessionUserById(input.userId);
-  if (!user) throw new Error("用户不存在");
-  return {
-    alreadyProcessed: false,
-    kind: product.kind,
-    grantId: product.grantId,
-    productId: input.tx.productId,
-    daysGranted,
-    diamondsGranted,
-    user,
-  };
 }
 
-/** Server notification: bind to the original purchaser. */
+/** Server notification: original purchaser, or appAccountToken on first buy. */
 export async function fulfillAppleNotificationTx(
   tx: AppleSignedTransaction,
 ): Promise<AppleFulfillResult | null> {
   const owner = await getAppleOriginalOwner(tx.originalTransactionId);
-  if (!owner) {
+  const tokenUserId = userIdFromAppleAppAccountToken(tx.appAccountToken);
+  const userId = owner?.userId ?? tokenUserId;
+  if (!userId) {
     console.warn(
       "[apple/notify] no owner for originalTransactionId",
       tx.originalTransactionId,
     );
     return null;
   }
-  return fulfillAppleTransaction({ tx, userId: owner.userId });
+  const user = await getSessionUserById(userId);
+  if (!user) {
+    console.warn("[apple/notify] user missing", userId);
+    return null;
+  }
+  return fulfillAppleTransaction({ tx, userId });
 }

@@ -35,6 +35,7 @@ export type AppleSignedTransaction = {
   environment: AppleEnvironment;
   transactionReason?: string;
   revocationDate?: number;
+  appAccountToken?: string;
 };
 
 export type AppleNotificationPayload = {
@@ -148,6 +149,7 @@ export async function verifyAppleSignedTransaction(
     environment,
     transactionReason: asString(claims.transactionReason) || undefined,
     revocationDate: asNumber(claims.revocationDate),
+    appAccountToken: asString(claims.appAccountToken) || undefined,
   };
 }
 

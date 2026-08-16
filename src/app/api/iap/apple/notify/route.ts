@@ -8,7 +8,7 @@ const GRANT_TYPES = new Set([
   "SUBSCRIBED",
   "DID_RENEW",
   "OFFER_REDEEMED",
-  "DID_CHANGE_RENEWAL_PREF",
+  "ONE_TIME_CHARGE",
 ]);
 
 /**
@@ -34,13 +34,23 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await fulfillAppleNotificationTx(transaction);
-    return jsonOk({
-      notificationType: type,
-      processed: Boolean(result),
-      alreadyProcessed: result?.alreadyProcessed ?? false,
-      transactionId: transaction.transactionId,
-    });
+    try {
+      const result = await fulfillAppleNotificationTx(transaction);
+      return jsonOk({
+        notificationType: type,
+        processed: Boolean(result),
+        alreadyProcessed: result?.alreadyProcessed ?? false,
+        transactionId: transaction.transactionId,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "通知处理失败";
+      console.error("[iap/apple/notify] fulfill", message);
+      return jsonOk({
+        ignored: true,
+        notificationType: type,
+        error: message,
+      });
+    }
   } catch (err) {
     if (err instanceof Error) {
       console.error("[iap/apple/notify]", err.message);
