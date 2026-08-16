@@ -70,8 +70,24 @@ function diamondsForVipGrant(
   return shouldGrantSubscriptionDiamonds(tx) ? plan.diamonds : 0;
 }
 
+function isRenewalTx(tx: AppleSignedTransaction): boolean {
+  return (tx.transactionReason || "PURCHASE").toUpperCase() === "RENEWAL";
+}
+
+/** Apple sandbox compresses 1 month to ~5 minutes. */
+const SANDBOX_PERIOD_MS = 12 * 60 * 60 * 1000;
+
+function isSandboxAcceleratedPeriod(tx: AppleSignedTransaction): boolean {
+  if (!tx.expiresDate) return tx.environment === "Sandbox";
+  const start = tx.purchaseDate || Date.now();
+  return tx.expiresDate - start < SANDBOX_PERIOD_MS;
+}
+
 function isAppleVipExpired(tx: AppleSignedTransaction): boolean {
-  return Boolean(tx.expiresDate && tx.expiresDate <= Date.now());
+  if (!tx.expiresDate || tx.expiresDate > Date.now()) return false;
+  // Delayed verify of a just-paid sandbox purchase should still grant.
+  if (!isRenewalTx(tx) && isSandboxAcceleratedPeriod(tx)) return false;
+  return true;
 }
 
 function remainingVipDays(expiresAt: string | Date | null | undefined): number {
@@ -80,13 +96,29 @@ function remainingVipDays(expiresAt: string | Date | null | undefined): number {
   return Math.max(0, Math.ceil(ms / 86_400_000));
 }
 
+function subscriptionExpiryDate(
+  tx: AppleSignedTransaction,
+  planDays: number,
+): Date {
+  const start = tx.purchaseDate || Date.now();
+  const planEnd = new Date(start + planDays * 86_400_000);
+  if (tx.expiresDate && !isSandboxAcceleratedPeriod(tx)) {
+    return new Date(tx.expiresDate);
+  }
+  // Sandbox renewals must not stack another 31 days every few minutes.
+  if (isRenewalTx(tx) && tx.expiresDate) {
+    return new Date(tx.expiresDate);
+  }
+  return planEnd;
+}
+
 function subscriptionDaysGranted(
   tx: AppleSignedTransaction,
   fallback: number,
 ): number {
-  if (!tx.expiresDate) return fallback;
+  const end = subscriptionExpiryDate(tx, fallback).getTime();
   const start = tx.purchaseDate || Date.now();
-  return Math.max(1, Math.ceil((tx.expiresDate - start) / 86_400_000));
+  return Math.max(1, Math.ceil((end - start) / 86_400_000));
 }
 
 async function alreadyProcessedResult(
@@ -221,11 +253,11 @@ export async function fulfillAppleTransaction(input: {
         throw new Error("未知的会员方案");
       }
       const plan = getVipPlan(product.grantId);
-      if (
-        !isAppleConsumableProduct(product) &&
-        input.tx.expiresDate
-      ) {
-        await setVipExpiresAtLeast(input.userId, new Date(input.tx.expiresDate));
+      if (!isAppleConsumableProduct(product)) {
+        await setVipExpiresAtLeast(
+          input.userId,
+          subscriptionExpiryDate(input.tx, plan.days),
+        );
       } else {
         await extendVip(input.userId, plan.days);
       }
