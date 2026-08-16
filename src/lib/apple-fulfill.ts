@@ -7,6 +7,7 @@ import {
 } from "@/lib/apple-transactions";
 import {
   getAppleProduct,
+  isAppleConsumableProduct,
   userIdFromAppleAppAccountToken,
 } from "@/lib/apple-products";
 import type { AppleSignedTransaction } from "@/lib/apple-jws";
@@ -95,7 +96,11 @@ export async function fulfillAppleTransaction(input: {
     throw new Error("该 Apple 购买已绑定其他账号");
   }
 
-  if (product.kind === "vip" && isAppleVipExpired(input.tx)) {
+  if (
+    product.kind === "vip" &&
+    !isAppleConsumableProduct(product) &&
+    isAppleVipExpired(input.tx)
+  ) {
     throw new Error("该 Apple 订阅已过期");
   }
 
@@ -109,7 +114,7 @@ export async function fulfillAppleTransaction(input: {
       input.tx.originalTransactionId,
     );
     if (originalOwner && originalOwner.userId !== input.userId) {
-      throw new Error("该 Apple 订阅已绑定其他账号");
+      throw new Error("该 Apple 购买已绑定其他账号");
     }
 
     let daysGranted = 0;
@@ -121,7 +126,10 @@ export async function fulfillAppleTransaction(input: {
       }
       const plan = getVipPlan(product.grantId);
       daysGranted = plan.days;
-      if (shouldGrantSubscriptionDiamonds(input.tx)) {
+      if (
+        isAppleConsumableProduct(product) ||
+        shouldGrantSubscriptionDiamonds(input.tx)
+      ) {
         diamondsGranted = plan.diamonds;
       }
     } else if (product.kind === "diamonds") {
@@ -155,7 +163,10 @@ export async function fulfillAppleTransaction(input: {
         throw new Error("未知的会员方案");
       }
       const plan = getVipPlan(product.grantId);
-      if (input.tx.expiresDate) {
+      if (
+        !isAppleConsumableProduct(product) &&
+        input.tx.expiresDate
+      ) {
         await setVipExpiresAtLeast(input.userId, new Date(input.tx.expiresDate));
       } else {
         await extendVip(input.userId, plan.days);
