@@ -61,9 +61,6 @@ async function alreadyProcessedResult(
   },
   userId: number,
 ): Promise<AppleFulfillResult> {
-  if (existing.userId !== userId) {
-    throw new Error("该 Apple 交易已绑定其他账号");
-  }
   const user = await getSessionUserById(userId);
   if (!user) throw new Error("用户不存在");
   let daysGranted = 0;
@@ -113,11 +110,6 @@ export async function fulfillAppleTransaction(input: {
     throw new Error("未知的 Apple 商品");
   }
 
-  const tokenUserId = userIdFromAppleAppAccountToken(input.tx.appAccountToken);
-  if (tokenUserId && tokenUserId !== input.userId) {
-    throw new Error("该 Apple 购买已绑定其他账号");
-  }
-
   if (
     product.kind === "vip" &&
     !isAppleConsumableProduct(product) &&
@@ -130,13 +122,6 @@ export async function fulfillAppleTransaction(input: {
     const existing = await getAppleTransaction(input.tx.transactionId);
     if (existing) {
       return alreadyProcessedResult(existing, input.userId);
-    }
-
-    const originalOwner = await getAppleOriginalOwner(
-      input.tx.originalTransactionId,
-    );
-    if (originalOwner && originalOwner.userId !== input.userId) {
-      throw new Error("该 Apple 购买已绑定其他账号");
     }
 
     let daysGranted = 0;
