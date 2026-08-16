@@ -6,7 +6,7 @@ import { fulfillAppleTransaction } from "@/lib/apple-fulfill";
 import { verifyAppleSignedTransaction } from "@/lib/apple-jws";
 
 const schema = z.object({
-  jws: z.string().trim().min(20).max(20000),
+  jws: z.string().trim().min(20).max(120000),
   productId: z.string().trim().min(3).max(128).optional(),
 });
 
@@ -50,7 +50,12 @@ export async function POST(req: Request) {
     }
     if (err instanceof Error) {
       console.error("[iap/apple/verify]", err.message);
-      return withAuthCors(jsonError(err.message));
+      const message = /asn1|x509|certificate|DECODER|too long/i.test(
+        err.message,
+      )
+        ? "Apple 凭证校验失败，请稍后重试"
+        : err.message;
+      return withAuthCors(jsonError(message));
     }
     console.error(err);
     return withAuthCors(jsonError("校验失败，请稍后重试", 500));

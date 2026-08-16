@@ -50,31 +50,56 @@ export type AppleNotificationPayload = {
   };
 };
 
-function certFromX5c(b64: string): X509Certificate {
-  const der = Buffer.from(b64.replace(/\s+/g, ""), "base64");
-  return new X509Certificate(der);
+function normalizeX5cB64(value: string): string {
+  const raw = value
+    .replace(/-----BEGIN CERTIFICATE-----/g, "")
+    .replace(/-----END CERTIFICATE-----/g, "")
+    .replace(/\s+/g, "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  return raw + "=".repeat((4 - (raw.length % 4)) % 4);
 }
 
-function assertAppleChain(x5c: string[]): X509Certificate {
+function x5cToPem(b64: string): string {
+  const normalized = normalizeX5cB64(b64);
+  const lines = normalized.match(/.{1,64}/g) ?? [normalized];
+  return `-----BEGIN CERTIFICATE-----\n${lines.join("\n")}\n-----END CERTIFICATE-----`;
+}
+
+function certFromX5c(entry: unknown): X509Certificate {
+  if (entry instanceof Uint8Array) {
+    return new X509Certificate(Buffer.from(entry));
+  }
+  if (typeof entry !== "string" || !entry.trim()) {
+    throw new Error("Apple 凭证证书无效");
+  }
+  try {
+    return new X509Certificate(x5cToPem(entry));
+  } catch {
+    return new X509Certificate(Buffer.from(normalizeX5cB64(entry), "base64"));
+  }
+}
+
+function assertAppleChain(x5c: unknown[]): X509Certificate {
   if (x5c.length < 1) {
     throw new Error("Apple 凭证缺少证书");
   }
-  const leaf = certFromX5c(x5c[0]!);
+  const certs = x5c.map(certFromX5c);
+  const leaf = certs[0]!;
   const root = new X509Certificate(APPLE_ROOT_CA_G3_PEM);
   const now = new Date();
   if (now < new Date(leaf.validFrom) || now > new Date(leaf.validTo)) {
     throw new Error("Apple 凭证证书已过期");
   }
 
-  if (x5c.length >= 2) {
-    const intermediate = certFromX5c(x5c[1]!);
-    if (!leaf.verify(intermediate.publicKey)) {
+  for (let i = 0; i < certs.length - 1; i++) {
+    if (!certs[i]!.verify(certs[i + 1]!.publicKey)) {
       throw new Error("Apple 凭证证书链无效");
     }
-    if (!intermediate.verify(root.publicKey)) {
-      throw new Error("Apple 凭证未由 Apple 根证书签发");
-    }
-  } else if (!leaf.verify(root.publicKey)) {
+  }
+  const last = certs[certs.length - 1]!;
+  const lastIsRoot = last.fingerprint256 === root.fingerprint256;
+  if (!lastIsRoot && !last.verify(root.publicKey)) {
     throw new Error("Apple 凭证未由 Apple 根证书签发");
   }
 
@@ -92,10 +117,10 @@ async function verifyAppleJws(jws: string): Promise<Record<string, unknown>> {
   }
   const header = decodeProtectedHeader(trimmed);
   const x5c = header.x5c;
-  if (!Array.isArray(x5c) || x5c.length < 1 || typeof x5c[0] !== "string") {
+  if (!Array.isArray(x5c) || x5c.length < 1) {
     throw new Error("Apple 凭证缺少证书");
   }
-  const leaf = assertAppleChain(x5c.map(String));
+  const leaf = assertAppleChain(x5c);
   const key = createPublicKey(leaf.publicKey);
   const { payload } = await compactVerify(trimmed, key);
   return JSON.parse(new TextDecoder().decode(payload)) as Record<
