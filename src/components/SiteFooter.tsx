@@ -36,6 +36,15 @@ export function SiteFooter() {
           <p>© 2026 言词科技（大连）有限公司</p>
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <a
+              href="/privacy"
+              className="transition hover:text-ink"
+            >
+              隐私政策
+            </a>
+            <span className="text-line/20" aria-hidden>
+              |
+            </span>
+            <a
               href="https://beian.miit.gov.cn/"
               target="_blank"
               rel="noopener noreferrer"
