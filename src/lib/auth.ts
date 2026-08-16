@@ -223,6 +223,23 @@ export async function getCurrentUser(
   return mapUser(row);
 }
 
+export async function getSessionUserById(
+  userId: number,
+): Promise<SessionUser | null> {
+  await ensureUserDiamondsColumn();
+  await ensureShareCustomCoursesColumn();
+  await ensureUserPromoterColumns();
+  await ensureUserEmailColumn();
+  const rows = await query<UserRow[]>(
+    `SELECT id, username, nickname, email, avatar_url, vip_expires_at, diamonds,
+            share_custom_courses, is_promoter, promoter_id, created_at
+     FROM users WHERE id = :id LIMIT 1`,
+    { id: userId },
+  );
+  const row = rows[0];
+  return row ? mapUser(row) : null;
+}
+
 export async function requireUser(req?: Request): Promise<SessionUser> {
   const user = await getCurrentUser(req);
   if (!user) {

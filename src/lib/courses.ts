@@ -218,6 +218,23 @@ export async function extendVip(userId: number, days: number) {
   );
 }
 
+/** Set VIP expiry to at least `expiresAt` (Apple subscription source of truth). */
+export async function setVipExpiresAtLeast(userId: number, expiresAt: Date) {
+  if (Number.isNaN(expiresAt.getTime())) return;
+  await execute(
+    `UPDATE users
+     SET vip_expires_at = CASE
+       WHEN vip_expires_at IS NOT NULL AND YEAR(vip_expires_at) >= 9999
+         THEN vip_expires_at
+       WHEN vip_expires_at IS NULL OR vip_expires_at < :expiresAt
+         THEN :expiresAt
+       ELSE vip_expires_at
+     END
+     WHERE id = :userId`,
+    { userId, expiresAt },
+  );
+}
+
 export async function setPermanentVip(userId: number) {
   await execute(
     `UPDATE users SET vip_expires_at = :expiresAt WHERE id = :userId`,
