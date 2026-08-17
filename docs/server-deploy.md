@@ -1,6 +1,6 @@
 # 服务端部署
 
-线上站点：https://www.word19.com  
+线上站点：https://qiaoqiaoengapp.word19.com  
 支付回调域名：https://qiaoqiaoengapp.word19.com  
 应用目录：`/www/wwwroot/qiaoqiaoend`  
 进程：PM2 应用名 `qiaoqiaoend`，监听 `127.0.0.1:4891`  
@@ -128,7 +128,7 @@ chown -R www:www /www/wwwroot/qiaoqiaoend
 
 ## 反向代理
 
-Nginx（宝塔）把 `www.word19.com` / `qiaoqiaoengapp.word19.com` 反代到 `http://127.0.0.1:4891`。支付宝通知、应用网关、Apple IAP 通知必须走公网 HTTPS，不要只反代到本机 IP。
+Nginx（宝塔）把 `qiaoqiaoengapp.word19.com` 反代到 `http://127.0.0.1:4891`。支付宝通知、应用网关、Apple IAP 通知必须走公网 HTTPS，不要只反代到本机 IP。
 
 ## 常见问题
 

@@ -42,7 +42,7 @@
 可用响应头确认：
 
 ```bash
-curl -sI https://www.word19.com/account | egrep -i 'cache-control|x-cache|x-nextjs-cache|etag'
+curl -sI https://qiaoqiaoengapp.word19.com/account | egrep -i 'cache-control|x-cache|x-nextjs-cache|etag'
 ```
 
 出问题时常见：`x-cache: HIT`，且 `s-maxage` 很大。
@@ -89,4 +89,4 @@ nginx -s reload
 |----|------|
 | nginx 缓存配置 | `/www/server/nginx/conf/proxy.conf` |
 | 缓存目录 | `/www/server/nginx/proxy_cache_dir` |
-| 线上站点 | https://www.word19.com |
+| 线上站点 | https://qiaoqiaoengapp.word19.com |

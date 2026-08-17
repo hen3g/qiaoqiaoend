@@ -168,6 +168,7 @@ export async function listFeedbackSubmissionsForUser(
      WHERE f.user_id = :userId
      ORDER BY f.id DESC
      LIMIT 200`,
+    { userId },
   );
   return rows.map(mapRow);
 }
