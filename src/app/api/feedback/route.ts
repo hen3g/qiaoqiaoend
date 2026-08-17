@@ -7,6 +7,7 @@ import { sendBarkPush } from "@/lib/bark";
 import {
   createFeedbackSubmission,
   feedbackTypeLabel,
+  listFeedbackSubmissionsForUser,
   type FeedbackType,
 } from "@/lib/feedback";
 import { IP_RATE_DAY_MS, ipRateLimitedAll } from "@/lib/ip-rate-limit";
@@ -29,6 +30,26 @@ const schema = z.object({
 
 export async function OPTIONS() {
   return authPreflight();
+}
+
+export async function GET(req: Request) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return withAuthCors(jsonError("请先登录", 401));
+    }
+
+    const submissions = await listFeedbackSubmissionsForUser(user.id);
+    return withAuthCors(
+      jsonOk({
+        submissions,
+        total: submissions.length,
+      }),
+    );
+  } catch (err) {
+    console.error(err);
+    return withAuthCors(jsonError("加载失败", 500));
+  }
 }
 
 export async function POST(req: Request) {

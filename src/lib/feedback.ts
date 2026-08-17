@@ -12,6 +12,8 @@ export type FeedbackSubmissionDto = {
   type: FeedbackType;
   wechat: string;
   content: string;
+  adminReply: string | null;
+  repliedAt: string | null;
   createdAt: string | null;
 };
 
@@ -23,6 +25,8 @@ type FeedbackRow = RowDataPacket & {
   type: string;
   wechat: string;
   content: string;
+  admin_reply: string | null;
+  replied_at: Date | string | null;
   created_at: Date | string | null;
 };
 
@@ -37,12 +41,35 @@ export async function ensureFeedbackTable(): Promise<void> {
       type ENUM('problem', 'promo') NOT NULL,
       wechat VARCHAR(64) NOT NULL,
       content TEXT NOT NULL,
+      admin_reply TEXT NULL,
+      replied_at DATETIME NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_feedback_created (created_at),
       KEY idx_feedback_user (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  type ColRow = RowDataPacket & { Field: string };
+  const replyCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM feedback_submissions LIKE 'admin_reply'`,
+  );
+  if (replyCols.length === 0) {
+    await execute(
+      `ALTER TABLE feedback_submissions
+       ADD COLUMN admin_reply TEXT NULL AFTER content`,
+    );
+  }
+  const repliedAtCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM feedback_submissions LIKE 'replied_at'`,
+  );
+  if (repliedAtCols.length === 0) {
+    await execute(
+      `ALTER TABLE feedback_submissions
+       ADD COLUMN replied_at DATETIME NULL AFTER admin_reply`,
+    );
+  }
+
   tableEnsured = true;
 }
 
@@ -57,7 +84,18 @@ function normalizeType(value: unknown): FeedbackType {
   return value === "promo" ? "promo" : "problem";
 }
 
+const SELECT_FEEDBACK = `
+  SELECT f.id, f.user_id, u.username, u.nickname, f.type, f.wechat, f.content,
+         f.admin_reply, f.replied_at, f.created_at
+  FROM feedback_submissions f
+  LEFT JOIN users u ON u.id = f.user_id
+`;
+
 function mapRow(row: FeedbackRow): FeedbackSubmissionDto {
+  const adminReply =
+    typeof row.admin_reply === "string" && row.admin_reply.trim().length > 0
+      ? row.admin_reply
+      : null;
   return {
     id: Number(row.id),
     userId: Number(row.user_id),
@@ -66,6 +104,8 @@ function mapRow(row: FeedbackRow): FeedbackSubmissionDto {
     type: normalizeType(row.type),
     wechat: row.wechat,
     content: row.content,
+    adminReply,
+    repliedAt: adminReply ? toIso(row.replied_at) : null,
     createdAt: toIso(row.created_at),
   };
 }
@@ -99,9 +139,7 @@ export async function createFeedbackSubmission(input: {
 
   const id = Number(result.insertId);
   const rows = await query<FeedbackRow[]>(
-    `SELECT f.id, f.user_id, u.username, u.nickname, f.type, f.wechat, f.content, f.created_at
-     FROM feedback_submissions f
-     LEFT JOIN users u ON u.id = f.user_id
+    `${SELECT_FEEDBACK}
      WHERE f.id = :id
      LIMIT 1`,
     { id },
@@ -114,11 +152,58 @@ export async function createFeedbackSubmission(input: {
 export async function listFeedbackSubmissions(): Promise<FeedbackSubmissionDto[]> {
   await ensureFeedbackTable();
   const rows = await query<FeedbackRow[]>(
-    `SELECT f.id, f.user_id, u.username, u.nickname, f.type, f.wechat, f.content, f.created_at
-     FROM feedback_submissions f
-     LEFT JOIN users u ON u.id = f.user_id
+    `${SELECT_FEEDBACK}
      ORDER BY f.id DESC
      LIMIT 500`,
   );
   return rows.map(mapRow);
+}
+
+export async function listFeedbackSubmissionsForUser(
+  userId: number,
+): Promise<FeedbackSubmissionDto[]> {
+  await ensureFeedbackTable();
+  const rows = await query<FeedbackRow[]>(
+    `${SELECT_FEEDBACK}
+     WHERE f.user_id = :userId
+     ORDER BY f.id DESC
+     LIMIT 200`,
+  );
+  return rows.map(mapRow);
+}
+
+export async function replyToFeedbackSubmission(input: {
+  id: number;
+  reply: string;
+}): Promise<FeedbackSubmissionDto> {
+  await ensureFeedbackTable();
+  const reply = input.reply.trim();
+  if (!reply) throw new Error("请填写回复内容");
+  if (reply.length > 2000) throw new Error("回复内容过长");
+
+  const existing = await query<FeedbackRow[]>(
+    `${SELECT_FEEDBACK}
+     WHERE f.id = :id
+     LIMIT 1`,
+    { id: input.id },
+  );
+  if (!existing[0]) throw new Error("反馈不存在");
+
+  await execute(
+    `UPDATE feedback_submissions
+     SET admin_reply = :reply, replied_at = UTC_TIMESTAMP()
+     WHERE id = :id
+     LIMIT 1`,
+    { id: input.id, reply: reply.slice(0, 2000) },
+  );
+
+  const rows = await query<FeedbackRow[]>(
+    `${SELECT_FEEDBACK}
+     WHERE f.id = :id
+     LIMIT 1`,
+    { id: input.id },
+  );
+  const row = rows[0];
+  if (!row) throw new Error("回复失败，请重试");
+  return mapRow(row);
 }

@@ -165,6 +165,8 @@ CREATE TABLE IF NOT EXISTS feedback_submissions (
   type ENUM('problem', 'promo') NOT NULL,
   wechat VARCHAR(64) NOT NULL,
   content TEXT NOT NULL,
+  admin_reply TEXT NULL,
+  replied_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_feedback_created (created_at),
