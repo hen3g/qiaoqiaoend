@@ -7,7 +7,7 @@ export function SiteFooter() {
         <div>
           <BrandLogo size="footer" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted">
-            敲敲英语：看中文、敲英文，从单词练到句子。
+            言词科技：看中文、敲英文，从单词练到句子。
           </p>
         </div>
 

@@ -85,24 +85,9 @@ export function SiteHeader() {
           退出
         </button>
       </div>
-    ) : (
-      <div className="flex min-w-[7.5rem] items-center justify-end gap-3">
-        <Link
-          href="/login"
-          onClick={() => setMenuOpen(false)}
-          className="hover:text-ink"
-        >
-          登录
-        </Link>
-        <Link
-          href="/register"
-          onClick={() => setMenuOpen(false)}
-          className="rounded-lg border border-cyan/25 bg-white/70 px-4 py-2 text-ink transition hover:border-accent hover:text-accent-deep"
-        >
-          注册
-        </Link>
-      </div>
-    );
+    ) : null;
+
+  const showAuthNav = status === "loading" || Boolean(user);
 
   return (
     <header className="sticky top-0 z-20 border-b border-cyan/15 bg-[color-mix(in_srgb,var(--bg)_78%,transparent)] backdrop-blur-xl">
@@ -112,41 +97,47 @@ export function SiteHeader() {
       />
       <div className="relative mx-auto w-full max-w-6xl px-5 py-3.5 sm:px-8 sm:py-4">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="shrink-0" aria-label="敲敲英语首页">
+          <Link href="/" className="shrink-0" aria-label="言词科技首页">
             <BrandLogo size="header" priority />
           </Link>
 
-          <div className="flex items-center gap-2 sm:hidden">
-            <button
-              type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan/20 bg-white/70 text-ink transition hover:border-accent"
-              aria-expanded={menuOpen}
-              aria-controls="site-header-menu"
-              aria-label={menuOpen ? "收起菜单" : "展开菜单"}
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              <MenuIcon open={menuOpen} />
-            </button>
-          </div>
+          {showAuthNav ? (
+            <div className="flex items-center gap-2 sm:hidden">
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan/20 bg-white/70 text-ink transition hover:border-accent"
+                aria-expanded={menuOpen}
+                aria-controls="site-header-menu"
+                aria-label={menuOpen ? "收起菜单" : "展开菜单"}
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <MenuIcon open={menuOpen} />
+              </button>
+            </div>
+          ) : null}
 
-          <nav className="hidden items-center justify-end gap-5 text-sm text-muted sm:flex">
-            {authContent}
-          </nav>
+          {showAuthNav ? (
+            <nav className="hidden items-center justify-end gap-5 text-sm text-muted sm:flex">
+              {authContent}
+            </nav>
+          ) : null}
         </div>
 
-        <nav
-          id="site-header-menu"
-          className={`overflow-hidden transition-[max-height,opacity] duration-200 sm:hidden ${
-            menuOpen
-              ? "mt-3 max-h-96 opacity-100"
-              : "pointer-events-none max-h-0 opacity-0"
-          }`}
-          aria-hidden={!menuOpen}
-        >
-          <div className="flex flex-col gap-1 rounded-xl border border-cyan/15 bg-white/90 p-2.5 text-sm text-muted shadow-[0_12px_40px_rgba(11,21,36,0.08)]">
-            <div className="px-1 py-1">{authContent}</div>
-          </div>
-        </nav>
+        {showAuthNav ? (
+          <nav
+            id="site-header-menu"
+            className={`overflow-hidden transition-[max-height,opacity] duration-200 sm:hidden ${
+              menuOpen
+                ? "mt-3 max-h-96 opacity-100"
+                : "pointer-events-none max-h-0 opacity-0"
+            }`}
+            aria-hidden={!menuOpen}
+          >
+            <div className="flex flex-col gap-1 rounded-xl border border-cyan/15 bg-white/90 p-2.5 text-sm text-muted shadow-[0_12px_40px_rgba(11,21,36,0.08)]">
+              <div className="px-1 py-1">{authContent}</div>
+            </div>
+          </nav>
+        ) : null}
       </div>
     </header>
   );

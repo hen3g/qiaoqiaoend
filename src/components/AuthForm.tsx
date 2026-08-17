@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState, type ReactNode } from "react";
+import styles from "@/components/company/company.module.css";
 
 type Field = {
   name: string;
@@ -94,56 +95,38 @@ export function AuthForm({
   }
 
   return (
-    <div className="mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
-      <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink lg:text-[2rem]">
-        {title}
-      </h2>
-      {subtitle ? (
-        <p className="mt-2 text-[15px] leading-relaxed text-muted">{subtitle}</p>
-      ) : null}
+    <div>
+      <h2 className={styles["form-title"]}>{title}</h2>
+      {subtitle ? <p className={styles["form-sub"]}>{subtitle}</p> : null}
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-5">
+      <form onSubmit={onSubmit} className={styles.form}>
         {fields.map((field) => (
-          <label key={field.name} className="block">
-            <span className="mb-2 block text-sm font-medium text-ink/80">
-              {field.label}
-            </span>
+          <label key={field.name} className={styles["form-label"]}>
+            <span>{field.label}</span>
             <input
               name={field.name}
               type={field.type || "text"}
               placeholder={field.placeholder}
               autoComplete={field.autoComplete}
               required={field.required !== false}
-              className="w-full rounded-2xl border border-line/10 bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
+              className={styles["form-input"]}
             />
           </label>
         ))}
 
-        {error ? (
-          <p className="rounded-2xl bg-[#fff1eb] px-4 py-3 text-sm text-[#c24b1e]">
-            {error}
-          </p>
-        ) : null}
-        {message ? (
-          <p className="rounded-2xl bg-[#e8fff8] px-4 py-3 text-sm text-accent-deep">
-            {message}
-          </p>
-        ) : null}
+        {error ? <p className={styles["form-error"]}>{error}</p> : null}
+        {message ? <p className={styles["form-ok"]}>{message}</p> : null}
 
         <button
           type="submit"
           disabled={busy}
-          className="mt-1 w-full rounded-full bg-accent px-6 py-3.5 text-base font-medium text-white shadow-lg shadow-[var(--glow)] transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-55"
+          className={`${styles.btn} ${styles["btn--primary"]} ${styles["btn--block"]}`}
         >
           {busy ? "处理中…" : submitLabel}
         </button>
       </form>
 
-      {footer ? (
-        <div className="mt-7 border-t border-line/10 pt-6 text-sm text-muted">
-          {footer}
-        </div>
-      ) : null}
+      {footer ? <div className={styles["form-footer"]}>{footer}</div> : null}
     </div>
   );
 }
@@ -152,9 +135,7 @@ export function AuthLinks() {
   return (
     <p>
       已有账号？{" "}
-      <Link href="/login" className="font-medium text-accent-deep hover:underline">
-        去登录
-      </Link>
+      <Link href="/login">去登录</Link>
     </p>
   );
 }

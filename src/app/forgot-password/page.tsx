@@ -4,7 +4,10 @@ import { ForgotPasswordForm } from "@/components/ForgotPasswordForm";
 import { getCurrentUser } from "@/lib/auth";
 import { sanitizeNextPath } from "@/lib/oauth";
 
-export const metadata = { title: "忘记密码" };
+export const metadata = {
+  title: "忘记密码",
+  robots: { index: false, follow: false },
+};
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

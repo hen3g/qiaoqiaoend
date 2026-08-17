@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import styles from "@/components/company/company.module.css";
 
 type Props = {
   loginHref?: string;
@@ -90,17 +91,15 @@ export function ForgotPasswordForm({ loginHref = "/login" }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
-      <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink lg:text-[2rem]">
-        忘记密码
-      </h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-muted">
+    <div>
+      <h2 className={styles["form-title"]}>忘记密码</h2>
+      <p className={styles["form-sub"]}>
         请输入已绑定的邮箱，验证后设置新密码。
       </p>
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-5">
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-ink/80">邮箱</span>
+      <form onSubmit={onSubmit} className={styles.form}>
+        <label className={styles["form-label"]}>
+          <span>邮箱</span>
           <input
             type="email"
             value={email}
@@ -108,15 +107,13 @@ export function ForgotPasswordForm({ loginHref = "/login" }: Props) {
             placeholder="请输入已绑定邮箱"
             autoComplete="email"
             required
-            className="w-full rounded-2xl border border-line/10 bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
+            className={styles["form-input"]}
           />
         </label>
 
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-ink/80">
-            验证码
-          </span>
-          <div className="flex gap-3">
+        <label className={styles["form-label"]}>
+          <span>验证码</span>
+          <div className={styles["form-row"]}>
             <input
               type="text"
               inputMode="numeric"
@@ -129,23 +126,21 @@ export function ForgotPasswordForm({ loginHref = "/login" }: Props) {
               placeholder="6 位数字"
               autoComplete="one-time-code"
               required
-              className="min-w-0 flex-1 rounded-2xl border border-line/10 bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
+              className={styles["form-input"]}
             />
             <button
               type="button"
               onClick={() => void onSendCode()}
               disabled={sending || cooldown > 0}
-              className="shrink-0 rounded-2xl border border-accent/20 bg-accent/10 px-4 py-3.5 text-sm font-semibold text-accent-deep transition hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-55"
+              className={`${styles.btn} ${styles["btn--ghost"]}`}
             >
               {sending ? "发送中…" : cooldown > 0 ? `${cooldown}s` : "获取验证码"}
             </button>
           </div>
         </label>
 
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-ink/80">
-            新密码
-          </span>
+        <label className={styles["form-label"]}>
+          <span>新密码</span>
           <input
             type="password"
             value={newPassword}
@@ -154,14 +149,12 @@ export function ForgotPasswordForm({ loginHref = "/login" }: Props) {
             autoComplete="new-password"
             required
             minLength={6}
-            className="w-full rounded-2xl border border-line/10 bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
+            className={styles["form-input"]}
           />
         </label>
 
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-ink/80">
-            确认新密码
-          </span>
+        <label className={styles["form-label"]}>
+          <span>确认新密码</span>
           <input
             type="password"
             value={newPasswordConfirm}
@@ -170,38 +163,24 @@ export function ForgotPasswordForm({ loginHref = "/login" }: Props) {
             autoComplete="new-password"
             required
             minLength={6}
-            className="w-full rounded-2xl border border-line/10 bg-[#f7fbfe] px-4 py-3.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-accent focus:bg-white focus:shadow-[0_0_0_4px_var(--glow)]"
+            className={styles["form-input"]}
           />
         </label>
 
-        {hint ? (
-          <p className="rounded-2xl bg-accent/10 px-4 py-3 text-sm text-accent-deep">
-            {hint}
-          </p>
-        ) : null}
-        {error ? (
-          <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
-            {error}
-          </p>
-        ) : null}
+        {hint ? <p className={styles["form-ok"]}>{hint}</p> : null}
+        {error ? <p className={styles["form-error"]}>{error}</p> : null}
 
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-2xl bg-accent px-4 py-3.5 text-[15px] font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+          className={`${styles.btn} ${styles["btn--primary"]} ${styles["btn--block"]}`}
         >
           {busy ? "提交中…" : "重置密码"}
         </button>
       </form>
 
-      <p className="mt-6 text-sm text-muted">
-        想起密码了？{" "}
-        <Link
-          href={loginHref}
-          className="font-medium text-accent-deep hover:underline"
-        >
-          返回登录
-        </Link>
+      <p className={styles["form-footer"]}>
+        想起密码了？ <Link href={loginHref}>返回登录</Link>
       </p>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_SC, Outfit } from "next/font/google";
+import { Noto_Sans_SC, Noto_Serif_SC, Outfit, Syne } from "next/font/google";
 import Script from "next/script";
 import { AuthProvider } from "@/components/AuthProvider";
 import { VConsole } from "@/components/VConsole";
@@ -19,18 +19,33 @@ const body = Noto_Sans_SC({
   weight: ["400", "500", "700"],
 });
 
+const companyDisplay = Noto_Serif_SC({
+  variable: "--font-company-display",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+});
+
+const companyLatin = Syne({
+  variable: "--font-company-latin",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
 /** Prevent nginx/CDN from caching HTML shells for a year across deploys. */
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {
-    default: "敲敲英语",
-    template: "%s · 敲敲英语",
+    default: "言词科技",
+    template: "%s · 言词科技",
   },
   description:
-    "敲敲英语：用键盘敲句子学英语。看中文提示，敲出对应英文，从单词练到完整句子。",
+    "言词科技专注英语学习软件。让学习者亲手把单词和句子敲出来，把“看得懂”变成“用得上”。",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
   },
 };
 
@@ -43,7 +58,10 @@ export default function RootLayout({
   const enableVConsole = process.env.NODE_ENV === "development";
 
   return (
-    <html lang="zh-CN" className={`${display.variable} ${body.variable} h-full`}>
+    <html
+      lang="zh-CN"
+      className={`${display.variable} ${body.variable} ${companyDisplay.variable} ${companyLatin.variable} h-full`}
+    >
       <body className="min-h-full antialiased">
         <AuthProvider>
           {children}

@@ -5,7 +5,10 @@ import { AuthShell } from "@/components/AuthShell";
 import { getCurrentUser } from "@/lib/auth";
 import { sanitizeNextPath } from "@/lib/oauth";
 
-export const metadata = { title: "登录" };
+export const metadata = {
+  title: "登录",
+  robots: { index: false, follow: false },
+};
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -24,11 +27,6 @@ export default async function LoginPage({
   if (user) {
     redirect(next);
   }
-
-  const registerHref =
-    next !== "/account"
-      ? `/register?next=${encodeURIComponent(next)}`
-      : "/register";
 
   return (
     <AuthShell
@@ -57,29 +55,17 @@ export default async function LoginPage({
           },
         ]}
         footer={
-          <div className="space-y-2">
-            <p>
-              <Link
-                href={
-                  next !== "/account"
-                    ? `/forgot-password?next=${encodeURIComponent(next)}`
-                    : "/forgot-password"
-                }
-                className="font-medium text-accent-deep hover:underline"
-              >
-                忘记密码？
-              </Link>
-            </p>
-            <p>
-              还没有账号？{" "}
-              <Link
-                href={registerHref}
-                className="font-medium text-accent-deep hover:underline"
-              >
-                立即注册
-              </Link>
-            </p>
-          </div>
+          <p>
+            <Link
+              href={
+                next !== "/account"
+                  ? `/forgot-password?next=${encodeURIComponent(next)}`
+                  : "/forgot-password"
+              }
+            >
+              忘记密码？
+            </Link>
+          </p>
         }
       />
     </AuthShell>
