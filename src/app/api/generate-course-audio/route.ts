@@ -4,6 +4,7 @@ import { createAudioProgressSse } from "@/lib/audio-sse";
 import { getCurrentUser } from "@/lib/auth";
 import { authCorsHeaders, authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { generateCourseAudio } from "@/lib/course-audio";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { markUserCourseAudioReady } from "@/lib/user-courses-store";
 import { NextResponse } from "next/server";
 
@@ -50,6 +51,9 @@ export async function POST(req: Request) {
     if (!isCoursePack(body.course)) {
       return withAuthCors(jsonError("缺少有效的 course"));
     }
+
+    const limited = await ipRateLimited(req, "course-audio", { max: 6 });
+    if (limited) return withAuthCors(limited);
 
     const course = body.course;
     const useStream = body.stream !== false;

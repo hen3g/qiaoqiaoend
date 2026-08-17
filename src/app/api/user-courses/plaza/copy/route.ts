@@ -4,6 +4,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { query } from "@/lib/db";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { ensureShareCustomCoursesColumn } from "@/lib/user-schema";
 import {
   copyPlazaCourseToUser,
@@ -31,6 +32,9 @@ export async function POST(req: Request) {
     if (!user.isVip) {
       return withAuthCors(jsonError("仅会员可添加课程广场课程", 403));
     }
+
+    const limited = await ipRateLimited(req, "plaza-copy", { max: 10 });
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     await ensureShareCustomCoursesColumn();

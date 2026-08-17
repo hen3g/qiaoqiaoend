@@ -8,6 +8,7 @@ import {
   isAvatarStyle,
 } from "@/lib/avatar-generate";
 import { execute, query } from "@/lib/db";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { uploadPublicObject } from "@/lib/r2";
 
 const schema = z.object({
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录", 401));
     }
+
+    const limited = await ipRateLimited(req, "avatar-upload", { max: 5 });
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     if (!isAvatarStyle(body.style)) {

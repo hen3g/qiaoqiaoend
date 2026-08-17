@@ -7,6 +7,7 @@ import {
   getDiamondPack,
   isDiamondPackId,
 } from "@/lib/diamond-packs";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import {
   createPendingDiamondOrder,
   orderAmountYuan,
@@ -27,6 +28,9 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录后再充值钻石", 401));
     }
+
+    const limited = await ipRateLimited(req, "pay-order", { max: 5 });
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     if (!isDiamondPackId(body.packId)) {

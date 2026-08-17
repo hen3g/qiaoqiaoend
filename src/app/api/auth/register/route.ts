@@ -8,6 +8,12 @@ import {
   setSessionCookie,
 } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
+import {
+  consumeIpRateLimitAll,
+  IP_RATE_DAY_MS,
+  ipRateLimitedPeekAll,
+  type IpRateCheck,
+} from "@/lib/ip-rate-limit";
 import { createDefaultNickname } from "@/lib/nickname";
 import { hashPassword } from "@/lib/password";
 import {
@@ -43,12 +49,20 @@ async function allocateDefaultNickname(): Promise<string> {
   return createDefaultNickname(14);
 }
 
+const REGISTER_LIMITS: IpRateCheck[] = [
+  { action: "register" },
+  { action: "register-day", max: 8, windowMs: IP_RATE_DAY_MS },
+];
+
 export async function OPTIONS() {
   return authPreflight();
 }
 
 export async function POST(req: Request) {
   try {
+    const blocked = await ipRateLimitedPeekAll(req, REGISTER_LIMITS);
+    if (blocked) return withAuthCors(blocked);
+
     const body = schema.parse(await req.json());
     const username = body.username.toLowerCase();
 
@@ -59,6 +73,9 @@ export async function POST(req: Request) {
     if (existing[0]) {
       return withAuthCors(jsonError("用户名已被注册", 409));
     }
+
+    const limited = await consumeIpRateLimitAll(req, REGISTER_LIMITS);
+    if (limited) return withAuthCors(limited);
 
     const nickname = await allocateDefaultNickname();
     const passwordHash = await hashPassword(body.password);

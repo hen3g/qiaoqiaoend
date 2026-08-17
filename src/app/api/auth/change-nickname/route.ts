@@ -4,6 +4,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser, mapUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { execute, query } from "@/lib/db";
+import { ipRateLimited, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { validateNickname } from "@/lib/nickname-validate";
 
 const schema = z.object({
@@ -20,6 +21,11 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录", 401));
     }
+
+    const blocked = await ipRateLimitedPeek(req, "change-nickname", {
+      max: 10,
+    });
+    if (blocked) return withAuthCors(blocked);
 
     const body = schema.parse(await req.json());
     const checked = validateNickname(body.nickname);
@@ -41,6 +47,9 @@ export async function POST(req: Request) {
     if (taken[0]) {
       return withAuthCors(jsonError("该昵称已被使用", 409));
     }
+
+    const limited = await ipRateLimited(req, "change-nickname", { max: 10 });
+    if (limited) return withAuthCors(limited);
 
     await execute(`UPDATE users SET nickname = :nickname WHERE id = :id`, {
       nickname,

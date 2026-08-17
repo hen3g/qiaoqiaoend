@@ -3,6 +3,7 @@ import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
+import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 const schema = z
@@ -20,12 +21,17 @@ const schema = z
     path: ["newPassword"],
   });
 
+const PASSWORD_LIMIT = { max: 5 } as const;
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return jsonError("请先登录", 401);
     }
+
+    const blocked = await ipRateLimitedPeek(req, "change-password", PASSWORD_LIMIT);
+    if (blocked) return blocked;
 
     const body = schema.parse(await req.json());
     const rows = await query<(RowDataPacket & { password_hash: string })[]>(
@@ -39,6 +45,7 @@ export async function POST(req: Request) {
 
     const ok = await verifyPassword(body.oldPassword, row.password_hash);
     if (!ok) {
+      await consumeIpRateLimit(req, "change-password", PASSWORD_LIMIT);
       return jsonError("当前密码不正确");
     }
 

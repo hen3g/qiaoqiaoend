@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
+import { IP_RATE_HOUR_MS, ipRateLimited } from "@/lib/ip-rate-limit";
 import {
   createPromoSubmission,
   listPromoSubmissionsForUser,
@@ -45,6 +46,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    const limited = await ipRateLimited(req, "promo-submit", {
+      max: 5,
+      windowMs: IP_RATE_HOUR_MS,
+    });
+    if (limited) return limited;
     const body = createSchema.parse(await req.json());
     const submission = await createPromoSubmission({
       userId: user.id,

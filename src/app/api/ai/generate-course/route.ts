@@ -20,6 +20,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authCorsHeaders, authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { parseAndValidateCourse } from "@/lib/course-validate";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { createJsonSse } from "@/lib/sse";
 import {
   getUserDiamonds,
@@ -246,6 +247,9 @@ export async function POST(req: Request) {
         jsonError(err instanceof Error ? err.message : "参数错误"),
       );
     }
+
+    const limited = await ipRateLimited(req, "ai-generate", { max: 6 });
+    if (limited) return withAuthCors(limited);
 
     const useStream = body.stream === true;
 

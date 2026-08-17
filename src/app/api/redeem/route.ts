@@ -2,6 +2,10 @@ import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import {
+  IP_RATE_HOUR_MS,
+  ipRateLimitedAll,
+} from "@/lib/ip-rate-limit";
 import { redeemCode } from "@/lib/redeem";
 
 const schema = z.object({
@@ -18,6 +22,12 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录后再兑换", 401));
     }
+
+    const limited = await ipRateLimitedAll(req, [
+      { action: "redeem", max: 5 },
+      { action: "redeem-hour", max: 20, windowMs: IP_RATE_HOUR_MS },
+    ]);
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     const result = await redeemCode(user.id, body.code);

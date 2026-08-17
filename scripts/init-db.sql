@@ -318,3 +318,12 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (setting_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-IP API rate limits (register / email-send / avatar-upload / login / email-verify)
+CREATE TABLE IF NOT EXISTS ip_rate_limits (
+  action VARCHAR(64) NOT NULL,
+  ip VARCHAR(64) NOT NULL,
+  last_called_at BIGINT NOT NULL,
+  hit_count INT UNSIGNED NOT NULL DEFAULT 1,
+  PRIMARY KEY (action, ip)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

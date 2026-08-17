@@ -7,6 +7,7 @@ import {
   resolveVisitUserId,
   type VisitPlatform,
 } from "@/lib/device-visits";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 
 const bodySchema = z.object({
   kind: z.enum(["anonymous", "logged_in"]),
@@ -20,6 +21,9 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
+    const limited = await ipRateLimited(req, "device-visit", { max: 120 });
+    if (limited) return withAuthCors(limited);
+
     const json = await req.json().catch(() => null);
     const body = bodySchema.parse(json);
 

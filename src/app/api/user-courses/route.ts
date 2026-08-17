@@ -2,6 +2,7 @@ import type { CoursePack } from "@/data/course-types";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import {
   listUserCourseSummariesForUser,
   saveUserCourseForUser,
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
     if (!body.course) {
       return withAuthCors(jsonError("缺少 course 字段"));
     }
+
+    const limited = await ipRateLimited(req, "user-course-save", { max: 20 });
+    if (limited) return withAuthCors(limited);
 
     const course = await saveUserCourseForUser(user.id, body.course);
     return withAuthCors(jsonOk({ course }));

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { fulfillAppleTransaction } from "@/lib/apple-fulfill";
 import { verifyAppleSignedTransaction } from "@/lib/apple-jws";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 
 const schema = z.object({
   jws: z.string().trim().min(20).max(120000),
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录后再支付", 401));
     }
+
+    const limited = await ipRateLimited(req, "iap-verify", { max: 20 });
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     const tx = await verifyAppleSignedTransaction(body.jws);

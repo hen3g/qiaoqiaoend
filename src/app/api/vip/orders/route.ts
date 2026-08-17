@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { createAppPayOrderString, getAlipayAppId } from "@/lib/alipay";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import {
   createPendingVipOrder,
   orderAmountYuan,
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录后再开通会员", 401));
     }
+
+    const limited = await ipRateLimited(req, "pay-order", { max: 5 });
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     if (!isVipPlanId(body.planId)) {

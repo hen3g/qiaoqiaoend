@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { isValidEmail } from "@/lib/email-bind";
+import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { verifyPassword } from "@/lib/password";
 import {
   ensureShareCustomCoursesColumn,
@@ -37,12 +38,17 @@ type UserAuthRow = RowDataPacket & {
   created_at: Date | string | null;
 };
 
+const LOGIN_LIMIT = { max: 20 } as const;
+
 export async function OPTIONS() {
   return authPreflight();
 }
 
 export async function POST(req: Request) {
   try {
+    const blocked = await ipRateLimitedPeek(req, "login", LOGIN_LIMIT);
+    if (blocked) return withAuthCors(blocked);
+
     const body = schema.parse(await req.json());
     const identifier = body.username.trim().toLowerCase();
     await ensureUserDiamondsColumn();
@@ -61,11 +67,13 @@ export async function POST(req: Request) {
     );
     const user = rows[0];
     if (!user) {
+      await consumeIpRateLimit(req, "login", LOGIN_LIMIT);
       return withAuthCors(jsonError("用户不存在", 401));
     }
 
     const ok = await verifyPassword(body.password, user.password_hash);
     if (!ok) {
+      await consumeIpRateLimit(req, "login", LOGIN_LIMIT);
       return withAuthCors(jsonError("密码错误", 401));
     }
 

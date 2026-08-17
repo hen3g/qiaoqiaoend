@@ -4,6 +4,7 @@ import { SYSTEM_SUGGEST_WORDS } from "@/lib/ai-course-prompt";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { parseSuggestedWordsResult } from "@/lib/word-utils";
 import {
   getUserDiamonds,
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
     if (!userRequest) {
       return withAuthCors(jsonError("请用一句话描述想学什么"));
     }
+
+    const limited = await ipRateLimited(req, "ai-suggest-words", { max: 8 });
+    if (limited) return withAuthCors(limited);
 
     const count = Math.min(
       36,

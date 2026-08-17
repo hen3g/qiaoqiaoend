@@ -7,6 +7,12 @@ import {
   normalizeEmail,
 } from "@/lib/email-bind";
 import {
+  consumeIpRateLimitAll,
+  IP_RATE_DAY_MS,
+  ipRateLimitedPeekAll,
+  type IpRateCheck,
+} from "@/lib/ip-rate-limit";
+import {
   assertCanSendResetCode,
   createResetCode,
   generateEmailCode,
@@ -18,12 +24,20 @@ const schema = z.object({
   email: z.string().min(1, "请输入邮箱"),
 });
 
+const EMAIL_SEND_LIMITS: IpRateCheck[] = [
+  { action: "email-send" },
+  { action: "email-send-day", max: 10, windowMs: IP_RATE_DAY_MS },
+];
+
 export async function OPTIONS() {
   return authPreflight();
 }
 
 export async function POST(req: Request) {
   try {
+    const blocked = await ipRateLimitedPeekAll(req, EMAIL_SEND_LIMITS);
+    if (blocked) return withAuthCors(blocked);
+
     await ensureUserEmailColumn();
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
@@ -48,6 +62,9 @@ export async function POST(req: Request) {
       }
       throw err;
     }
+
+    const limited = await consumeIpRateLimitAll(req, EMAIL_SEND_LIMITS);
+    if (limited) return withAuthCors(limited);
 
     const code = generateEmailCode();
     const { expiresAt } = await createResetCode({

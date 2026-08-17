@@ -9,6 +9,7 @@ import {
   isValidEmail,
   normalizeEmail,
 } from "@/lib/email-bind";
+import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { verifyAndConsumeResetCode } from "@/lib/password-reset";
 import { ensureUserEmailColumn } from "@/lib/user-schema";
@@ -25,12 +26,17 @@ const schema = z
     path: ["newPasswordConfirm"],
   });
 
+const VERIFY_LIMIT = { max: 5 } as const;
+
 export async function OPTIONS() {
   return authPreflight();
 }
 
 export async function POST(req: Request) {
   try {
+    const blocked = await ipRateLimitedPeek(req, "email-verify", VERIFY_LIMIT);
+    if (blocked) return withAuthCors(blocked);
+
     await ensureUserEmailColumn();
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
@@ -50,6 +56,7 @@ export async function POST(req: Request) {
     });
 
     if (!verified.ok) {
+      await consumeIpRateLimit(req, "email-verify", VERIFY_LIMIT);
       const messages = {
         not_found: "请先获取验证码",
         expired: "验证码已过期，请重新获取",

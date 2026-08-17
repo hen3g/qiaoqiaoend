@@ -9,6 +9,7 @@ import {
   feedbackTypeLabel,
   type FeedbackType,
 } from "@/lib/feedback";
+import { IP_RATE_DAY_MS, ipRateLimitedAll } from "@/lib/ip-rate-limit";
 
 const schema = z.object({
   type: z.enum(["problem", "promo"], {
@@ -36,6 +37,12 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录", 401));
     }
+
+    const limited = await ipRateLimitedAll(req, [
+      { action: "feedback", max: 3, windowMs: 10 * 60 * 1000 },
+      { action: "feedback-day", max: 8, windowMs: IP_RATE_DAY_MS },
+    ]);
+    if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
     const type = body.type as FeedbackType;

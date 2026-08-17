@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
+import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { corsPreflight, withCors } from "@/lib/oauth-cors";
 import {
   createAccessToken,
@@ -22,6 +23,9 @@ export async function OPTIONS(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const limited = await ipRateLimited(req, "oauth-token", { max: 40 });
+  if (limited) return withCors(req, limited);
+
   let json: unknown;
   try {
     json = await req.json();

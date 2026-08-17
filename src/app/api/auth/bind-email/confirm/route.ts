@@ -11,6 +11,7 @@ import {
   normalizeEmail,
   verifyAndConsumeBindCode,
 } from "@/lib/email-bind";
+import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { ensureUserEmailColumn } from "@/lib/user-schema";
 
 const schema = z.object({
@@ -19,6 +20,8 @@ const schema = z.object({
     .string()
     .regex(/^\d{6}$/, "请输入 6 位数字验证码"),
 });
+
+const VERIFY_LIMIT = { max: 5 } as const;
 
 export async function OPTIONS() {
   return authPreflight();
@@ -30,6 +33,9 @@ export async function POST(req: Request) {
     if (!user) {
       return withAuthCors(jsonError("请先登录", 401));
     }
+
+    const blocked = await ipRateLimitedPeek(req, "email-verify", VERIFY_LIMIT);
+    if (blocked) return withAuthCors(blocked);
 
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
@@ -49,6 +55,7 @@ export async function POST(req: Request) {
     });
 
     if (!verified.ok) {
+      await consumeIpRateLimit(req, "email-verify", VERIFY_LIMIT);
       const messages = {
         not_found: "请先获取验证码",
         expired: "验证码已过期，请重新获取",
