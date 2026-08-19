@@ -45,6 +45,24 @@ export function SiteFooter() {
               |
             </span>
             <a
+              href="/terms"
+              className="transition hover:text-ink"
+            >
+              用户协议
+            </a>
+            <span className="text-line/20" aria-hidden>
+              |
+            </span>
+            <a
+              href="/vip-agreement"
+              className="transition hover:text-ink"
+            >
+              会员服务协议
+            </a>
+            <span className="text-line/20" aria-hidden>
+              |
+            </span>
+            <a
               href="https://beian.miit.gov.cn/"
               target="_blank"
               rel="noopener noreferrer"

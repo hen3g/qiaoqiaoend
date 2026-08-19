@@ -126,6 +126,8 @@ export function CompanyShell({
               </Link>
             ))}
             <Link href="/privacy">隐私政策</Link>
+            <Link href="/terms">用户协议</Link>
+            <Link href="/vip-agreement">会员服务协议</Link>
           </div>
         </div>
         <div className={styles["site-footer__bottom"]}>

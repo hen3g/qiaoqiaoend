@@ -780,6 +780,46 @@ a.contact__value:hover {
   font-weight: 500;
 }
 
+.legal__tableWrap {
+  margin-top: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.legal__table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.legal__table th,
+.legal__table td {
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  color: var(--muted);
+}
+
+.legal__table th {
+  color: var(--ink);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.legal__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.legal__table td:first-child {
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .auth-layout {
   max-width: 920px;
   margin: 0 auto;

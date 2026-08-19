@@ -5,10 +5,26 @@ import styles from "@/components/company/company.module.css";
 export const metadata: Metadata = {
   title: "隐私政策",
   description:
-    "言词科技隐私政策：说明我们如何收集、使用、存储与保护你的个人信息。",
+    "言词科技隐私政策：说明我们如何收集、使用、存储与保护你的个人信息，以及 App 集成的第三方 SDK 信息。",
 };
 
-const UPDATED_AT = "2026年8月17日";
+const UPDATED_AT = "2026年8月19日";
+
+const ALIPAY_SDK_POLICY_URL =
+  "https://opendocs.alipay.com/open/54/01g6qm#%E6%94%AF%E4%BB%98%E5%AE%9D%20App%20%E6%94%AF%E4%BB%98%E5%AE%A2%E6%88%B7%E7%AB%AF%20SDK%20%E9%9A%90%E7%A7%81%E6%94%BF%E7%AD%96";
+
+const SDK_ROWS = [
+  {
+    name: "APP支付客户端SDK",
+    developer: "支付宝(杭州)信息技术有限公司",
+    scope:
+      "AndroidID、OAID、IDFV、传感器信息（传感器列表）、设备屏幕密度、运营商信息、WiFi 参数、网络类型",
+    purpose:
+      "保障用户账户和资金安全以及支付服务的安全稳定运行；履行反洗钱、反恐怖融资、反电信网络诈骗等法定义务；实现网络链路的选择和优化，以提升支付体验",
+    platform: "Android（会员/钻石支付）",
+    policyUrl: ALIPAY_SDK_POLICY_URL,
+  },
+] as const;
 
 export default function PrivacyPage() {
   return (
@@ -18,7 +34,7 @@ export default function PrivacyPage() {
         <h1>隐私政策</h1>
         <p className={styles.legal__updated}>最近更新日期：{UPDATED_AT}</p>
         <p className={styles.legal__lead}>
-          本政策适用于言词科技（大连）有限公司运营的英语学习软件、网站（yancilanguage.cn）及相关账号服务。使用我们的产品或网站即表示你已阅读并理解本政策。若你不同意，请停止使用。
+          本政策适用于言词科技（大连）有限公司（下称「我们」）运营的英语学习软件「敲敲英语」、网站（yancilanguage.cn）及相关账号服务。使用我们的产品或网站即表示你已阅读并理解本政策。若你不同意，请停止使用。
         </p>
 
         <section>
@@ -36,8 +52,7 @@ export default function PrivacyPage() {
             <li>
               <span className={styles.legal__term}>会员与交易：</span>
               会员状态、钻石余额、订单与支付结果。iOS 上可能包含 App Store
-              交易凭证；Android
-              上可能包含支付宝交易信息。我们不会存储完整银行卡号。
+              交易凭证；Android 上可能包含支付宝交易信息。我们不会存储完整银行卡号。
             </li>
             <li>
               <span className={styles.legal__term}>反馈与客服：</span>
@@ -70,13 +85,82 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2>3. 第三方服务</h2>
+          <h2>3. 第三方 SDK 共享个人信息清单</h2>
           <p>
-            为完成支付、存储、邮件与内容生成，我们可能与下列类别的服务商共享必要信息。他们仅能在提供相应服务所需范围内处理数据，并应提供不低于本政策的保护：
+            为保障 App 相关功能的实现与安全稳定运行，我们接入了第三方 SDK。这些
+            SDK 可能会收集或使用你的相关信息。我们已对 SDK
+            进行安全评估，并要求其仅在实现功能所必需的范围内处理信息。以下清单依据全国
+            SDK 管理服务平台（
+            <a
+              href="https://sdk.caict.ac.cn/official/#/home"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              sdk.caict.ac.cn
+            </a>
+            ）及 SDK 官方公开说明整理，供你查阅各 SDK
+            的基本信息。你可在首次启动 App
+            时阅读并选择是否同意本政策；在同意前，我们不会初始化涉及个人信息处理的第三方
+            SDK。
+          </p>
+
+          <div className={styles.legal__tableWrap}>
+            <table className={styles.legal__table}>
+              <thead>
+                <tr>
+                  <th>SDK 名称</th>
+                  <th>SDK 开发者</th>
+                  <th>使用平台/场景</th>
+                  <th>收集个人信息范围</th>
+                  <th>使用目的</th>
+                  <th>SDK 隐私政策链接</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SDK_ROWS.map((sdk) => (
+                  <tr key={sdk.name}>
+                    <td>{sdk.name}</td>
+                    <td>{sdk.developer}</td>
+                    <td>{sdk.platform}</td>
+                    <td>{sdk.scope}</td>
+                    <td>{sdk.purpose}</td>
+                    <td>
+                      <a
+                        href={sdk.policyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        查看
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            上表信息与全国 SDK 管理服务平台登记内容一致。其中「APP支付客户端SDK」（包名
+            com.alipay.sdk）收集的信息类型与使用目的，以其官方
+            <a
+              href={ALIPAY_SDK_POLICY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              隐私政策
+            </a>
+            为准。
+          </p>
+        </section>
+
+        <section>
+          <h2>4. 其他第三方服务</h2>
+          <p>
+            除上述嵌入 App 的 SDK
+            外，为完成服务端支付核销、存储、邮件与内容生成，我们还可能与下列类别的服务商共享必要信息。他们仅能在提供相应服务所需范围内处理数据，并应提供不低于本政策的保护：
           </p>
           <ul>
             <li>Apple（App Store、App 内购买与订阅管理）</li>
-            <li>支付宝（Android 等平台的支付）</li>
             <li>云存储与内容分发（课程资源、头像等文件）</li>
             <li>邮件服务商（验证码与账号安全相关邮件）</li>
             <li>
@@ -84,20 +168,20 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            本网站可能使用匿名化统计分析工具，用于了解页面访问情况。iOS App
-            内购买还受 Apple 的隐私政策与标准许可协议约束。
+            本网站可能使用匿名化统计分析工具，用于了解页面访问情况，不涉及 App
+            端 SDK 嵌入。
           </p>
         </section>
 
         <section>
-          <h2>4. 存储与保留</h2>
+          <h2>5. 存储与保留</h2>
           <p>
             账号与学习数据通常保存在中华人民共和国境内的服务器。只要你的账号存续，我们会保留提供服务所必需的信息；在你申请删除账号、或法律不再要求保留后，我们将删除或匿名化相关数据，法律法规另有规定的除外。
           </p>
         </section>
 
         <section>
-          <h2>5. 你的权利</h2>
+          <h2>6. 你的权利</h2>
           <ul>
             <li>查阅、更正昵称、头像、邮箱等账号资料。</li>
             <li>在系统设置中管理通知、取消 Apple 订阅。</li>
@@ -114,26 +198,31 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2>6. 未成年人</h2>
+          <h2>7. 未成年人</h2>
           <p>
             本产品主要面向有独立使用能力的用户。若你是未成年人，请在监护人同意与指导下使用。监护人如需查阅或删除相关信息，可通过本政策载明的联系方式与我们联系。
           </p>
         </section>
 
         <section>
-          <h2>7. 政策更新</h2>
+          <h2>8. 政策更新</h2>
           <p>
             我们可能适时更新本政策。更新后会在本页面公布，并视情况通过应用内提示等方式通知。若更新导致处理你个人信息的目的、方式或种类发生重大变化，我们将再次征得你的同意。
           </p>
         </section>
 
         <section>
-          <h2>8. 联系我们</h2>
+          <h2>9. 联系我们</h2>
           <p>
             运营者：言词科技（大连）有限公司
             <br />
             网站：
             <a href="https://yancilanguage.cn/">yancilanguage.cn</a>
+            <br />
+            App 隐私政策页面：
+            <a href="https://qiaoqiaoengapp.word19.com/privacy">
+              qiaoqiaoengapp.word19.com/privacy
+            </a>
             <br />
             邮箱：
             <a href="mailto:baseheng@qq.com">baseheng@qq.com</a>
