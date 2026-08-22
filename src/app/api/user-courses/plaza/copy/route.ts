@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   ownerUserId: z.number().int().positive(),
   courseId: z.string().trim().min(1).max(128),
+  title: z.string().trim().min(1).max(255).optional(),
 });
 
 export async function OPTIONS() {
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       viewerId: user.id,
       ownerUserId: body.ownerUserId,
       courseId: body.courseId,
+      title: body.title,
       owner: {
         username: owner.username,
         nickname: owner.nickname,

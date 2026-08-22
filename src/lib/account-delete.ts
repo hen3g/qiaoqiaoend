@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 
 import { execute, query, withTransaction } from "@/lib/db";
-import { r2Delete, r2ListKeys } from "@/lib/r2";
+import { r2Delete, r2ListKeys, userCourseObjectKey } from "@/lib/r2";
 
 /** Personal / learning tables keyed by user_id. Payment ledgers are kept. */
 const PERSONAL_TABLES = [
@@ -16,7 +16,6 @@ const PERSONAL_TABLES = [
   "user_skill_progress",
   "user_daily_star_gains",
   "user_course_groups",
-  "user_course_summaries",
   "user_paper_summaries",
   "user_checkin_challenges",
   "device_visit_daily_users",
@@ -65,11 +64,15 @@ async function deleteR2Prefix(prefix: string): Promise<void> {
 /**
  * Remove the user row and associated personal data.
  * Keeps payment_orders / apple_transactions for accounting and IAP idempotency.
+ * Custom course JSON and original plaza listings are kept so other users'
+ * pointers keep working.
  */
 export async function deleteAccountForUser(userId: number): Promise<void> {
   if (!Number.isInteger(userId) || userId <= 0) {
     throw new Error("invalid user id");
   }
+
+  const leftoverCopyIds: string[] = [];
 
   await withTransaction(async () => {
     const rows = await query<RowDataPacket[]>(
@@ -79,6 +82,38 @@ export async function deleteAccountForUser(userId: number): Promise<void> {
     if (!rows[0]) {
       throw new Error("账号不存在");
     }
+
+    try {
+      const copyRows = await query<(RowDataPacket & { course_id: string })[]>(
+        `SELECT course_id FROM user_course_summaries
+         WHERE user_id = :userId
+           AND source_course_key IS NOT NULL
+           AND source_course_key <> ''`,
+        { userId },
+      );
+      for (const row of copyRows) {
+        if (typeof row.course_id === "string" && row.course_id.trim()) {
+          leftoverCopyIds.push(row.course_id.trim());
+        }
+      }
+    } catch (err) {
+      if (!isIgnorableSchemaError(err)) throw err;
+    }
+
+    await runIgnoreMissing(
+      `DELETE FROM user_course_summaries
+       WHERE user_id = :userId
+         AND source_course_key IS NOT NULL
+         AND source_course_key <> ''`,
+      { userId },
+    );
+    await runIgnoreMissing(
+      `UPDATE user_course_summaries
+       SET note = NULL, group_id = NULL
+       WHERE user_id = :userId
+         AND (source_course_key IS NULL OR source_course_key = '')`,
+      { userId },
+    );
 
     for (const table of PERSONAL_TABLES) {
       await runIgnoreMissing(
@@ -105,6 +140,13 @@ export async function deleteAccountForUser(userId: number): Promise<void> {
     await execute(`DELETE FROM users WHERE id = :id`, { id: userId });
   });
 
-  await deleteR2Prefix(`user-courses/${userId}/`);
+  for (const courseId of leftoverCopyIds) {
+    try {
+      await r2Delete(userCourseObjectKey(userId, courseId));
+    } catch {
+      /* leftover copy files are optional */
+    }
+  }
+
   await deleteR2Prefix(`avatars/${userId}/`);
 }

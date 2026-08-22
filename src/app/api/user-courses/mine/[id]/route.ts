@@ -20,15 +20,27 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     const body = (await req.json().catch(() => null)) as {
+      title?: unknown;
       note?: unknown;
       groupId?: unknown;
     } | null;
 
-    if (!body || (body.note === undefined && body.groupId === undefined)) {
+    if (!body || (body.note === undefined && body.groupId === undefined && body.title === undefined)) {
       return withAuthCors(jsonError("请提供备注或分组"));
     }
 
-    const patch: { note?: string | null; groupId?: number | null } = {};
+    const patch: {
+      title?: string;
+      note?: string | null;
+      groupId?: number | null;
+    } = {};
+
+    if (body.title !== undefined) {
+      if (typeof body.title !== "string") {
+        return withAuthCors(jsonError("课程名称格式无效"));
+      }
+      patch.title = body.title;
+    }
 
     if (body.note !== undefined) {
       if (body.note === null) {

@@ -136,7 +136,7 @@ export type CoursePack = {
   authorAvatarUrl?: string | null;
   /**
    * 来源键：`${ownerUserId}:${originalCourseId}`。
-   * 用于广场去重（已添加过的课不能再加）。
+   * 广场添加只写库里的指针，所有用户共用作者那一份 JSON。
    */
   sourceCourseKey?: string;
   lessons: CourseLesson[];
@@ -181,7 +181,7 @@ export type MyCourseSummary = CoursePackSummary & {
   note?: string;
   groupId?: number | null;
   groupName?: string | null;
-  /** true = 从课程广场添加的副本 */
+  /** true = 从课程广场添加的引用（共用原课 JSON） */
   fromPlaza: boolean;
   updatedAt?: string;
 };

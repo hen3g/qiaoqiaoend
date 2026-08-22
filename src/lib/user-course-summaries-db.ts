@@ -284,6 +284,62 @@ export function makeSourceCourseKey(
   return `${ownerUserId}:${courseId}`;
 }
 
+export function parseSourceCourseKey(
+  key: string,
+): { ownerUserId: number; courseId: string } | null {
+  const trimmed = key.trim();
+  const idx = trimmed.indexOf(":");
+  if (idx <= 0) return null;
+  const ownerUserId = Number(trimmed.slice(0, idx));
+  const courseId = trimmed.slice(idx + 1).trim();
+  if (!Number.isInteger(ownerUserId) || ownerUserId <= 0 || !courseId) {
+    return null;
+  }
+  return { ownerUserId, courseId };
+}
+
+export type UserCourseLibraryEntry = {
+  courseId: string;
+  title: string;
+  sourceCourseKey?: string;
+  authorUserId?: number;
+  authorName?: string;
+};
+
+export async function getUserCourseLibraryEntry(
+  userId: number,
+  courseId: string,
+): Promise<UserCourseLibraryEntry | null> {
+  await ensureAuthorColumns();
+  const rows = await query<SummaryRow[]>(
+    `SELECT course_id, title, author_user_id, author_name, source_course_key
+     FROM user_course_summaries
+     WHERE user_id = :userId AND course_id = :courseId
+     LIMIT 1`,
+    { userId, courseId },
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const authors = authorFields(row);
+  return {
+    courseId: row.course_id,
+    title: typeof row.title === "string" ? row.title : "",
+    ...authors,
+  };
+}
+
+export async function countSourceCourseRefs(
+  sourceCourseKey: string,
+): Promise<number> {
+  await ensureAuthorColumns();
+  const rows = await query<(RowDataPacket & { c: number })[]>(
+    `SELECT COUNT(*) AS c FROM user_course_summaries
+     WHERE source_course_key = :sourceKey`,
+    { sourceKey: sourceCourseKey },
+  );
+  return Number(rows[0]?.c ?? 0);
+}
+
 export async function listUserCourseSummariesFromDb(
   userId: number,
 ): Promise<CoursePackSummary[]> {
@@ -619,7 +675,7 @@ function sortSql(sort: MyCoursesSort): string {
 }
 
 /**
- * 我的课程：当前用户全部自制课 + 广场添加的副本。
+ * 我的课程：当前用户全部自制课 + 广场添加的引用。
  * 支持分页、按标题/备注搜索、按分组筛选、排序。
  */
 export async function listMyCourseSummaries(opts: {
@@ -700,6 +756,7 @@ export async function updateMyCourseMeta(
   userId: number,
   courseId: string,
   patch: {
+    title?: string;
     note?: string | null;
     groupId?: number | null;
   },
@@ -727,6 +784,15 @@ export async function updateMyCourseMeta(
     userId,
     courseId,
   };
+
+  if ("title" in patch) {
+    const title = String(patch.title ?? "").trim().slice(0, 255);
+    if (!title) {
+      throw new Error("课程名称不能为空");
+    }
+    sets.push("title = :title");
+    params.title = title;
+  }
 
   if ("note" in patch) {
     const note =

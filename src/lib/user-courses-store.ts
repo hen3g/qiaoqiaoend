@@ -2,11 +2,14 @@ import type { CoursePack, CoursePackSummary } from "@/data/course-types";
 import { createUserCourseId, validateCoursePack } from "@/lib/course-validate";
 import {
   countAllUserCourseSummaries,
+  countSourceCourseRefs,
   deleteUserCourseSummary,
+  getUserCourseLibraryEntry,
   listMyCourseSummaries,
   listPlazaCourseSummaries,
   listUserCourseSummariesFromDb,
   makeSourceCourseKey,
+  parseSourceCourseKey,
   toCourseSummary,
   updateMyCourseMeta,
   upsertUserCourseSummary,
@@ -83,7 +86,7 @@ export async function listUserCourseSummariesForUser(
     .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
 }
 
-export async function loadUserCourseForUser(
+async function loadCourseJson(
   userId: number,
   id: string,
 ): Promise<CoursePack | null> {
@@ -98,19 +101,76 @@ export async function loadUserCourseForUser(
   }
 }
 
+function overlayLibraryTitle(
+  pack: CoursePack,
+  entry: {
+    courseId: string;
+    title: string;
+    sourceCourseKey?: string;
+    authorUserId?: number;
+    authorName?: string;
+  },
+): CoursePack {
+  const title = entry.title.trim() || pack.title;
+  return validateCoursePack({
+    ...pack,
+    id: entry.courseId,
+    title,
+    ...(entry.authorUserId != null ? { authorUserId: entry.authorUserId } : {}),
+    ...(entry.authorName ? { authorName: entry.authorName } : {}),
+    ...(entry.sourceCourseKey
+      ? { sourceCourseKey: entry.sourceCourseKey }
+      : {}),
+  });
+}
+
+export async function loadUserCourseForUser(
+  userId: number,
+  id: string,
+): Promise<CoursePack | null> {
+  assertSafeCourseId(id);
+  const entry = await getUserCourseLibraryEntry(userId, id);
+  const source = entry?.sourceCourseKey
+    ? parseSourceCourseKey(entry.sourceCourseKey)
+    : null;
+
+  let pack: CoursePack | null = null;
+  if (source) {
+    pack = await loadCourseJson(source.ownerUserId, source.courseId);
+  }
+  if (!pack) {
+    pack = await loadCourseJson(userId, id);
+  }
+  if (!pack) return null;
+  return entry ? overlayLibraryTitle(pack, entry) : pack;
+}
+
 export async function saveUserCourseForUser(
   userId: number,
   pack: CoursePack,
 ): Promise<CoursePack> {
   const course = validateCoursePack(pack);
   assertSafeCourseId(course.id);
+
+  const existing = await getUserCourseLibraryEntry(userId, course.id);
+  if (existing?.sourceCourseKey?.trim()) {
+    const title = course.title.trim().slice(0, 255);
+    if (title && title !== existing.title) {
+      await updateMyCourseMeta(userId, course.id, { title });
+    }
+    const loaded = await loadUserCourseForUser(userId, course.id);
+    if (!loaded) throw new Error("课程不存在");
+    return loaded;
+  }
+
+  const canonical = validateCoursePack({ ...course, sourceCourseKey: "" });
   await r2Put(
     userCourseObjectKey(userId, course.id),
-    `${JSON.stringify(course, null, 2)}\n`,
+    `${JSON.stringify(canonical, null, 2)}\n`,
     "application/json; charset=utf-8",
   );
-  await upsertUserCourseSummary(userId, toCourseSummary(course));
-  return course;
+  await upsertUserCourseSummary(userId, toCourseSummary(canonical));
+  return canonical;
 }
 
 /** Mark course audio as ready (preview → normal). */
@@ -121,6 +181,7 @@ export async function markUserCourseAudioReady(
   const course = await loadUserCourseForUser(userId, id);
   if (!course) return null;
   if (course.audioReady === true) return course;
+  if (course.sourceCourseKey?.trim()) return course;
   return saveUserCourseForUser(userId, { ...course, audioReady: true });
 }
 
@@ -129,18 +190,53 @@ export async function deleteUserCourseForUser(
   id: string,
 ): Promise<boolean> {
   assertSafeCourseId(id);
+  const entry = await getUserCourseLibraryEntry(userId, id);
   const key = userCourseObjectKey(userId, id);
-  const existing = await r2GetText(key);
-  if (!existing) {
+  const existingJson = await r2GetText(key);
+  if (!entry && !existingJson) return false;
+
+  if (entry?.sourceCourseKey?.trim()) {
+    const sourceKey = entry.sourceCourseKey.trim();
+    const source = parseSourceCourseKey(sourceKey);
     await deleteUserCourseSummary(userId, id);
-    return false;
+    if (existingJson) {
+      try {
+        await r2Delete(key);
+      } catch {
+        /* leftover copy from the old per-user JSON model */
+      }
+    }
+    if (source) {
+      const refs = await countSourceCourseRefs(sourceKey);
+      const ownerEntry = await getUserCourseLibraryEntry(
+        source.ownerUserId,
+        source.courseId,
+      );
+      const ownerKeepsOriginal = Boolean(
+        ownerEntry && !ownerEntry.sourceCourseKey?.trim(),
+      );
+      if (refs === 0 && !ownerKeepsOriginal) {
+        try {
+          await r2Delete(
+            userCourseObjectKey(source.ownerUserId, source.courseId),
+          );
+        } catch {
+          /* canonical file may already be gone */
+        }
+      }
+    }
+    return true;
   }
-  await r2Delete(key);
+
   await deleteUserCourseSummary(userId, id);
+  const refs = await countSourceCourseRefs(makeSourceCourseKey(userId, id));
+  if (existingJson && refs === 0) {
+    await r2Delete(key);
+  }
   return true;
 }
 
-/** 批量删除自制课与广场添加的副本（同一用户库）。 */
+/** 批量删除自制课与广场添加的引用（同一用户库）。 */
 export async function batchDeleteUserCoursesForUser(
   userId: number,
   ids: string[],
@@ -178,13 +274,15 @@ export class PlazaCopyError extends Error {
 }
 
 /**
- * Copy a shared custom course into the viewer's library.
- * Audio is content-addressed, so copied JSON keeps working without re-TTS.
+ * Add a shared plaza course to the viewer's library as a named pointer.
+ * The canonical JSON stays at the author's R2 object; each user only stores
+ * a summary row (optional custom title) that points at it.
  */
 export async function copyPlazaCourseToUser(opts: {
   viewerId: number;
   ownerUserId: number;
   courseId: string;
+  title?: string;
   owner: {
     nickname: string | null;
     username: string;
@@ -217,14 +315,16 @@ export async function copyPlazaCourseToUser(opts: {
 
   const authorName = displayAuthorName(owner);
   const newId = createUserCourseId(source.title);
-  const copied: CoursePack = {
+  const linked: CoursePack = {
     ...source,
     id: newId,
+    title: opts.title?.trim().slice(0, 255) || source.title,
     audioReady: true,
     authorUserId: ownerUserId,
     authorName,
     sourceCourseKey: sourceKey,
   };
 
-  return saveUserCourseForUser(viewerId, copied);
+  await upsertUserCourseSummary(viewerId, toCourseSummary(linked));
+  return linked;
 }
