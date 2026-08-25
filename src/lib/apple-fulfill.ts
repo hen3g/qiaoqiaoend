@@ -238,6 +238,8 @@ export async function fulfillAppleTransaction(input: {
       grantId: product.grantId,
       environment: input.tx.environment,
       diamondsGranted,
+      priceMilliunits: input.tx.price ?? null,
+      offerType: input.tx.offerType ?? null,
     });
 
     if (!inserted) {

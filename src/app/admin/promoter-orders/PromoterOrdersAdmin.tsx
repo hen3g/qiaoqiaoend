@@ -55,6 +55,10 @@ type PromoterAppleOrder = {
   environment: string;
   amountFen: number;
   amountYuan: string;
+  catalogAmountFen?: number;
+  catalogAmountYuan?: string;
+  discounted?: boolean;
+  offerType?: number | null;
   status: AppleOrderStatus;
   diamondsGranted: number;
   diamondsRefunded: number;
@@ -313,9 +317,14 @@ export function PromoterOrdersAdmin() {
       ),
     },
     {
-      title: "金额",
-      width: 90,
-      render: (_, o) => `¥${o.amountYuan}`,
+      title: "实付",
+      width: 110,
+      render: (_, o) => (
+        <Space size={4}>
+          <span>¥{o.amountYuan}</span>
+          {o.discounted ? <Tag color="magenta">优惠</Tag> : null}
+        </Space>
+      ),
     },
     {
       title: "状态",
@@ -360,7 +369,7 @@ export function PromoterOrdersAdmin() {
       <Card title="推广订单">
         <Typography.Paragraph type="secondary">
           {isApple
-            ? "查看你名下推广用户的 App Store 内购订单（会员与钻石）。仅展示已通过推广码绑定到你的用户。"
+            ? "查看你名下推广用户的 App Store 内购订单（会员与钻石）。仅展示已通过推广码绑定到你的用户。金额为用户实付。"
             : "查看你名下推广用户的全部支付宝购买订单。仅展示已通过推广码绑定到你的用户产生的订单。"}
         </Typography.Paragraph>
         <Space wrap>
@@ -462,7 +471,7 @@ export function PromoterOrdersAdmin() {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <Statistic title="已支付金额（¥）" value={appleSummary.paidYuan} />
+              <Statistic title="已支付实付（¥）" value={appleSummary.paidYuan} />
             </Card>
           </Col>
         </Row>

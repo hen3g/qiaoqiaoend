@@ -35,6 +35,8 @@ type Row = RowDataPacket & {
   environment: string;
   diamonds_granted: number;
   diamonds_refunded?: number;
+  price_milliunits?: number | null;
+  offer_type?: number | null;
   created_at?: Date | string;
   username?: string | null;
   nickname?: string | null;
@@ -52,8 +54,13 @@ export type AdminAppleOrder = {
   planTitle: string;
   billing: AppleBilling | null;
   environment: string;
+  /** Actual amount paid (Apple receipt), not catalog list price. */
   amountFen: number;
   amountYuan: string;
+  catalogAmountFen: number;
+  catalogAmountYuan: string;
+  discounted: boolean;
+  offerType: number | null;
   status: AppleOrderStatus;
   diamondsGranted: number;
   diamondsRefunded: number;
@@ -77,6 +84,7 @@ export type AdminAppleOrderListResult = {
 
 let tableEnsured = false;
 let refundColumnEnsured = false;
+let priceColumnsEnsured = false;
 
 export async function ensureAppleTransactionsTable(): Promise<void> {
   if (tableEnsured) return;
@@ -98,6 +106,7 @@ export async function ensureAppleTransactionsTable(): Promise<void> {
   `);
   tableEnsured = true;
   await ensureAppleDiamondsRefundedColumn();
+  await ensureApplePriceColumns();
 }
 
 async function ensureAppleDiamondsRefundedColumn(): Promise<void> {
@@ -113,6 +122,30 @@ async function ensureAppleDiamondsRefundedColumn(): Promise<void> {
     );
   }
   refundColumnEnsured = true;
+}
+
+async function ensureApplePriceColumns(): Promise<void> {
+  if (priceColumnsEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+  const priceCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM apple_transactions LIKE 'price_milliunits'`,
+  );
+  if (priceCols.length === 0) {
+    await execute(
+      `ALTER TABLE apple_transactions
+       ADD COLUMN price_milliunits INT NULL AFTER diamonds_refunded`,
+    );
+  }
+  const offerCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM apple_transactions LIKE 'offer_type'`,
+  );
+  if (offerCols.length === 0) {
+    await execute(
+      `ALTER TABLE apple_transactions
+       ADD COLUMN offer_type TINYINT NULL AFTER price_milliunits`,
+    );
+  }
+  priceColumnsEnsured = true;
 }
 
 function mapRow(row: Row): AppleTransactionRow {
@@ -159,17 +192,24 @@ export async function getAppleOriginalOwner(
 }
 
 export async function insertAppleTransaction(
-  row: Omit<AppleTransactionRow, "diamondsRefunded">,
+  row: Omit<AppleTransactionRow, "diamondsRefunded"> & {
+    priceMilliunits?: number | null;
+    offerType?: number | null;
+  },
 ): Promise<boolean> {
   await ensureAppleTransactionsTable();
   const result = await execute(
     `INSERT IGNORE INTO apple_transactions
        (transaction_id, original_transaction_id, user_id, product_id, kind,
-        grant_id, environment, diamonds_granted)
+        grant_id, environment, diamonds_granted, price_milliunits, offer_type)
      VALUES
        (:transactionId, :originalTransactionId, :userId, :productId, :kind,
-        :grantId, :environment, :diamondsGranted)`,
-    row,
+        :grantId, :environment, :diamondsGranted, :priceMilliunits, :offerType)`,
+    {
+      ...row,
+      priceMilliunits: row.priceMilliunits ?? null,
+      offerType: row.offerType ?? null,
+    },
   );
   return (result.affectedRows ?? 0) > 0;
 }
@@ -205,6 +245,39 @@ export function appleCatalogAmountFen(grantId: string): number {
   return 0;
 }
 
+/** Apple StoreKit `price` is milliunits of the currency (1000 = ¥1.00). */
+export function appleMilliunitsToFen(milliunits: number): number {
+  if (!Number.isFinite(milliunits) || milliunits < 0) return 0;
+  return Math.round(milliunits / 10);
+}
+
+/**
+ * Amount the customer actually paid.
+ * Prefers Apple receipt price; month6 intro (50 diamonds / ¥1) for older rows.
+ */
+export function applePaidAmountFen(input: {
+  grantId: string;
+  diamondsGranted: number;
+  priceMilliunits?: number | null;
+}): number {
+  if (
+    input.priceMilliunits != null &&
+    Number.isFinite(Number(input.priceMilliunits))
+  ) {
+    return appleMilliunitsToFen(Number(input.priceMilliunits));
+  }
+  if (isVipPlanId(input.grantId)) {
+    const plan = getVipPlan(input.grantId);
+    if (
+      plan.introDiamonds != null &&
+      input.diamondsGranted === plan.introDiamonds
+    ) {
+      return 100;
+    }
+  }
+  return appleCatalogAmountFen(input.grantId);
+}
+
 function toIso(value: Date | string | null | undefined): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -214,9 +287,17 @@ function toIso(value: Date | string | null | undefined): string | null {
 
 function mapAdminAppleOrder(row: Row): AdminAppleOrder {
   const grantId = row.grant_id;
-  const amountFen = appleCatalogAmountFen(grantId);
+  const diamondsGranted = Number(row.diamonds_granted ?? 0);
+  const catalogAmountFen = appleCatalogAmountFen(grantId);
+  const amountFen = applePaidAmountFen({
+    grantId,
+    diamondsGranted,
+    priceMilliunits: row.price_milliunits,
+  });
   const product = getAppleProduct(row.product_id);
   const diamondsRefunded = Number(row.diamonds_refunded ?? 0);
+  const offerType =
+    row.offer_type == null ? null : Number(row.offer_type);
   return {
     transactionId: row.transaction_id,
     originalTransactionId: row.original_transaction_id,
@@ -231,8 +312,12 @@ function mapAdminAppleOrder(row: Row): AdminAppleOrder {
     environment: row.environment,
     amountFen,
     amountYuan: (amountFen / 100).toFixed(2),
+    catalogAmountFen,
+    catalogAmountYuan: (catalogAmountFen / 100).toFixed(2),
+    discounted: amountFen < catalogAmountFen,
+    offerType: offerType != null && Number.isFinite(offerType) ? offerType : null,
     status: diamondsRefunded > 0 ? "refunded" : "paid",
-    diamondsGranted: Number(row.diamonds_granted ?? 0),
+    diamondsGranted,
     diamondsRefunded,
     createdAt: toIso(row.created_at) ?? String(row.created_at ?? ""),
   };
@@ -349,18 +434,29 @@ async function listAppleOrdersWithFilters(
       status: "paid",
     });
     const grantRows = await query<
-      (RowDataPacket & { grant_id: string; cnt: number })[]
+      (RowDataPacket & {
+        grant_id: string;
+        diamonds_granted: number;
+        price_milliunits: number | null;
+        cnt: number;
+      })[]
     >(
-      `SELECT t.grant_id, COUNT(*) AS cnt
+      `SELECT t.grant_id, t.diamonds_granted, t.price_milliunits, COUNT(*) AS cnt
        FROM apple_transactions t
        LEFT JOIN users u ON u.id = t.user_id
        ${paidFilters.whereSql}
-       GROUP BY t.grant_id`,
+       GROUP BY t.grant_id, t.diamonds_granted, t.price_milliunits`,
       paidFilters.params,
     );
     paidFen = grantRows.reduce(
       (sum, row) =>
-        sum + Number(row.cnt ?? 0) * appleCatalogAmountFen(row.grant_id),
+        sum +
+        Number(row.cnt ?? 0) *
+          applePaidAmountFen({
+            grantId: row.grant_id,
+            diamondsGranted: Number(row.diamonds_granted ?? 0),
+            priceMilliunits: row.price_milliunits,
+          }),
       0,
     );
   }
@@ -368,7 +464,8 @@ async function listAppleOrdersWithFilters(
   const rows = await query<Row[]>(
     `SELECT t.transaction_id, t.original_transaction_id, t.user_id, t.product_id,
             t.kind, t.grant_id, t.environment, t.diamonds_granted,
-            t.diamonds_refunded, t.created_at, u.username, u.nickname
+            t.diamonds_refunded, t.price_milliunits, t.offer_type,
+            t.created_at, u.username, u.nickname
      FROM apple_transactions t
      LEFT JOIN users u ON u.id = t.user_id
      ${whereSql}

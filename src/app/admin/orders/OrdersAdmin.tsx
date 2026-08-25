@@ -55,6 +55,10 @@ type AdminAppleOrder = {
   environment: string;
   amountFen: number;
   amountYuan: string;
+  catalogAmountFen?: number;
+  catalogAmountYuan?: string;
+  discounted?: boolean;
+  offerType?: number | null;
   status: AppleOrderStatus;
   diamondsGranted: number;
   diamondsRefunded: number;
@@ -324,9 +328,14 @@ export function OrdersAdmin() {
       ),
     },
     {
-      title: "金额",
-      width: 90,
-      render: (_, o) => `¥${o.amountYuan}`,
+      title: "实付",
+      width: 110,
+      render: (_, o) => (
+        <Space size={4}>
+          <span>¥{o.amountYuan}</span>
+          {o.discounted ? <Tag color="magenta">优惠</Tag> : null}
+        </Space>
+      ),
     },
     {
       title: "状态",
@@ -380,7 +389,7 @@ export function OrdersAdmin() {
       <Card title="支付订单">
         <Typography.Paragraph type="secondary">
           {isApple
-            ? "查看 App Store 内购订单（会员与钻石）。客户端验单或苹果服务器通知成功后入账。金额为套餐标价，连续包月首月优惠可能为 ¥1。"
+            ? "查看 App Store 内购订单（会员与钻石）。客户端验单或苹果服务器通知成功后入账。金额为用户实付；连续包月首月优惠显示为 ¥1。"
             : "查看支付宝 VIP / 钻石充值订单。客户端下单后为待支付，异步通知成功后变为已支付。"}
         </Typography.Paragraph>
         <Space wrap>
@@ -482,7 +491,7 @@ export function OrdersAdmin() {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <Statistic title="已支付金额（¥）" value={appleSummary.paidYuan} />
+              <Statistic title="已支付实付（¥）" value={appleSummary.paidYuan} />
             </Card>
           </Col>
         </Row>
