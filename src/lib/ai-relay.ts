@@ -53,7 +53,8 @@ const PROVIDER_DEFS: Record<AiProvider, ProviderDef> = {
     token: tokenhubToken,
     baseUrl: tokenhubBaseUrl,
     model: () => process.env.AI_HY3_MODEL?.trim() || "hy3",
-    deepseekExtras: false,
+    // hy3 still emits reasoning_content unless thinking is explicitly disabled.
+    deepseekExtras: true,
     missingTokenMessage: "腾讯云未配置 AI_HY3_TOKEN，无法切换",
   },
   "hy3-deepseek": {
@@ -81,7 +82,7 @@ type ProviderConfig = {
   baseUrl: string;
   token: string;
   model: string;
-  /** DeepSeek-only request fields (thinking disable, etc.). */
+  /** Send thinking: disabled so providers don't burn tokens on a hidden chain. */
   deepseekExtras: boolean;
 };
 
