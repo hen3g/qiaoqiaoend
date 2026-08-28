@@ -11,6 +11,9 @@ import type {
 } from "@/data/course-types";
 import { isPracticeMode } from "@/data/practice-modes";
 import { normalizeSentenceDialogue } from "@/lib/dialogue-line";
+import { extractJsonText, parseJsonWithRepair } from "@/lib/parse-ai-json";
+
+export { extractJsonText };
 
 const LEVELS = new Set(["word", "phrase", "sentence"]);
 
@@ -194,21 +197,10 @@ function normalizeTokenPos(raw: string): TokenPos | null {
   return POS_ALIASES[key] ?? POS_ALIASES[trimmed] ?? null;
 }
 
-/** 从 AI 回复中提取 JSON（支持 ```json 代码块） */
-export function extractJsonText(raw: string): string {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) return fenced[1].trim();
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
-}
-
 export function parseAndValidateCourse(raw: string): CoursePack {
   let data: unknown;
   try {
-    data = JSON.parse(extractJsonText(raw));
+    data = parseJsonWithRepair(raw);
   } catch {
     throw new Error("AI 返回的内容不是有效 JSON，请重试。");
   }

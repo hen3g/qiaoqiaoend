@@ -1,3 +1,5 @@
+import { parseJsonWithRepair } from "@/lib/parse-ai-json";
+
 export type WordItem = {
   en: string;
   zh: string;
@@ -99,15 +101,8 @@ function extractSuggestedWordsList(data: unknown): WordItem[] {
 }
 
 function parseSuggestJson(raw: string): unknown {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const jsonText = fenced?.[1]?.trim()
-    ?? (trimmed.includes("{")
-      ? trimmed.slice(trimmed.indexOf("{"), trimmed.lastIndexOf("}") + 1)
-      : trimmed);
-
   try {
-    return JSON.parse(jsonText);
+    return parseJsonWithRepair(raw);
   } catch {
     throw new Error("AI 返回的单词列表不是有效 JSON");
   }
