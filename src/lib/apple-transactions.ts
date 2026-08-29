@@ -37,6 +37,7 @@ type Row = RowDataPacket & {
   diamonds_refunded?: number;
   price_milliunits?: number | null;
   offer_type?: number | null;
+  currency?: string | null;
   created_at?: Date | string;
   username?: string | null;
   nickname?: string | null;
@@ -54,9 +55,13 @@ export type AdminAppleOrder = {
   planTitle: string;
   billing: AppleBilling | null;
   environment: string;
-  /** Actual amount paid (Apple receipt), not catalog list price. */
+  /** CNY fen when the receipt is RMB; 0 for other currencies. */
   amountFen: number;
   amountYuan: string;
+  /** Receipt money with storefront currency, e.g. `$4.99` or `¥38.00`. */
+  amountDisplay: string;
+  currency: string;
+  currencyLabel: string;
   catalogAmountFen: number;
   catalogAmountYuan: string;
   discounted: boolean;
@@ -72,6 +77,8 @@ export type AdminAppleOrderSummary = {
   paidCount: number;
   refundedCount: number;
   paidFen: number;
+  /** Combined receipt totals, e.g. `¥38.00 + $4.99`. */
+  paidDisplay: string;
 };
 
 export type AdminAppleOrderListResult = {
@@ -145,6 +152,22 @@ async function ensureApplePriceColumns(): Promise<void> {
        ADD COLUMN offer_type TINYINT NULL AFTER price_milliunits`,
     );
   }
+  const currencyCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM apple_transactions LIKE 'currency'`,
+  );
+  if (currencyCols.length === 0) {
+    await execute(
+      `ALTER TABLE apple_transactions
+       ADD COLUMN currency CHAR(3) NULL AFTER offer_type`,
+    );
+    await execute(
+      `UPDATE apple_transactions
+       SET currency = 'USD'
+       WHERE currency IS NULL
+         AND price_milliunits IS NOT NULL
+         AND MOD(price_milliunits, 1000) <> 0`,
+    );
+  }
   priceColumnsEnsured = true;
 }
 
@@ -195,20 +218,24 @@ export async function insertAppleTransaction(
   row: Omit<AppleTransactionRow, "diamondsRefunded"> & {
     priceMilliunits?: number | null;
     offerType?: number | null;
+    currency?: string | null;
   },
 ): Promise<boolean> {
   await ensureAppleTransactionsTable();
   const result = await execute(
     `INSERT IGNORE INTO apple_transactions
        (transaction_id, original_transaction_id, user_id, product_id, kind,
-        grant_id, environment, diamonds_granted, price_milliunits, offer_type)
+        grant_id, environment, diamonds_granted, price_milliunits, offer_type,
+        currency)
      VALUES
        (:transactionId, :originalTransactionId, :userId, :productId, :kind,
-        :grantId, :environment, :diamondsGranted, :priceMilliunits, :offerType)`,
+        :grantId, :environment, :diamondsGranted, :priceMilliunits, :offerType,
+        :currency)`,
     {
       ...row,
       priceMilliunits: row.priceMilliunits ?? null,
       offerType: row.offerType ?? null,
+      currency: normalizeAppleCurrency(row.currency) ?? null,
     },
   );
   return (result.affectedRows ?? 0) > 0;
@@ -245,15 +272,82 @@ export function appleCatalogAmountFen(grantId: string): number {
   return 0;
 }
 
-/** Apple StoreKit `price` is milliunits of the currency (1000 = ¥1.00). */
+const APPLE_CURRENCY_META: Record<string, { symbol: string; label: string }> = {
+  CNY: { symbol: "¥", label: "人民币" },
+  USD: { symbol: "$", label: "美元" },
+  HKD: { symbol: "HK$", label: "港币" },
+  TWD: { symbol: "NT$", label: "新台币" },
+  MOP: { symbol: "MOP$", label: "澳门元" },
+  EUR: { symbol: "€", label: "欧元" },
+  GBP: { symbol: "£", label: "英镑" },
+  JPY: { symbol: "¥", label: "日元" },
+  KRW: { symbol: "₩", label: "韩元" },
+  SGD: { symbol: "S$", label: "新加坡元" },
+  AUD: { symbol: "A$", label: "澳元" },
+  CAD: { symbol: "C$", label: "加元" },
+};
+
+export function normalizeAppleCurrency(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return null;
+  return code;
+}
+
+/**
+ * Receipt currency. China IAP is whole yuan (milliunits % 1000 === 0).
+ * Older rows without `currency` that look like $x.99 are treated as USD.
+ */
+export function inferAppleCurrency(
+  stored: string | null | undefined,
+  priceMilliunits: number | null | undefined,
+): string {
+  const normalized = normalizeAppleCurrency(stored);
+  if (normalized) return normalized;
+  if (
+    priceMilliunits == null ||
+    !Number.isFinite(Number(priceMilliunits))
+  ) {
+    return "CNY";
+  }
+  if (Number(priceMilliunits) % 1000 === 0) return "CNY";
+  return "USD";
+}
+
+export function appleCurrencyLabel(currency: string): string {
+  return APPLE_CURRENCY_META[currency]?.label ?? currency;
+}
+
+/** Apple StoreKit `price` is milliunits of the storefront currency (1000 = 1.00). */
 export function appleMilliunitsToFen(milliunits: number): number {
   if (!Number.isFinite(milliunits) || milliunits < 0) return 0;
   return Math.round(milliunits / 10);
 }
 
+export function formatAppleMoney(
+  milliunits: number,
+  currency: string,
+): string {
+  const major = (Math.max(0, milliunits) / 1000).toFixed(2);
+  const symbol = APPLE_CURRENCY_META[currency]?.symbol;
+  return symbol ? `${symbol}${major}` : `${currency} ${major}`;
+}
+
+function isAppleOfferType(offerType: number | null | undefined): boolean {
+  return (
+    offerType === 1 ||
+    offerType === 2 ||
+    offerType === 3 ||
+    offerType === 4
+  );
+}
+
 /**
  * Amount the customer actually paid.
  * Prefers Apple receipt price; month6 intro (50 diamonds / ¥1) for older rows.
+ * Only valid as CNY fen when the receipt currency is RMB.
  */
 export function applePaidAmountFen(input: {
   grantId: string;
@@ -278,6 +372,75 @@ export function applePaidAmountFen(input: {
   return appleCatalogAmountFen(input.grantId);
 }
 
+type ApplePaidMoney = {
+  currency: string;
+  currencyLabel: string;
+  milliunits: number;
+  /** CNY fen; 0 when the receipt is not RMB. */
+  amountFen: number;
+  amountYuan: string;
+  amountDisplay: string;
+  discounted: boolean;
+};
+
+function describeApplePaid(input: {
+  grantId: string;
+  diamondsGranted: number;
+  priceMilliunits?: number | null;
+  currency?: string | null;
+  offerType?: number | null;
+}): ApplePaidMoney {
+  const catalogFen = appleCatalogAmountFen(input.grantId);
+  const hasReceiptPrice =
+    input.priceMilliunits != null &&
+    Number.isFinite(Number(input.priceMilliunits));
+  const milliunits = hasReceiptPrice
+    ? Math.max(0, Number(input.priceMilliunits))
+    : applePaidAmountFen({
+        grantId: input.grantId,
+        diamondsGranted: input.diamondsGranted,
+        priceMilliunits: null,
+      }) * 10;
+  const currency = inferAppleCurrency(
+    input.currency,
+    hasReceiptPrice ? milliunits : null,
+  );
+  const amountFen = currency === "CNY" ? appleMilliunitsToFen(milliunits) : 0;
+  const amountYuan =
+    currency === "CNY"
+      ? (amountFen / 100).toFixed(2)
+      : (milliunits / 1000).toFixed(2);
+  const discounted =
+    isAppleOfferType(input.offerType) ||
+    (currency === "CNY" && amountFen < catalogFen);
+  return {
+    currency,
+    currencyLabel: appleCurrencyLabel(currency),
+    milliunits,
+    amountFen,
+    amountYuan,
+    amountDisplay: formatAppleMoney(milliunits, currency),
+    discounted,
+  };
+}
+
+function formatApplePaidDisplay(
+  paidFen: number,
+  foreignMilliunits: Record<string, number>,
+): string {
+  const parts: string[] = [];
+  const foreignEntries = Object.entries(foreignMilliunits).filter(
+    ([, milli]) => milli > 0,
+  );
+  if (paidFen > 0 || foreignEntries.length === 0) {
+    parts.push(`¥${(paidFen / 100).toFixed(2)}`);
+  }
+  for (const [currency, milli] of foreignEntries) {
+    parts.push(formatAppleMoney(milli, currency));
+  }
+  return parts.join(" + ");
+}
+
 function toIso(value: Date | string | null | undefined): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -289,15 +452,17 @@ function mapAdminAppleOrder(row: Row): AdminAppleOrder {
   const grantId = row.grant_id;
   const diamondsGranted = Number(row.diamonds_granted ?? 0);
   const catalogAmountFen = appleCatalogAmountFen(grantId);
-  const amountFen = applePaidAmountFen({
+  const offerType =
+    row.offer_type == null ? null : Number(row.offer_type);
+  const paid = describeApplePaid({
     grantId,
     diamondsGranted,
     priceMilliunits: row.price_milliunits,
+    currency: row.currency,
+    offerType,
   });
   const product = getAppleProduct(row.product_id);
   const diamondsRefunded = Number(row.diamonds_refunded ?? 0);
-  const offerType =
-    row.offer_type == null ? null : Number(row.offer_type);
   return {
     transactionId: row.transaction_id,
     originalTransactionId: row.original_transaction_id,
@@ -310,11 +475,14 @@ function mapAdminAppleOrder(row: Row): AdminAppleOrder {
     planTitle: appleGrantTitle(grantId),
     billing: product?.billing ?? null,
     environment: row.environment,
-    amountFen,
-    amountYuan: (amountFen / 100).toFixed(2),
+    amountFen: paid.amountFen,
+    amountYuan: paid.amountYuan,
+    amountDisplay: paid.amountDisplay,
+    currency: paid.currency,
+    currencyLabel: paid.currencyLabel,
     catalogAmountFen,
     catalogAmountYuan: (catalogAmountFen / 100).toFixed(2),
-    discounted: amountFen < catalogAmountFen,
+    discounted: paid.discounted,
     offerType: offerType != null && Number.isFinite(offerType) ? offerType : null,
     status: diamondsRefunded > 0 ? "refunded" : "paid",
     diamondsGranted,
@@ -428,6 +596,7 @@ async function listAppleOrdersWithFilters(
   const summaryRow = summaryRows[0];
 
   let paidFen = 0;
+  const foreignMilliunits: Record<string, number> = {};
   if (filterOptions.status !== "refunded") {
     const paidFilters = buildAppleOrderFilters({
       ...filterOptions,
@@ -438,33 +607,42 @@ async function listAppleOrdersWithFilters(
         grant_id: string;
         diamonds_granted: number;
         price_milliunits: number | null;
+        currency: string | null;
+        offer_type: number | null;
         cnt: number;
       })[]
     >(
-      `SELECT t.grant_id, t.diamonds_granted, t.price_milliunits, COUNT(*) AS cnt
+      `SELECT t.grant_id, t.diamonds_granted, t.price_milliunits, t.currency,
+              t.offer_type, COUNT(*) AS cnt
        FROM apple_transactions t
        LEFT JOIN users u ON u.id = t.user_id
        ${paidFilters.whereSql}
-       GROUP BY t.grant_id, t.diamonds_granted, t.price_milliunits`,
+       GROUP BY t.grant_id, t.diamonds_granted, t.price_milliunits, t.currency,
+                t.offer_type`,
       paidFilters.params,
     );
-    paidFen = grantRows.reduce(
-      (sum, row) =>
-        sum +
-        Number(row.cnt ?? 0) *
-          applePaidAmountFen({
-            grantId: row.grant_id,
-            diamondsGranted: Number(row.diamonds_granted ?? 0),
-            priceMilliunits: row.price_milliunits,
-          }),
-      0,
-    );
+    for (const row of grantRows) {
+      const cnt = Number(row.cnt ?? 0);
+      const paid = describeApplePaid({
+        grantId: row.grant_id,
+        diamondsGranted: Number(row.diamonds_granted ?? 0),
+        priceMilliunits: row.price_milliunits,
+        currency: row.currency,
+        offerType: row.offer_type == null ? null : Number(row.offer_type),
+      });
+      if (paid.currency === "CNY") {
+        paidFen += cnt * paid.amountFen;
+      } else {
+        foreignMilliunits[paid.currency] =
+          (foreignMilliunits[paid.currency] ?? 0) + cnt * paid.milliunits;
+      }
+    }
   }
 
   const rows = await query<Row[]>(
     `SELECT t.transaction_id, t.original_transaction_id, t.user_id, t.product_id,
             t.kind, t.grant_id, t.environment, t.diamonds_granted,
-            t.diamonds_refunded, t.price_milliunits, t.offer_type,
+            t.diamonds_refunded, t.price_milliunits, t.offer_type, t.currency,
             t.created_at, u.username, u.nickname
      FROM apple_transactions t
      LEFT JOIN users u ON u.id = t.user_id
@@ -484,6 +662,7 @@ async function listAppleOrdersWithFilters(
       paidCount: Number(summaryRow?.paid_count ?? 0),
       refundedCount: Number(summaryRow?.refunded_count ?? 0),
       paidFen,
+      paidDisplay: formatApplePaidDisplay(paidFen, foreignMilliunits),
     },
   };
 }

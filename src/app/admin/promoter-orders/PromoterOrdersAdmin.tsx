@@ -55,6 +55,9 @@ type PromoterAppleOrder = {
   environment: string;
   amountFen: number;
   amountYuan: string;
+  amountDisplay?: string;
+  currency?: string;
+  currencyLabel?: string;
   catalogAmountFen?: number;
   catalogAmountYuan?: string;
   discounted?: boolean;
@@ -82,6 +85,7 @@ type AppleSummary = {
   paidCount: number;
   refundedCount: number;
   paidYuan: string;
+  paidDisplay: string;
 };
 
 const STATUS_META: Record<OrderStatus, { text: string; color: string }> = {
@@ -151,6 +155,7 @@ export function PromoterOrdersAdmin() {
     paidCount: 0,
     refundedCount: 0,
     paidYuan: "0.00",
+    paidDisplay: "¥0.00",
   });
 
   const loadOrders = useCallback(async () => {
@@ -180,6 +185,9 @@ export function PromoterOrdersAdmin() {
             paidCount: Number(data.summary.paidCount ?? 0),
             refundedCount: Number(data.summary.refundedCount ?? 0),
             paidYuan: String(data.summary.paidYuan ?? "0.00"),
+            paidDisplay: String(
+              data.summary.paidDisplay ?? `¥${data.summary.paidYuan ?? "0.00"}`,
+            ),
           });
         }
         setError("");
@@ -318,10 +326,13 @@ export function PromoterOrdersAdmin() {
     },
     {
       title: "实付",
-      width: 110,
+      width: 160,
       render: (_, o) => (
         <Space size={4}>
-          <span>¥{o.amountYuan}</span>
+          <span>{o.amountDisplay ?? `¥${o.amountYuan}`}</span>
+          {o.currency && o.currency !== "CNY" ? (
+            <Tag color="blue">{o.currencyLabel || o.currency}</Tag>
+          ) : null}
           {o.discounted ? <Tag color="magenta">优惠</Tag> : null}
         </Space>
       ),
@@ -369,7 +380,7 @@ export function PromoterOrdersAdmin() {
       <Card title="推广订单">
         <Typography.Paragraph type="secondary">
           {isApple
-            ? "查看你名下推广用户的 App Store 内购订单（会员与钻石）。仅展示已通过推广码绑定到你的用户。金额为用户实付。"
+            ? "查看你名下推广用户的 App Store 内购订单（会员与钻石）。仅展示已通过推广码绑定到你的用户。金额按收据货币显示，外币不与国内目录价对比标优惠。"
             : "查看你名下推广用户的全部支付宝购买订单。仅展示已通过推广码绑定到你的用户产生的订单。"}
         </Typography.Paragraph>
         <Space wrap>
@@ -471,7 +482,10 @@ export function PromoterOrdersAdmin() {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <Statistic title="已支付实付（¥）" value={appleSummary.paidYuan} />
+              <Statistic
+                title="已支付实付"
+                value={appleSummary.paidDisplay || `¥${appleSummary.paidYuan}`}
+              />
             </Card>
           </Col>
         </Row>

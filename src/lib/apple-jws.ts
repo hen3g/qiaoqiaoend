@@ -40,8 +40,10 @@ export type AppleSignedTransaction = {
   /** 1 = introductory, 2 = promotional, 3 = offer code, 4 = win-back */
   offerType?: number;
   offerDiscountType?: string;
-  /** Price in milliunits of the currency (1000 = ¥1.00). */
+  /** Price in milliunits of the storefront currency (1000 = 1.00). */
   price?: number;
+  /** ISO 4217 code from the Apple receipt (USD, CNY, …). */
+  currency?: string;
 };
 
 export type AppleNotificationPayload = {
@@ -142,6 +144,13 @@ function asNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+function asCurrency(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return undefined;
+  return code;
+}
+
 export async function verifyAppleSignedTransaction(
   jws: string,
   opts?: { allowRevoked?: boolean },
@@ -183,6 +192,7 @@ export async function verifyAppleSignedTransaction(
     offerType: asNumber(claims.offerType),
     offerDiscountType: asString(claims.offerDiscountType) || undefined,
     price: asNumber(claims.price),
+    currency: asCurrency(claims.currency),
   };
 }
 

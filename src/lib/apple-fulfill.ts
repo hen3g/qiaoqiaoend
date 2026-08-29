@@ -240,6 +240,7 @@ export async function fulfillAppleTransaction(input: {
       diamondsGranted,
       priceMilliunits: input.tx.price ?? null,
       offerType: input.tx.offerType ?? null,
+      currency: input.tx.currency ?? null,
     });
 
     if (!inserted) {

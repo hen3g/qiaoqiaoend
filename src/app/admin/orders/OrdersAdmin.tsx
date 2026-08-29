@@ -55,6 +55,9 @@ type AdminAppleOrder = {
   environment: string;
   amountFen: number;
   amountYuan: string;
+  amountDisplay?: string;
+  currency?: string;
+  currencyLabel?: string;
   catalogAmountFen?: number;
   catalogAmountYuan?: string;
   discounted?: boolean;
@@ -82,6 +85,7 @@ type AppleSummary = {
   paidCount: number;
   refundedCount: number;
   paidYuan: string;
+  paidDisplay: string;
 };
 
 const STATUS_META: Record<OrderStatus, { text: string; color: string }> = {
@@ -151,6 +155,7 @@ export function OrdersAdmin() {
     paidCount: 0,
     refundedCount: 0,
     paidYuan: "0.00",
+    paidDisplay: "¥0.00",
   });
 
   const loadOrders = useCallback(async () => {
@@ -178,6 +183,9 @@ export function OrdersAdmin() {
             paidCount: Number(data.summary.paidCount ?? 0),
             refundedCount: Number(data.summary.refundedCount ?? 0),
             paidYuan: String(data.summary.paidYuan ?? "0.00"),
+            paidDisplay: String(
+              data.summary.paidDisplay ?? `¥${data.summary.paidYuan ?? "0.00"}`,
+            ),
           });
         }
         setError("");
@@ -329,10 +337,13 @@ export function OrdersAdmin() {
     },
     {
       title: "实付",
-      width: 110,
+      width: 160,
       render: (_, o) => (
         <Space size={4}>
-          <span>¥{o.amountYuan}</span>
+          <span>{o.amountDisplay ?? `¥${o.amountYuan}`}</span>
+          {o.currency && o.currency !== "CNY" ? (
+            <Tag color="blue">{o.currencyLabel || o.currency}</Tag>
+          ) : null}
           {o.discounted ? <Tag color="magenta">优惠</Tag> : null}
         </Space>
       ),
@@ -389,7 +400,7 @@ export function OrdersAdmin() {
       <Card title="支付订单">
         <Typography.Paragraph type="secondary">
           {isApple
-            ? "查看 App Store 内购订单（会员与钻石）。客户端验单或苹果服务器通知成功后入账。金额为用户实付；连续包月首月优惠显示为 ¥1。"
+            ? "查看 App Store 内购订单（会员与钻石）。客户端验单或苹果服务器通知成功后入账。金额按收据货币显示（中国区为人民币，美区为美元），外币不与国内目录价对比标优惠。连续包月首月优惠为 ¥1。"
             : "查看支付宝 VIP / 钻石充值订单。客户端下单后为待支付，异步通知成功后变为已支付。"}
         </Typography.Paragraph>
         <Space wrap>
@@ -491,7 +502,10 @@ export function OrdersAdmin() {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
-              <Statistic title="已支付实付（¥）" value={appleSummary.paidYuan} />
+              <Statistic
+                title="已支付实付"
+                value={appleSummary.paidDisplay || `¥${appleSummary.paidYuan}`}
+              />
             </Card>
           </Col>
         </Row>

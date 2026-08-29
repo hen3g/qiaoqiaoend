@@ -57,6 +57,7 @@ export async function GET(request: Request) {
         paidCount: result.summary.paidCount,
         refundedCount: result.summary.refundedCount,
         paidYuan: (result.summary.paidFen / 100).toFixed(2),
+        paidDisplay: result.summary.paidDisplay,
       },
       orders: result.orders,
     });
