@@ -7,6 +7,7 @@ import {
   mapUser,
   setSessionCookie,
 } from "@/lib/auth";
+import { clientAppFromRequest } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
 import {
   consumeIpRateLimitAll,
@@ -18,6 +19,7 @@ import { createDefaultNickname } from "@/lib/nickname";
 import { hashPassword } from "@/lib/password";
 import {
   ensureShareCustomCoursesColumn,
+  ensureUserAppColumns,
   ensureUserDiamondsColumn,
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
@@ -79,10 +81,12 @@ export async function POST(req: Request) {
 
     const nickname = await allocateDefaultNickname();
     const passwordHash = await hashPassword(body.password);
+    const appId = clientAppFromRequest(req);
+    await ensureUserAppColumns();
     const result = await execute(
-      `INSERT INTO users (username, password_hash, nickname)
-       VALUES (:username, :passwordHash, :nickname)`,
-      { username, passwordHash, nickname },
+      `INSERT INTO users (username, password_hash, nickname, register_app_id, last_app_id)
+       VALUES (:username, :passwordHash, :nickname, :appId, :appId)`,
+      { username, passwordHash, nickname, appId },
     );
 
     const userId = Number(result.insertId);

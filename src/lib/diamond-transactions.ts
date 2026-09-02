@@ -7,6 +7,7 @@ export const DIAMOND_TX_LOOKBACK_DAYS = 30;
 export type DiamondTxType =
   | "ai_generate_course"
   | "ai_suggest_words"
+  | "ai_generate_dictionary"
   | "vip_purchase"
   | "diamond_purchase"
   | "apple_refund"
@@ -82,6 +83,8 @@ export function diamondTxTitle(type: string): string {
       return "生成课程";
     case "ai_suggest_words":
       return "推荐单词";
+    case "ai_generate_dictionary":
+      return "生成词条";
     case "vip_purchase":
       return "会员赠送";
     case "diamond_purchase":

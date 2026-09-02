@@ -8,6 +8,8 @@ import {
   isAvatarStyle,
 } from "@/lib/avatar-generate";
 import { execute, query } from "@/lib/db";
+import { HAMSTER_KIT_STYLE, isHamsterKitName } from "@/lib/hamster-kit";
+import { renderHamsterKitPng } from "@/lib/hamster-kit-render";
 import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { uploadPublicObject } from "@/lib/r2";
 
@@ -22,6 +24,8 @@ const schema = z.object({
     .string()
     .trim()
     .regex(/^[0-9A-Fa-f]{6}$/, "背景色无效"),
+  scale: z.number().min(0.5).max(1.8).optional(),
+  rotation: z.number().min(-180).max(180).optional(),
 });
 
 export async function OPTIONS() {
@@ -40,17 +44,30 @@ export async function POST(req: Request) {
     if (limited) return withAuthCors(limited);
 
     const body = schema.parse(await req.json());
-    if (!isAvatarStyle(body.style)) {
-      return withAuthCors(jsonError("不支持的头像风格"));
+    const backgroundColor = body.backgroundColor.replace(/^#/, "").toUpperCase();
+    let png: Buffer;
+
+    if (body.style === HAMSTER_KIT_STYLE) {
+      if (!isHamsterKitName(body.seed)) {
+        return withAuthCors(jsonError("不支持的卡通形象"));
+      }
+      png = await renderHamsterKitPng({
+        kit: body.seed,
+        backgroundColor,
+        scale: body.scale,
+        rotation: body.rotation,
+      });
+    } else {
+      if (!isAvatarStyle(body.style)) {
+        return withAuthCors(jsonError("不支持的头像风格"));
+      }
+      png = await fetchAvatarPng({
+        style: body.style,
+        seed: body.seed,
+        backgroundColor,
+      });
     }
 
-    const option = {
-      style: body.style,
-      seed: body.seed,
-      backgroundColor: body.backgroundColor.replace(/^#/, "").toUpperCase(),
-    };
-
-    const png = await fetchAvatarPng(option);
     const version = Date.now();
     const key = `avatars/${user.id}/${version}.png`;
     const uploaded = await uploadPublicObject({

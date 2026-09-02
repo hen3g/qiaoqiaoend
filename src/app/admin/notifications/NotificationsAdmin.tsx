@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Alert,
   Button,
@@ -15,11 +16,16 @@ import {
   Tag,
   Typography,
 } from "@arco-design/web-react";
-import type { NotificationType } from "@/lib/notifications";
+import type { NotificationAppTarget, NotificationType } from "@/lib/notifications";
+import { clientAppLabel, clientAppTagColor } from "@/lib/client-app";
 
 type NotificationDto = {
   id: number;
   type: NotificationType;
+  appId: NotificationAppTarget;
+  userId: number | null;
+  username: string | null;
+  nickname: string | null;
   version: string | null;
   title: string;
   summary: string;
@@ -28,12 +34,15 @@ type NotificationDto = {
   createdAt: string | null;
 };
 
+type Audience = "broadcast" | "user";
+
 const TYPE_LABEL: Record<NotificationType, string> = {
   update: "更新通知",
   message: "消息通知",
 };
 
 export function NotificationsAdmin() {
+  const searchParams = useSearchParams();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,6 +50,9 @@ export function NotificationsAdmin() {
   const [loading, setLoading] = useState(true);
 
   const [type, setType] = useState<NotificationType>("update");
+  const [appId, setAppId] = useState<NotificationAppTarget>("all");
+  const [audience, setAudience] = useState<Audience>("broadcast");
+  const [targetUser, setTargetUser] = useState("");
   const [version, setVersion] = useState("");
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -67,16 +79,31 @@ export function NotificationsAdmin() {
     void loadNotifications();
   }, [loadNotifications]);
 
+  useEffect(() => {
+    const user = searchParams.get("user")?.trim();
+    if (!user) return;
+    setAudience("user");
+    setTargetUser(user);
+    setAppId("hamster");
+    setType("message");
+  }, [searchParams]);
+
   async function publishNotification() {
     setError("");
+    if (audience === "user" && !targetUser.trim()) {
+      setError("请填写要发送的用户名或用户 ID");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/admin/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type,
-          version: type === "update" ? version : null,
+          type: audience === "user" ? "message" : type,
+          appId: audience === "user" ? "hamster" : appId,
+          targetUser: audience === "user" ? targetUser.trim() : null,
+          version: type === "update" && audience === "broadcast" ? version : null,
           title,
           summary,
           imageUrl,
@@ -136,8 +163,8 @@ export function NotificationsAdmin() {
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       <Card title="发布通知">
         <Typography.Paragraph type="secondary">
-          发布更新通知或消息通知。公开接口 GET /api/notifications
-          会返回各类型最新一条。
+          广播通知可发给敲敲英语、仓鼠单词或两边都发；公开接口对敲敲英语仍只返回各类型最新一条。
+          指定用户仅支持仓鼠单词，会出现在该用户的消息列表里，敲敲英语看不到。
         </Typography.Paragraph>
         <Form
           layout="vertical"
@@ -146,26 +173,66 @@ export function NotificationsAdmin() {
             void publishNotification();
           }}
         >
-          <Form.Item label="通知类型">
+          <Form.Item label="发送范围">
             <Radio.Group
-              value={type}
-              onChange={(v) => setType(v as NotificationType)}
+              value={audience}
+              onChange={(v) => {
+                const next = v as Audience;
+                setAudience(next);
+                if (next === "user") {
+                  setType("message");
+                  setAppId("hamster");
+                }
+              }}
             >
-              <Radio value="update">更新通知</Radio>
-              <Radio value="message">消息通知</Radio>
+              <Radio value="broadcast">广播</Radio>
+              <Radio value="user">指定用户（仅仓鼠单词）</Radio>
             </Radio.Group>
           </Form.Item>
-          {type === "update" ? (
-            <Form.Item label="版本号" required>
+          {audience === "user" ? (
+            <Form.Item label="用户名或用户 ID" required>
               <Input
-                value={version}
-                onChange={setVersion}
-                placeholder="例如 1.2.0"
-                maxLength={64}
+                value={targetUser}
+                onChange={setTargetUser}
+                placeholder="例如 hamster_user 或 128"
+                maxLength={32}
                 required
               />
             </Form.Item>
-          ) : null}
+          ) : (
+            <>
+              <Form.Item label="通知类型">
+                <Radio.Group
+                  value={type}
+                  onChange={(v) => setType(v as NotificationType)}
+                >
+                  <Radio value="update">更新通知</Radio>
+                  <Radio value="message">消息通知</Radio>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item label="发送给">
+                <Radio.Group
+                  value={appId}
+                  onChange={(v) => setAppId(v as NotificationAppTarget)}
+                >
+                  <Radio value="all">两个 App</Radio>
+                  <Radio value="qiaoqiao">仅敲敲英语</Radio>
+                  <Radio value="hamster">仅仓鼠单词</Radio>
+                </Radio.Group>
+              </Form.Item>
+              {type === "update" ? (
+                <Form.Item label="版本号" required>
+                  <Input
+                    value={version}
+                    onChange={setVersion}
+                    placeholder="例如 1.2.0"
+                    maxLength={64}
+                    required
+                  />
+                </Form.Item>
+              ) : null}
+            </>
+          )}
           <Form.Item label="标题" required>
             <Input
               value={title}
@@ -200,7 +267,7 @@ export function NotificationsAdmin() {
             />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={busy}>
-            发布通知
+            {audience === "user" ? "发给该用户" : "发布通知"}
           </Button>
         </Form>
       </Card>
@@ -241,10 +308,21 @@ export function NotificationsAdmin() {
                       />
                     ) : null}
                     <div>
-                      <Space>
+                      <Space wrap>
                         <Tag color={n.type === "update" ? "arcoblue" : "green"}>
                           {TYPE_LABEL[n.type]}
                         </Tag>
+                        <Tag color={clientAppTagColor(n.appId)}>
+                          {clientAppLabel(n.appId)}
+                        </Tag>
+                        {n.userId ? (
+                          <Tag color="purple">
+                            @{n.username || n.userId}
+                            {n.nickname ? ` · ${n.nickname}` : ""}
+                          </Tag>
+                        ) : (
+                          <Tag>广播</Tag>
+                        )}
                         {n.version ? (
                           <Typography.Text type="secondary">
                             {n.version}

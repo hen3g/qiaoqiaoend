@@ -3,6 +3,7 @@ import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { clientAppFromRequest, CLIENT_APP_LABELS } from "@/lib/client-app";
 import { sendBarkPush } from "@/lib/bark";
 import {
   createFeedbackSubmission,
@@ -67,9 +68,11 @@ export async function POST(req: Request) {
 
     const body = schema.parse(await req.json());
     const type = body.type as FeedbackType;
+    const appId = clientAppFromRequest(req);
     const submission = await createFeedbackSubmission({
       userId: user.id,
       type,
+      appId,
       wechat: body.wechat,
       content: body.content,
     });
@@ -80,7 +83,7 @@ export async function POST(req: Request) {
       user.username ||
       `用户#${user.id}`;
     void sendBarkPush({
-      title: `敲敲 · ${typeLabel}`,
+      title: `${CLIENT_APP_LABELS[appId]} · ${typeLabel}`,
       body: `${who}\n微信：${submission.wechat}\n${submission.content}`,
       group: "反馈合作",
     });

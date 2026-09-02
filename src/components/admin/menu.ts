@@ -60,6 +60,18 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     roles: ["admin"],
   },
   {
+    key: "question-reports",
+    path: "/admin/question-reports",
+    label: "题目报告",
+    roles: ["admin"],
+  },
+  {
+    key: "question-patches",
+    path: "/admin/question-patches",
+    label: "题目补丁",
+    roles: ["admin"],
+  },
+  {
     key: "notifications",
     path: "/admin/notifications",
     label: "通知设置",

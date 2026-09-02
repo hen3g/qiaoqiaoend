@@ -7,6 +7,7 @@ import {
   mapUser,
   setSessionCookie,
 } from "@/lib/auth";
+import { clientAppFromRequest } from "@/lib/client-app";
 import { query } from "@/lib/db";
 import { isValidEmail } from "@/lib/email-bind";
 import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
@@ -16,6 +17,7 @@ import {
   ensureUserDiamondsColumn,
   ensureUserEmailColumn,
   ensureUserPromoterColumns,
+  touchUserLastApp,
 } from "@/lib/user-schema";
 
 const schema = z.object({
@@ -79,6 +81,7 @@ export async function POST(req: Request) {
 
     const token = await createSessionToken(user.id);
     await setSessionCookie(token);
+    await touchUserLastApp(user.id, clientAppFromRequest(req));
 
     return withAuthCors(
       jsonOk({

@@ -2,12 +2,15 @@ import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { mapUser, type SessionUser } from "@/lib/auth";
+import type { ClientAppId } from "@/lib/client-app";
+import { DEFAULT_CLIENT_APP, isClientAppId } from "@/lib/client-app";
 import { requireAdmin } from "@/lib/dev-admin";
 import { query } from "@/lib/db";
 import { ensureNotificationStatsTables } from "@/lib/notification-stats";
 import { setUserIsPromoter } from "@/lib/promoter";
 import {
   ensureShareCustomCoursesColumn,
+  ensureUserAppColumns,
   ensureUserDiamondsColumn,
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
@@ -25,6 +28,8 @@ type UserRow = RowDataPacket & {
   share_custom_courses?: number | boolean | null;
   is_promoter?: number | boolean | null;
   promoter_id?: number | null;
+  register_app_id?: string | null;
+  last_app_id?: string | null;
   created_at: Date | string | null;
   token_version: number;
   unlocked_difficulty: number | null;
@@ -46,6 +51,8 @@ export type AdminUserDto = SessionUser & {
   clientUsage: ClientUsage;
   lastNotificationAt: string | null;
   notificationHitCount: number;
+  registerAppId: ClientAppId;
+  lastAppId: ClientAppId | null;
 };
 
 const patchSchema = z.object({
@@ -87,9 +94,11 @@ async function listUsers(): Promise<AdminUserDto[]> {
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
+  await ensureUserAppColumns();
   const rows = await query<UserRow[]>(
     `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.diamonds,
             u.share_custom_courses, u.is_promoter, u.promoter_id,
+            u.register_app_id, u.last_app_id,
             u.created_at, u.token_version,
             sp.unlocked_difficulty,
             COALESCE(n.has_client, 0) AS has_client,
@@ -125,6 +134,10 @@ async function listUsers(): Promise<AdminUserDto[]> {
       clientUsage: toClientUsage(hasClient, hasWeb),
       lastNotificationAt: formatDate(row.last_notification_at),
       notificationHitCount: Number(row.notification_hit_count) || 0,
+      registerAppId: isClientAppId(row.register_app_id)
+        ? row.register_app_id
+        : DEFAULT_CLIENT_APP,
+      lastAppId: isClientAppId(row.last_app_id) ? row.last_app_id : null,
     };
   });
 }

@@ -1,5 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 
+import type { ClientAppId } from "@/lib/client-app";
+import { DEFAULT_CLIENT_APP, isClientAppId } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
 
 export type FeedbackType = "problem" | "promo";
@@ -10,6 +12,7 @@ export type FeedbackSubmissionDto = {
   username: string | null;
   nickname: string | null;
   type: FeedbackType;
+  appId: ClientAppId;
   wechat: string;
   content: string;
   adminReply: string | null;
@@ -23,6 +26,7 @@ type FeedbackRow = RowDataPacket & {
   username: string | null;
   nickname: string | null;
   type: string;
+  app_id: string | null;
   wechat: string;
   content: string;
   admin_reply: string | null;
@@ -51,6 +55,15 @@ export async function ensureFeedbackTable(): Promise<void> {
   `);
 
   type ColRow = RowDataPacket & { Field: string };
+  const appCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM feedback_submissions LIKE 'app_id'`,
+  );
+  if (appCols.length === 0) {
+    await execute(
+      `ALTER TABLE feedback_submissions
+       ADD COLUMN app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao' AFTER type`,
+    );
+  }
   const replyCols = await query<ColRow[]>(
     `SHOW COLUMNS FROM feedback_submissions LIKE 'admin_reply'`,
   );
@@ -85,7 +98,7 @@ function normalizeType(value: unknown): FeedbackType {
 }
 
 const SELECT_FEEDBACK = `
-  SELECT f.id, f.user_id, u.username, u.nickname, f.type, f.wechat, f.content,
+  SELECT f.id, f.user_id, u.username, u.nickname, f.type, f.app_id, f.wechat, f.content,
          f.admin_reply, f.replied_at, f.created_at
   FROM feedback_submissions f
   LEFT JOIN users u ON u.id = f.user_id
@@ -102,6 +115,7 @@ function mapRow(row: FeedbackRow): FeedbackSubmissionDto {
     username: row.username,
     nickname: row.nickname,
     type: normalizeType(row.type),
+    appId: isClientAppId(row.app_id) ? row.app_id : DEFAULT_CLIENT_APP,
     wechat: row.wechat,
     content: row.content,
     adminReply,
@@ -117,6 +131,7 @@ export function feedbackTypeLabel(type: FeedbackType): string {
 export async function createFeedbackSubmission(input: {
   userId: number;
   type: FeedbackType;
+  appId: ClientAppId;
   wechat: string;
   content: string;
 }): Promise<FeedbackSubmissionDto> {
@@ -127,11 +142,12 @@ export async function createFeedbackSubmission(input: {
   if (!content) throw new Error("请填写内容");
 
   const result = await execute(
-    `INSERT INTO feedback_submissions (user_id, type, wechat, content, created_at)
-     VALUES (:userId, :type, :wechat, :content, UTC_TIMESTAMP())`,
+    `INSERT INTO feedback_submissions (user_id, type, app_id, wechat, content, created_at)
+     VALUES (:userId, :type, :appId, :wechat, :content, UTC_TIMESTAMP())`,
     {
       userId: input.userId,
       type: input.type,
+      appId: input.appId,
       wechat: wechat.slice(0, 64),
       content: content.slice(0, 2000),
     },

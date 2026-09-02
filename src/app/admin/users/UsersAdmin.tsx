@@ -13,7 +13,10 @@ import {
   Typography,
 } from "@arco-design/web-react";
 import type { ColumnProps } from "@arco-design/web-react/es/Table";
+import { useRouter } from "next/navigation";
 import type { SessionUser } from "@/lib/auth";
+import type { ClientAppId } from "@/lib/client-app";
+import { clientAppLabel, clientAppTagColor } from "@/lib/client-app";
 
 type ClientUsage = "none" | "client" | "web" | "both";
 
@@ -25,6 +28,8 @@ type AdminUser = SessionUser & {
   clientUsage: ClientUsage;
   lastNotificationAt: string | null;
   notificationHitCount: number;
+  registerAppId: ClientAppId;
+  lastAppId: ClientAppId | null;
 };
 
 const USAGE_LABEL: Record<ClientUsage, string> = {
@@ -55,6 +60,7 @@ function usageLabel(u: AdminUser): ClientUsage {
 }
 
 export function UsersAdmin() {
+  const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [error, setError] = useState("");
   const [queryText, setQueryText] = useState("");
@@ -175,6 +181,22 @@ export function UsersAdmin() {
       },
     },
     {
+      title: "App",
+      width: 150,
+      render: (_, u) => (
+        <div>
+          <Tag color={clientAppTagColor(u.registerAppId)}>
+            注册 {clientAppLabel(u.registerAppId)}
+          </Tag>
+          <div>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              最近 {u.lastAppId ? clientAppLabel(u.lastAppId) : "—"}
+            </Typography.Text>
+          </div>
+        </div>
+      ),
+    },
+    {
       title: "会员",
       width: 120,
       render: (_, u) =>
@@ -221,6 +243,23 @@ export function UsersAdmin() {
         u.createdAt ? new Date(u.createdAt).toLocaleString("zh-CN") : "—",
     },
     { title: "token_version", dataIndex: "tokenVersion", width: 120 },
+    {
+      title: "通知",
+      width: 100,
+      render: (_, u) => (
+        <Button
+          size="mini"
+          type="text"
+          onClick={() =>
+            router.push(
+              `/admin/notifications?user=${encodeURIComponent(u.username)}`,
+            )
+          }
+        >
+          发通知
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -254,7 +293,7 @@ export function UsersAdmin() {
           columns={columns}
           data={filtered}
           pagination={{ pageSize: 20, showTotal: true }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1360 }}
         />
       </Card>
     </Space>

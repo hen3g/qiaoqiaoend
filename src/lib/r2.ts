@@ -55,6 +55,14 @@ export function userCoursesPrefix(userId: number | string): string {
   return `user-courses/${userId}/`;
 }
 
+export function app2DictionaryObjectKey(slug: string): string {
+  return `dictionary/app2/${slug}.json`;
+}
+
+export function app2DictionaryPrefix(): string {
+  return "dictionary/app2/";
+}
+
 export function audioObjectKey(filename: string): string {
   return `audio/${filename}`;
 }

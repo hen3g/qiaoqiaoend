@@ -13,6 +13,7 @@ import {
 import {
   IconCalendar,
   IconDashboard,
+  IconExclamationCircle,
   IconFile,
   IconGift,
   IconIdcard,
@@ -25,6 +26,7 @@ import {
   IconUserGroup,
   IconBook,
   IconSettings,
+  IconTool,
 } from "@arco-design/web-react/icon";
 import { useAuth } from "@/components/AuthProvider";
 import { AdminGuard } from "@/components/admin/AdminGuard";
@@ -47,6 +49,8 @@ const MENU_ICONS: Record<string, React.ReactNode> = {
   "user-content": <IconBook />,
   "redeem-codes": <IconGift />,
   feedback: <IconMessage />,
+  "question-reports": <IconExclamationCircle />,
+  "question-patches": <IconTool />,
   notifications: <IconNotification />,
   "notification-stats": <IconDashboard />,
   "ai-model": <IconSettings />,

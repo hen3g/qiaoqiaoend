@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { requireAdmin } from "@/lib/dev-admin";
+import { parseClientAppFilter } from "@/lib/client-app";
 import {
   getVisitStatsForDate,
   listDailyVisitStats,
@@ -24,6 +25,7 @@ const querySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  app: z.enum(["all", "qiaoqiao", "hamster"]).optional().default("all"),
 });
 
 export async function GET(req: Request) {
@@ -33,21 +35,24 @@ export async function GET(req: Request) {
     const parsed = querySchema.parse({
       days: url.searchParams.get("days") ?? undefined,
       date: url.searchParams.get("date") ?? undefined,
+      app: url.searchParams.get("app") ?? undefined,
     });
+    const app = parseClientAppFilter(parsed.app);
 
-    const days = await listDailyVisitStats(parsed.days);
+    const days = await listDailyVisitStats(parsed.days, app);
     const detailDate = parsed.date ?? todayInShanghai();
     const today =
       days.find((d) => d.date === todayInShanghai()) ??
-      (await getVisitStatsForDate(todayInShanghai()));
+      (await getVisitStatsForDate(todayInShanghai(), app));
     const detail =
       days.find((d) => d.date === detailDate) ??
-      (await getVisitStatsForDate(detailDate));
+      (await getVisitStatsForDate(detailDate, app));
 
     return jsonOk({
       today,
       detail,
       detailDate,
+      app,
       days,
       total: days.length,
     });

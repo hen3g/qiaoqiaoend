@@ -18,12 +18,15 @@ CREATE TABLE IF NOT EXISTS users (
   share_custom_courses TINYINT(1) NOT NULL DEFAULT 1,
   is_promoter TINYINT(1) NOT NULL DEFAULT 0,
   promoter_id BIGINT UNSIGNED NULL,
+  register_app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao',
+  last_app_id VARCHAR(32) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_username (username),
   UNIQUE KEY uk_users_email (email),
   KEY idx_users_nickname (nickname),
-  KEY idx_users_promoter_id (promoter_id)
+  KEY idx_users_promoter_id (promoter_id),
+  KEY idx_users_register_app_id (register_app_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS email_bind_codes (
@@ -130,6 +133,8 @@ CREATE TABLE IF NOT EXISTS redeem_logs (
 CREATE TABLE IF NOT EXISTS notifications (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   type ENUM('update', 'message') NOT NULL,
+  app_id VARCHAR(32) NOT NULL DEFAULT 'all',
+  user_id BIGINT UNSIGNED NULL,
   version VARCHAR(64) NULL,
   title VARCHAR(200) NOT NULL,
   summary VARCHAR(500) NOT NULL,
@@ -138,7 +143,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_notifications_type_id (type, id),
-  KEY idx_notifications_created_at (created_at)
+  KEY idx_notifications_created_at (created_at),
+  KEY idx_notifications_app_type_id (app_id, type, id),
+  KEY idx_notifications_user_id (user_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS promo_submissions (
@@ -163,6 +170,7 @@ CREATE TABLE IF NOT EXISTS feedback_submissions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT NOT NULL,
   type ENUM('problem', 'promo') NOT NULL,
+  app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao',
   wechat VARCHAR(64) NOT NULL,
   content TEXT NOT NULL,
   admin_reply TEXT NULL,
@@ -328,4 +336,23 @@ CREATE TABLE IF NOT EXISTS ip_rate_limits (
   last_called_at BIGINT NOT NULL,
   hit_count INT UNSIGNED NOT NULL DEFAULT 1,
   PRIMARY KEY (action, ip)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS device_visit_daily_anonymous (
+  stat_date DATE NOT NULL,
+  device_id VARCHAR(64) NOT NULL,
+  app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (stat_date, device_id, app_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS device_visit_daily_users (
+  stat_date DATE NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao',
+  platform VARCHAR(16) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (stat_date, user_id, app_id),
+  KEY idx_device_visit_user (user_id),
+  KEY idx_device_visit_platform (stat_date, platform)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -158,7 +158,7 @@ export async function peekIpRateLimit(
 
 function rateLimitResponse(retryAfterSeconds: number) {
   const res = jsonError(
-    `请求过于频繁，请 ${retryAfterSeconds} 秒后再试`,
+    `请求过于频繁，请过段时间再试`,
     429,
     { retryAfterSeconds },
   );

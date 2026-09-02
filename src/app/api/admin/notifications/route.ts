@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/dev-admin";
 import {
   createNotification,
   deleteNotification,
+  findUserByUsernameOrId,
   listNotifications,
 } from "@/lib/notifications";
 
@@ -18,6 +19,13 @@ const createSchema = z
       .transform((v) => (v && v.length > 0 ? v : null)),
     title: z.string().trim().min(1, "请填写标题").max(200),
     summary: z.string().trim().min(1, "请填写简介").max(500),
+    appId: z.enum(["all", "qiaoqiao", "hamster"]).optional().default("all"),
+    targetUser: z
+      .string()
+      .trim()
+      .max(32)
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : null)),
     imageUrl: z
       .union([
         z.string().trim().url("图片链接无效").max(500),
@@ -41,6 +49,13 @@ const createSchema = z
         code: "custom",
         path: ["version"],
         message: "更新通知请填写版本号",
+      });
+    }
+    if (data.targetUser && data.type !== "message") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["type"],
+        message: "指定用户仅支持消息通知",
       });
     }
   });
@@ -75,11 +90,28 @@ export async function POST(req: Request) {
   try {
     await requireAdmin();
     const body = createSchema.parse(await req.json());
+    let userId: number | null = null;
+    if (body.targetUser) {
+      const target = await findUserByUsernameOrId(body.targetUser);
+      if (!target) {
+        return jsonError("用户不存在", 404);
+      }
+      userId = target.id;
+    }
     const notification = await createNotification({
-      ...body,
+      type: body.type,
+      appId: userId != null ? "hamster" : body.appId,
+      userId,
       version: body.type === "update" ? body.version : null,
+      title: body.title,
+      summary: body.summary,
+      imageUrl: body.imageUrl,
+      linkUrl: body.linkUrl,
     });
-    return jsonOk({ notification, message: "已发布通知" });
+    return jsonOk({
+      notification,
+      message: userId != null ? "已发给该用户（仅仓鼠单词可见）" : "已发布通知",
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return jsonError(err.issues[0]?.message || "参数错误");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
@@ -8,10 +8,13 @@ import {
   Empty,
   Input,
   Message,
+  Radio,
   Space,
   Tag,
   Typography,
 } from "@arco-design/web-react";
+import type { ClientAppId } from "@/lib/client-app";
+import { clientAppLabel, clientAppTagColor } from "@/lib/client-app";
 
 type FeedbackType = "problem" | "promo";
 
@@ -21,6 +24,7 @@ type FeedbackSubmissionDto = {
   username: string | null;
   nickname: string | null;
   type: FeedbackType;
+  appId: ClientAppId;
   wechat: string;
   content: string;
   adminReply: string | null;
@@ -41,6 +45,7 @@ function formatTime(value: string | null): string {
 }
 
 export function FeedbackAdmin() {
+  const [appFilter, setAppFilter] = useState<"all" | ClientAppId>("all");
   const [submissions, setSubmissions] = useState<FeedbackSubmissionDto[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -104,6 +109,11 @@ export function FeedbackAdmin() {
     }
   };
 
+  const visible = useMemo(() => {
+    if (appFilter === "all") return submissions;
+    return submissions.filter((item) => item.appId === appFilter);
+  }, [appFilter, submissions]);
+
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       <Card
@@ -114,19 +124,31 @@ export function FeedbackAdmin() {
           </Button>
         }
       >
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          共 {submissions.length} 条 · 新提交会同步 Bark 推送 · 回复后用户可在 App
-          历史反馈中查看
+        <Typography.Paragraph type="secondary">
+          共 {submissions.length} 条
+          {appFilter === "all"
+            ? ""
+            : ` · 当前显示 ${visible.length} 条`}{" "}
+          · 新提交会同步 Bark 推送 · 回复后用户可在 App 历史反馈中查看
         </Typography.Paragraph>
+        <Radio.Group
+          type="button"
+          value={appFilter}
+          onChange={(value) => setAppFilter(value as "all" | ClientAppId)}
+        >
+          <Radio value="all">全部应用</Radio>
+          <Radio value="qiaoqiao">敲敲英语</Radio>
+          <Radio value="hamster">仓鼠单词</Radio>
+        </Radio.Group>
       </Card>
 
       {error ? <Alert type="error" content={error} /> : null}
 
-      {!loading && submissions.length === 0 ? (
+      {!loading && visible.length === 0 ? (
         <Empty description="还没有反馈记录" />
       ) : (
         <Space direction="vertical" size="medium" style={{ width: "100%" }}>
-          {submissions.map((item) => {
+          {visible.map((item) => {
             const typeMeta = TYPE_LABEL[item.type];
             const displayName =
               item.nickname?.trim() || item.username || `用户#${item.userId}`;
@@ -139,6 +161,9 @@ export function FeedbackAdmin() {
                 >
                   <Space>
                     <Tag color={typeMeta.color}>{typeMeta.text}</Tag>
+                    <Tag color={clientAppTagColor(item.appId)}>
+                      {clientAppLabel(item.appId)}
+                    </Tag>
                     {hasReply ? (
                       <Tag color="green">已回复</Tag>
                     ) : (

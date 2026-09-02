@@ -1,15 +1,25 @@
 import { jsonError, jsonOk } from "@/lib/api";
+import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { clientAppFromRequest } from "@/lib/client-app";
+import { resolveVisitUserId } from "@/lib/device-visits";
 import {
   parseNotificationClientSource,
   recordNotificationApiHit,
   resolveStatsUserId,
 } from "@/lib/notification-stats";
-import { getLatestNotifications } from "@/lib/notifications";
+import {
+  getLatestNotifications,
+  listHamsterNotifications,
+} from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
-/** 公开接口：返回各类型最新通知，最多 2 条（更新 + 消息）。
+/** 公开接口：敲敲英语仍返回各类型最新一条；仓鼠单词会附带该用户的个人消息。
  *  query `source=web` 表示在线版；缺省或其它值按客户端计。 */
+export async function OPTIONS() {
+  return authPreflight();
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -20,10 +30,14 @@ export async function GET(req: Request) {
       console.error("notification api stats:", err);
     });
 
-    const notifications = await getLatestNotifications();
-    return jsonOk({ notifications });
+    const appId = clientAppFromRequest(req);
+    const notifications =
+      appId === "hamster"
+        ? await listHamsterNotifications(await resolveVisitUserId(req))
+        : await getLatestNotifications(appId);
+    return withAuthCors(jsonOk({ notifications }));
   } catch (err) {
     console.error(err);
-    return jsonError("加载失败", 500);
+    return withAuthCors(jsonError("加载失败", 500));
   }
 }

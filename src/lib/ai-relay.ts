@@ -287,6 +287,8 @@ type AiJsonRequest = {
   onDelta?: (info: { chars: number; chunk: string }) => void | Promise<void>;
   /** Ledger type for diamond consumption (defaults to generate course). */
   chargeType?: DiamondTxType;
+  /** Compute cost but do not deduct; caller charges after a unique write. */
+  skipCharge?: boolean;
 };
 
 /**
@@ -302,6 +304,7 @@ export async function requestAiJson({
   temperature = 0.5,
   maxTokens = 65536,
   chargeType,
+  skipCharge,
 }: AiJsonRequest): Promise<AiJsonResult> {
   return requestAiJsonStream({
     userId,
@@ -311,6 +314,7 @@ export async function requestAiJson({
     maxTokens,
     stream: false,
     chargeType,
+    skipCharge,
   });
 }
 
@@ -328,6 +332,7 @@ export async function requestAiJsonStream({
   onDelta,
   stream = true,
   chargeType,
+  skipCharge,
 }: AiJsonRequest & { stream?: boolean }): Promise<AiJsonResult> {
   const balance = await getUserDiamonds(userId);
   if (balance <= 0) {
@@ -336,8 +341,9 @@ export async function requestAiJsonStream({
 
   const cfg = await resolveAiProvider();
   const ledgerType: DiamondTxType =
-    chargeType === "ai_suggest_words"
-      ? "ai_suggest_words"
+    chargeType === "ai_suggest_words" ||
+    chargeType === "ai_generate_dictionary"
+      ? chargeType
       : "ai_generate_course";
 
   const body: Record<string, unknown> = {
@@ -410,6 +416,7 @@ export async function requestAiJsonStream({
       headerYuan: Number(upstream.headers.get("X-Usage-Cost-Yuan")),
       usage: payload.usage,
       chargeType: ledgerType,
+      skipCharge,
     });
   }
 
@@ -449,6 +456,7 @@ export async function requestAiJsonStream({
       headerYuan: NaN,
       usage: estimateUsageFromText(system, user, content),
       chargeType: ledgerType,
+      skipCharge,
       estimated: true,
       cancelled: true,
     });
@@ -515,6 +523,7 @@ export async function requestAiJsonStream({
     headerYuan: Number(upstream.headers.get("X-Usage-Cost-Yuan")),
     usage,
     chargeType: ledgerType,
+    skipCharge,
   });
 }
 
@@ -537,6 +546,7 @@ async function finalizeAiResult(input: {
   headerYuan: number;
   usage?: TokenUsage;
   chargeType: DiamondTxType;
+  skipCharge?: boolean;
   estimated?: boolean;
   cancelled?: boolean;
 }): Promise<AiJsonResult> {
@@ -544,6 +554,15 @@ async function finalizeAiResult(input: {
     Number.isFinite(input.headerYuan) && input.headerYuan > 0
       ? input.headerYuan
       : costYuanFromUsage(input.usage);
+
+  if (input.skipCharge) {
+    return {
+      content: input.content,
+      costYuan,
+      diamondsCharged: 0,
+      diamonds: await getUserDiamonds(input.userId),
+    };
+  }
 
   const diamondsCharged = yuanToDiamonds(costYuan);
   const diamonds = await deductDiamondsFloorZero(

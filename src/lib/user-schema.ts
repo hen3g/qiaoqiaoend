@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2";
+import type { ClientAppId } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
 
 let diamondsEnsured = false;
@@ -6,6 +7,7 @@ let shareCustomCoursesEnsured = false;
 let promoterColumnsEnsured = false;
 let emailEnsured = false;
 let passwordResetCodesEnsured = false;
+let appColumnsEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -141,4 +143,55 @@ export async function ensurePasswordResetCodesTable(): Promise<void> {
   }
 
   passwordResetCodesEnsured = true;
+}
+
+/** Which app registered the account, and which app was last used. */
+export async function ensureUserAppColumns(): Promise<void> {
+  if (appColumnsEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+
+  const registerCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'register_app_id'`,
+  );
+  if (registerCols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN register_app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao'
+       AFTER promoter_id`,
+    );
+  }
+
+  const lastCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'last_app_id'`,
+  );
+  if (lastCols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN last_app_id VARCHAR(32) NULL AFTER register_app_id`,
+    );
+  }
+
+  type IndexRow = RowDataPacket & { Key_name: string };
+  const indexes = await query<IndexRow[]>(`SHOW INDEX FROM users`);
+  if (!indexes.some((row) => row.Key_name === "idx_users_register_app_id")) {
+    await execute(
+      `ALTER TABLE users ADD KEY idx_users_register_app_id (register_app_id)`,
+    );
+  }
+
+  appColumnsEnsured = true;
+}
+
+export async function touchUserLastApp(
+  userId: number,
+  appId: ClientAppId,
+): Promise<void> {
+  await ensureUserAppColumns();
+  await execute(
+    `UPDATE users
+     SET last_app_id = :appId
+     WHERE id = :userId AND (last_app_id IS NULL OR last_app_id <> :sameAppId)
+     LIMIT 1`,
+    { appId, sameAppId: appId, userId },
+  );
 }
