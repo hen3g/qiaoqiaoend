@@ -128,6 +128,8 @@ export function CompanyShell({
             <Link href="/privacy">隐私政策</Link>
             <Link href="/terms">用户协议</Link>
             <Link href="/vip-agreement">会员服务协议</Link>
+            <Link href="/guide">敲敲英语用户指南</Link>
+            <Link href="/hamster/guide">仓鼠单词用户指南</Link>
           </div>
         </div>
         <div className={styles["site-footer__bottom"]}>

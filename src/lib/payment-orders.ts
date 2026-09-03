@@ -121,6 +121,12 @@ export function paymentPlanTitle(planId: string): string {
   return planId;
 }
 
+/** TEMP: 仓鼠支付宝测试价 1 分。用户说「恢复」后改回 yuanToFen(priceYuan)。 */
+function orderAmountFenForApp(priceYuan: number, clientApp: ClientAppId): number {
+  if (clientApp === "hamster") return 1;
+  return yuanToFen(priceYuan);
+}
+
 export async function createPendingVipOrder(
   userId: number,
   planId: VipPlanId,
@@ -132,7 +138,7 @@ export async function createPendingVipOrder(
   }
   const plan = getVipPlan(planId);
   const outTradeNo = createOutTradeNo(userId);
-  const amountFen = yuanToFen(plan.price);
+  const amountFen = orderAmountFenForApp(plan.price, clientApp);
 
   await execute(
     `INSERT INTO payment_orders
@@ -157,7 +163,7 @@ export async function createPendingDiamondOrder(
   await ensurePaymentOrdersTable();
   const pack = getDiamondPack(packId);
   const outTradeNo = createOutTradeNo(userId, "DIA");
-  const amountFen = yuanToFen(pack.price);
+  const amountFen = orderAmountFenForApp(pack.price, clientApp);
 
   await execute(
     `INSERT INTO payment_orders
