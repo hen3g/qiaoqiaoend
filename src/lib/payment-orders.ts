@@ -15,7 +15,7 @@ import {
   type DiamondPackId,
 } from "@/lib/diamond-packs";
 import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
-import { sqlRegisterAppPredicate } from "@/lib/client-app";
+import { sqlOrderAppPredicate } from "@/lib/client-app";
 import {
   getVipPlan,
   isAppleSubscriptionPlanId,
@@ -77,6 +77,16 @@ export async function ensurePaymentOrdersTable(): Promise<void> {
       KEY idx_payment_orders_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+  type ColRow = RowDataPacket & { Field: string };
+  const appCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM payment_orders LIKE 'app_id'`,
+  );
+  if (appCols.length === 0) {
+    await execute(
+      `ALTER TABLE payment_orders
+       ADD COLUMN app_id VARCHAR(16) NULL AFTER user_id`,
+    );
+  }
   tableEnsured = true;
 }
 
@@ -114,6 +124,7 @@ export function paymentPlanTitle(planId: string): string {
 export async function createPendingVipOrder(
   userId: number,
   planId: VipPlanId,
+  clientApp: ClientAppId,
 ): Promise<PaymentOrder> {
   await ensurePaymentOrdersTable();
   if (isAppleSubscriptionPlanId(planId)) {
@@ -125,10 +136,10 @@ export async function createPendingVipOrder(
 
   await execute(
     `INSERT INTO payment_orders
-       (out_trade_no, user_id, plan_id, amount_fen, status)
+       (out_trade_no, user_id, app_id, plan_id, amount_fen, status)
      VALUES
-       (:outTradeNo, :userId, :planId, :amountFen, 'pending')`,
-    { outTradeNo, userId, planId, amountFen },
+       (:outTradeNo, :userId, :appId, :planId, :amountFen, 'pending')`,
+    { outTradeNo, userId, appId: clientApp, planId, amountFen },
   );
 
   const order = await getOrderByOutTradeNo(outTradeNo);
@@ -141,6 +152,7 @@ export async function createPendingVipOrder(
 export async function createPendingDiamondOrder(
   userId: number,
   packId: DiamondPackId,
+  clientApp: ClientAppId,
 ): Promise<PaymentOrder> {
   await ensurePaymentOrdersTable();
   const pack = getDiamondPack(packId);
@@ -149,10 +161,10 @@ export async function createPendingDiamondOrder(
 
   await execute(
     `INSERT INTO payment_orders
-       (out_trade_no, user_id, plan_id, amount_fen, status)
+       (out_trade_no, user_id, app_id, plan_id, amount_fen, status)
      VALUES
-       (:outTradeNo, :userId, :planId, :amountFen, 'pending')`,
-    { outTradeNo, userId, planId: packId, amountFen },
+       (:outTradeNo, :userId, :appId, :planId, :amountFen, 'pending')`,
+    { outTradeNo, userId, appId: clientApp, planId: packId, amountFen },
   );
 
   const order = await getOrderByOutTradeNo(outTradeNo);
@@ -236,7 +248,8 @@ function buildAdminOrderFilters(options: {
     params.promoterId = options.promoterId;
   }
 
-  const appSql = sqlRegisterAppPredicate(
+  const appSql = sqlOrderAppPredicate(
+    "o.app_id",
     "u.register_app_id",
     options.app ?? "all",
     params,

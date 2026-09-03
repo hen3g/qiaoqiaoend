@@ -70,3 +70,23 @@ export function sqlRegisterAppPredicate(
   params[paramKey] = "qiaoqiao";
   return `(${column} IS NULL OR ${column} = '' OR ${column} = :${paramKey})`;
 }
+
+/**
+ * SQL predicate for payment orders: prefer the order's own app_id,
+ * fall back to the user's register_app_id for rows created before that column.
+ */
+export function sqlOrderAppPredicate(
+  orderColumn: string,
+  userColumn: string,
+  app: ClientAppFilter,
+  params: Record<string, string | number>,
+  paramKey = "orderAppId",
+): string | null {
+  if (app === "all") return null;
+  if (app === "hamster") {
+    params[paramKey] = "hamster";
+    return `(${orderColumn} = :${paramKey} OR ((${orderColumn} IS NULL OR ${orderColumn} = '') AND ${userColumn} = :${paramKey}))`;
+  }
+  params[paramKey] = "qiaoqiao";
+  return `(${orderColumn} = :${paramKey} OR ((${orderColumn} IS NULL OR ${orderColumn} = '') AND (${userColumn} IS NULL OR ${userColumn} = '' OR ${userColumn} = :${paramKey})))`;
+}

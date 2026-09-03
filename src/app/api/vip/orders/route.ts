@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     const plan = getVipPlan(body.planId);
     const clientApp = clientAppFromRequest(req);
-    const order = await createPendingVipOrder(user.id, body.planId);
+    const order = await createPendingVipOrder(user.id, body.planId, clientApp);
     const totalAmount = orderAmountYuan(order);
     const orderString = createAppPayOrderString({
       outTradeNo: order.outTradeNo,

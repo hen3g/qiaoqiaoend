@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     const pack = getDiamondPack(body.packId);
     const clientApp = clientAppFromRequest(req);
-    const order = await createPendingDiamondOrder(user.id, body.packId);
+    const order = await createPendingDiamondOrder(user.id, body.packId, clientApp);
     const totalAmount = orderAmountYuan(order);
     const orderString = createAppPayOrderString({
       outTradeNo: order.outTradeNo,
