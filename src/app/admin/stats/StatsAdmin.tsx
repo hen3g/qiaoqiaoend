@@ -26,8 +26,14 @@ type DailyStat = {
   registrations: number;
 };
 
-export function StatsAdmin() {
-  const [app, setApp] = useState<ClientAppFilter>("all");
+export function StatsAdmin({
+  defaultApp = "qiaoqiao",
+  lockApp = false,
+}: {
+  defaultApp?: ClientAppFilter;
+  lockApp?: boolean;
+}) {
+  const [app, setApp] = useState<ClientAppFilter>(defaultApp);
   const [days, setDays] = useState<DailyStat[]>([]);
   const [today, setToday] = useState<DailyStat | null>(null);
   const [detail, setDetail] = useState<DailyStat | null>(null);
@@ -85,7 +91,7 @@ export function StatsAdmin() {
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       <Card
-        title="日活统计"
+        title={lockApp && defaultApp === "hamster" ? "数据统计" : "日活统计"}
         extra={
           <Button
             onClick={() => void loadStats(detailDate || undefined)}
@@ -99,19 +105,21 @@ export function StatsAdmin() {
           按 App 分开统计。客户端每日上报一次：未登录按设备去重；登录后按用户去重并区分
           iOS / Android。注册数为当日在该 App 新建的账号。未带头的旧客户端记入敲敲英语。
         </Typography.Paragraph>
-        <Radio.Group
-          type="button"
-          value={app}
-          onChange={(value) => {
-            const next = value as ClientAppFilter;
-            setApp(next);
-            void loadStats(undefined, next);
-          }}
-        >
-          <Radio value="all">全部应用</Radio>
-          <Radio value="qiaoqiao">敲敲英语</Radio>
-          <Radio value="hamster">仓鼠单词</Radio>
-        </Radio.Group>
+        {lockApp ? null : (
+          <Radio.Group
+            type="button"
+            value={app}
+            onChange={(value) => {
+              const next = value as ClientAppFilter;
+              setApp(next);
+              void loadStats(undefined, next);
+            }}
+          >
+            <Radio value="all">全部应用</Radio>
+            <Radio value="qiaoqiao">敲敲英语</Radio>
+            <Radio value="hamster">仓鼠单词</Radio>
+          </Radio.Group>
+        )}
       </Card>
 
       {error ? <Alert type="error" content={error} /> : null}

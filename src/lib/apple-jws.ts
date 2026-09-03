@@ -1,7 +1,7 @@
 import { X509Certificate } from "node:crypto";
 import { compactVerify, decodeProtectedHeader, importX509 } from "jose";
 
-import { getAppleBundleId } from "@/lib/apple-products";
+import { isAllowedAppleBundleId } from "@/lib/apple-products";
 
 /**
  * Apple Root CA - G3 (ECC), official PEM.
@@ -157,8 +157,7 @@ export async function verifyAppleSignedTransaction(
 ): Promise<AppleSignedTransaction> {
   const claims = await verifyAppleJws(jws);
   const bundleId = asString(claims.bundleId);
-  const expected = getAppleBundleId();
-  if (bundleId !== expected) {
+  if (!isAllowedAppleBundleId(bundleId)) {
     throw new Error("Apple 凭证与当前 App 不匹配");
   }
   const transactionId = asString(claims.transactionId);
@@ -204,6 +203,10 @@ export async function verifyAppleNotification(
 }> {
   const claims = await verifyAppleJws(signedPayload);
   const notification = claims as AppleNotificationPayload;
+  const notifyBundle = notification.data?.bundleId;
+  if (notifyBundle && !isAllowedAppleBundleId(notifyBundle)) {
+    throw new Error("Apple 凭证与当前 App 不匹配");
+  }
   const signedTx = notification.data?.signedTransactionInfo;
   const transaction = signedTx
     ? await verifyAppleSignedTransaction(signedTx, { allowRevoked: true })

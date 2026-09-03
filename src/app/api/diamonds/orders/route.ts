@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { createAppPayOrderString, getAlipayAppId } from "@/lib/alipay";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { clientAppFromRequest, CLIENT_APP_LABELS } from "@/lib/client-app";
 import {
   getDiamondPack,
   isDiamondPackId,
@@ -38,20 +39,22 @@ export async function POST(req: Request) {
     }
 
     const pack = getDiamondPack(body.packId);
+    const clientApp = clientAppFromRequest(req);
     const order = await createPendingDiamondOrder(user.id, body.packId);
     const totalAmount = orderAmountYuan(order);
     const orderString = createAppPayOrderString({
       outTradeNo: order.outTradeNo,
-      subject: `敲敲英语${pack.title}`,
+      subject: `${CLIENT_APP_LABELS[clientApp]}${pack.title}`,
       totalAmount,
       body: `pack=${pack.id}`,
+      clientApp,
     });
 
     return withAuthCors(
       jsonOk({
         outTradeNo: order.outTradeNo,
         orderString,
-        alipayAppId: getAlipayAppId(),
+        alipayAppId: getAlipayAppId(clientApp),
         pack: {
           id: pack.id,
           title: pack.title,

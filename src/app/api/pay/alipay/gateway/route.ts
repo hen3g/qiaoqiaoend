@@ -1,6 +1,6 @@
 import {
   ALIPAY_MSG_DEPOSITBACK_COMPLETED,
-  getAlipayAppId,
+  isKnownAlipayAppId,
   verifyAlipayNotify,
 } from "@/lib/alipay";
 
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     }
 
     const appId = params.app_id;
-    if (appId && appId !== getAlipayAppId()) {
+    if (appId && !isKnownAlipayAppId(appId)) {
       console.error("[alipay/gateway] app_id mismatch", appId);
       return plain("fail");
     }

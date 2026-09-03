@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { createAppPayOrderString, getAlipayAppId } from "@/lib/alipay";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { clientAppFromRequest, CLIENT_APP_LABELS } from "@/lib/client-app";
 import { ipRateLimited } from "@/lib/ip-rate-limit";
 import {
   createPendingVipOrder,
@@ -35,20 +36,22 @@ export async function POST(req: Request) {
     }
 
     const plan = getVipPlan(body.planId);
+    const clientApp = clientAppFromRequest(req);
     const order = await createPendingVipOrder(user.id, body.planId);
     const totalAmount = orderAmountYuan(order);
     const orderString = createAppPayOrderString({
       outTradeNo: order.outTradeNo,
-      subject: `敲敲英语${plan.title}`,
+      subject: `${CLIENT_APP_LABELS[clientApp]}${plan.title}`,
       totalAmount,
       body: `plan=${plan.id}`,
+      clientApp,
     });
 
     return withAuthCors(
       jsonOk({
         outTradeNo: order.outTradeNo,
         orderString,
-        alipayAppId: getAlipayAppId(),
+        alipayAppId: getAlipayAppId(clientApp),
         plan: {
           id: plan.id,
           title: plan.title,

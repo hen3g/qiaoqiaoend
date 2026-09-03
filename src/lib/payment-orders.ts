@@ -5,6 +5,7 @@ import {
   getAlipayAppId,
   isAlipayTradeSuccess,
   queryAlipayTrade,
+  resolveAlipayMerchantByAppId,
   yuanToFen,
 } from "@/lib/alipay";
 import {
@@ -13,6 +14,8 @@ import {
   purchaseDiamondPack,
   type DiamondPackId,
 } from "@/lib/diamond-packs";
+import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
+import { sqlRegisterAppPredicate } from "@/lib/client-app";
 import {
   getVipPlan,
   isAppleSubscriptionPlanId,
@@ -223,6 +226,7 @@ function buildAdminOrderFilters(options: {
   q?: string;
   /** When set, only orders from users bound to this promoter. */
   promoterId?: number;
+  app?: ClientAppFilter;
 }): { whereSql: string; params: Record<string, string | number> } {
   const clauses: string[] = [];
   const params: Record<string, string | number> = {};
@@ -231,6 +235,13 @@ function buildAdminOrderFilters(options: {
     clauses.push("u.promoter_id = :promoterId");
     params.promoterId = options.promoterId;
   }
+
+  const appSql = sqlRegisterAppPredicate(
+    "u.register_app_id",
+    options.app ?? "all",
+    params,
+  );
+  if (appSql) clauses.push(appSql);
 
   if (options.status) {
     clauses.push("o.status = :status");
@@ -273,6 +284,7 @@ async function listPaymentOrdersWithFilters(
     status?: PaymentOrderStatus;
     q?: string;
     promoterId?: number;
+    app?: ClientAppFilter;
   },
   pageOptions?: {
     page?: number;
@@ -290,6 +302,7 @@ async function listPaymentOrdersWithFilters(
     status: filterOptions.status,
     q: filterOptions.q,
     promoterId: filterOptions.promoterId,
+    app: filterOptions.app,
   });
 
   const countRows = await query<(RowDataPacket & { total: number })[]>(
@@ -355,9 +368,10 @@ export async function listAdminPaymentOrders(options?: {
   q?: string;
   page?: number;
   pageSize?: number;
+  app?: ClientAppFilter;
 }): Promise<AdminPaymentOrderListResult> {
   return listPaymentOrdersWithFilters(
-    { status: options?.status, q: options?.q },
+    { status: options?.status, q: options?.q, app: options?.app },
     { page: options?.page, pageSize: options?.pageSize },
   );
 }
@@ -464,12 +478,13 @@ export async function markOrderPaidAndFulfill(input: {
  */
 export async function syncPendingOrderFromAlipay(
   outTradeNo: string,
+  clientApp?: ClientAppId,
 ): Promise<PaymentOrder | null> {
   const order = await getOrderByOutTradeNo(outTradeNo);
   if (!order) return null;
   if (order.status !== "pending") return order;
 
-  const trade = await queryAlipayTrade({ outTradeNo });
+  const trade = await queryAlipayTrade({ outTradeNo, clientApp });
   if (trade.code !== "10000" || !isAlipayTradeSuccess(trade.tradeStatus)) {
     return order;
   }
@@ -478,12 +493,15 @@ export async function syncPendingOrderFromAlipay(
     return order;
   }
 
+  const appId = trade.appId || getAlipayAppId(clientApp);
+  const merchant = resolveAlipayMerchantByAppId(appId);
+
   await markOrderPaidAndFulfill({
     outTradeNo,
     alipayTradeNo: trade.tradeNo,
     totalAmountYuan: trade.totalAmount,
-    appId: trade.appId || getAlipayAppId(),
-    expectedAppId: getAlipayAppId(),
+    appId,
+    expectedAppId: merchant?.appId ?? "",
   });
 
   return getOrderByOutTradeNo(outTradeNo);

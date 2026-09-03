@@ -1,9 +1,11 @@
 import type { RowDataPacket } from "mysql2";
 import { execute, query } from "@/lib/db";
 import {
+  APPLE_HAMSTER_SKU_PREFIX,
   getAppleProduct,
   type AppleBilling,
 } from "@/lib/apple-products";
+import type { ClientAppFilter } from "@/lib/client-app";
 import {
   getDiamondPack,
   isDiamondPackId,
@@ -496,6 +498,7 @@ function buildAppleOrderFilters(options: {
   kind?: AppleTxKind;
   q?: string;
   promoterId?: number;
+  app?: ClientAppFilter;
 }): { whereSql: string; params: Record<string, string | number> } {
   const clauses: string[] = [];
   const params: Record<string, string | number> = {};
@@ -503,6 +506,14 @@ function buildAppleOrderFilters(options: {
   if (options.promoterId != null) {
     clauses.push("u.promoter_id = :promoterId");
     params.promoterId = options.promoterId;
+  }
+
+  if (options.app === "hamster") {
+    clauses.push("t.product_id LIKE :appleSkuPrefix");
+    params.appleSkuPrefix = `${APPLE_HAMSTER_SKU_PREFIX}%`;
+  } else if (options.app === "qiaoqiao") {
+    clauses.push("t.product_id NOT LIKE :appleSkuPrefix");
+    params.appleSkuPrefix = `${APPLE_HAMSTER_SKU_PREFIX}%`;
   }
 
   if (options.status === "paid") {
@@ -555,6 +566,7 @@ async function listAppleOrdersWithFilters(
     kind?: AppleTxKind;
     q?: string;
     promoterId?: number;
+    app?: ClientAppFilter;
   },
   pageOptions?: {
     page?: number;
@@ -673,9 +685,15 @@ export async function listAdminAppleOrders(options?: {
   q?: string;
   page?: number;
   pageSize?: number;
+  app?: ClientAppFilter;
 }): Promise<AdminAppleOrderListResult> {
   return listAppleOrdersWithFilters(
-    { status: options?.status, kind: options?.kind, q: options?.q },
+    {
+      status: options?.status,
+      kind: options?.kind,
+      q: options?.q,
+      app: options?.app,
+    },
     { page: options?.page, pageSize: options?.pageSize },
   );
 }

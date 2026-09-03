@@ -35,8 +35,44 @@ import {
   getAdminHomePath,
   getMenuForUser,
   matchAdminMenuKey,
+  type AdminMenuItem,
 } from "@/components/admin/menu";
 import type { SessionUser } from "@/lib/auth";
+
+function renderAdminMenuItems(menu: AdminMenuItem[]) {
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  while (i < menu.length) {
+    const group = menu[i]!.group;
+    if (!group) {
+      const item = menu[i]!;
+      nodes.push(
+        <Menu.Item key={item.key}>
+          {MENU_ICONS[item.key]}
+          {item.label}
+        </Menu.Item>,
+      );
+      i += 1;
+      continue;
+    }
+    const grouped: AdminMenuItem[] = [];
+    while (i < menu.length && menu[i]!.group === group) {
+      grouped.push(menu[i]!);
+      i += 1;
+    }
+    nodes.push(
+      <Menu.ItemGroup key={`group-${group}`} title={group}>
+        {grouped.map((item) => (
+          <Menu.Item key={item.key}>
+            {MENU_ICONS[item.key]}
+            {item.label}
+          </Menu.Item>
+        ))}
+      </Menu.ItemGroup>,
+    );
+  }
+  return nodes;
+}
 
 const { Header, Sider, Content } = Layout;
 
@@ -55,6 +91,9 @@ const MENU_ICONS: Record<string, React.ReactNode> = {
   "notification-stats": <IconDashboard />,
   "ai-model": <IconSettings />,
   stats: <IconCalendar />,
+  "hamster-users": <IconUser />,
+  "hamster-orders": <IconFile />,
+  "hamster-stats": <IconCalendar />,
 };
 
 function AdminChrome({
@@ -74,6 +113,7 @@ function AdminChrome({
     () => matchAdminMenuKey(pathname || "/admin", menu),
     [pathname, menu],
   );
+  const isHamsterArea = (pathname || "").startsWith("/admin/hamster");
   const allowed = canAccessAdminPath(user, pathname || "/admin");
 
   useEffect(() => {
@@ -111,7 +151,13 @@ function AdminChrome({
             overflow: "hidden",
           }}
         >
-          {collapsed ? "敲" : "敲敲英语后台"}
+          {collapsed
+            ? isHamsterArea
+              ? "仓"
+              : "敲"
+            : isHamsterArea
+              ? "仓鼠单词后台"
+              : "敲敲英语后台"}
         </div>
         <Menu
           selectedKeys={[selectedKey]}
@@ -121,12 +167,7 @@ function AdminChrome({
             if (item) router.push(item.path);
           }}
         >
-          {menu.map((item) => (
-            <Menu.Item key={item.key}>
-              {MENU_ICONS[item.key]}
-              {item.label}
-            </Menu.Item>
-          ))}
+          {renderAdminMenuItems(menu)}
         </Menu>
       </Sider>
       <Layout>

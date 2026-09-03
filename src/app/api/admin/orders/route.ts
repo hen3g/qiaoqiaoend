@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
+import { parseClientAppFilter } from "@/lib/client-app";
 import { requireAdmin } from "@/lib/dev-admin";
 import {
   listAdminPaymentOrders,
@@ -15,6 +16,7 @@ const querySchema = z.object({
   q: z.string().trim().max(64).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  app: z.enum(["all", "qiaoqiao", "hamster"]).optional(),
 });
 
 function adminError(err: unknown) {
@@ -34,16 +36,19 @@ export async function GET(request: Request) {
       q: url.searchParams.get("q") || undefined,
       page: url.searchParams.get("page") || undefined,
       pageSize: url.searchParams.get("pageSize") || undefined,
+      app: url.searchParams.get("app") || undefined,
     });
     if (!parsed.success) {
       return jsonError("参数错误", 400);
     }
 
+    const app = parseClientAppFilter(parsed.data.app);
     const result = await listAdminPaymentOrders({
       status: parsed.data.status as PaymentOrderStatus | undefined,
       q: parsed.data.q,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
+      app,
     });
 
     return jsonOk({

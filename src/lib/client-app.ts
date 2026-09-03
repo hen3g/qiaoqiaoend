@@ -51,3 +51,22 @@ export function clientAppTagColor(appId: string | null | undefined): string {
   if (appId === "all") return "gray";
   return "arcoblue";
 }
+
+/**
+ * SQL predicate on users.register_app_id.
+ * null / empty is treated as 敲敲英语 (qiaoqiao).
+ */
+export function sqlRegisterAppPredicate(
+  column: string,
+  app: ClientAppFilter,
+  params: Record<string, string | number>,
+  paramKey = "registerAppId",
+): string | null {
+  if (app === "all") return null;
+  if (app === "hamster") {
+    params[paramKey] = "hamster";
+    return `${column} = :${paramKey}`;
+  }
+  params[paramKey] = "qiaoqiao";
+  return `(${column} IS NULL OR ${column} = '' OR ${column} = :${paramKey})`;
+}

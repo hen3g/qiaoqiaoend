@@ -1,6 +1,6 @@
 import {
-  getAlipayAppId,
   isAlipayTradeSuccess,
+  resolveAlipayMerchantByAppId,
   verifyAlipayNotify,
 } from "@/lib/alipay";
 import { markOrderPaidAndFulfill } from "@/lib/payment-orders";
@@ -68,12 +68,21 @@ export async function POST(req: Request) {
       });
     }
 
+    const merchant = resolveAlipayMerchantByAppId(appId);
+    if (!merchant) {
+      console.error("[alipay/notify] unknown app_id", appId);
+      return new Response("failure", {
+        status: 200,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+
     await markOrderPaidAndFulfill({
       outTradeNo,
       alipayTradeNo: tradeNo,
       totalAmountYuan: totalAmount,
       appId,
-      expectedAppId: getAlipayAppId(),
+      expectedAppId: merchant.appId,
     });
 
     return new Response("success", {

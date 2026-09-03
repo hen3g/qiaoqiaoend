@@ -1,6 +1,10 @@
 /** App Store Connect product IDs. Must match the iOS client. */
 
 export const APPLE_BUNDLE_ID = "com.yancitech.qiaoqiaoenglish";
+export const APPLE_HAMSTER_BUNDLE_ID = "com.yancitech.cangshuword";
+
+export const APPLE_QIAOQIAO_SKU_PREFIX = "com.yancitech.qiaoqiaoenglish.";
+export const APPLE_HAMSTER_SKU_PREFIX = "com.yancitech.cangshuword.";
 
 export type AppleProductKind = "vip" | "diamonds";
 export type AppleBilling = "consumable" | "auto-renewable";
@@ -76,6 +80,31 @@ export const APPLE_PRODUCTS: Record<string, AppleProduct> = {
     grantId: "pack28",
     billing: "consumable",
   },
+  /** 仓鼠单词 VIP: consumable stacks days; month6 is auto-renew (31-day month, not 6 months). */
+  "com.yancitech.cangshuword.vip.month": {
+    sku: "com.yancitech.cangshuword.vip.month",
+    kind: "vip",
+    grantId: "month",
+    billing: "consumable",
+  },
+  "com.yancitech.cangshuword.vip.quarter": {
+    sku: "com.yancitech.cangshuword.vip.quarter",
+    kind: "vip",
+    grantId: "quarter18",
+    billing: "consumable",
+  },
+  "com.yancitech.cangshuword.vip.year": {
+    sku: "com.yancitech.cangshuword.vip.year",
+    kind: "vip",
+    grantId: "year38",
+    billing: "consumable",
+  },
+  "com.yancitech.cangshuword.vip.month6": {
+    sku: "com.yancitech.cangshuword.vip.month6",
+    kind: "vip",
+    grantId: "month6",
+    billing: "auto-renewable",
+  },
 };
 
 export function isAppleConsumableProduct(product: AppleProduct): boolean {
@@ -111,4 +140,16 @@ export function getAppleProduct(productId: string): AppleProduct | null {
 
 export function getAppleBundleId(): string {
   return process.env.APPLE_BUNDLE_ID?.trim() || APPLE_BUNDLE_ID;
+}
+
+/** Bundles accepted by StoreKit verify / Server Notifications. */
+export function getAllowedAppleBundleIds(): string[] {
+  const ids = new Set<string>([APPLE_BUNDLE_ID, APPLE_HAMSTER_BUNDLE_ID]);
+  const extra = process.env.APPLE_BUNDLE_ID?.trim();
+  if (extra) ids.add(extra);
+  return [...ids];
+}
+
+export function isAllowedAppleBundleId(bundleId: string): boolean {
+  return getAllowedAppleBundleIds().includes(bundleId);
 }

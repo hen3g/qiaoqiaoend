@@ -2,8 +2,13 @@ import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { mapUser, type SessionUser } from "@/lib/auth";
-import type { ClientAppId } from "@/lib/client-app";
-import { DEFAULT_CLIENT_APP, isClientAppId } from "@/lib/client-app";
+import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
+import {
+  DEFAULT_CLIENT_APP,
+  isClientAppId,
+  parseClientAppFilter,
+  sqlRegisterAppPredicate,
+} from "@/lib/client-app";
 import { requireAdmin } from "@/lib/dev-admin";
 import { query } from "@/lib/db";
 import { ensureNotificationStatsTables } from "@/lib/notification-stats";
@@ -89,12 +94,15 @@ function toClientUsage(hasClient: boolean, hasWeb: boolean): ClientUsage {
   return "none";
 }
 
-async function listUsers(): Promise<AdminUserDto[]> {
+async function listUsers(app: ClientAppFilter): Promise<AdminUserDto[]> {
   await ensureNotificationStatsTables();
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
   await ensureUserAppColumns();
+  const params: Record<string, string> = {};
+  const appSql = sqlRegisterAppPredicate("u.register_app_id", app, params);
+  const whereSql = appSql ? `WHERE ${appSql}` : "";
   const rows = await query<UserRow[]>(
     `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.diamonds,
             u.share_custom_courses, u.is_promoter, u.promoter_id,
@@ -116,7 +124,9 @@ async function listUsers(): Promise<AdminUserDto[]> {
        FROM notification_api_daily_users
        GROUP BY user_id
      ) n ON n.user_id = u.id
+     ${whereSql}
      ORDER BY u.id ASC`,
+    params,
   );
   return rows.map((row) => {
     const hasClient = Boolean(row.has_client);
@@ -142,11 +152,13 @@ async function listUsers(): Promise<AdminUserDto[]> {
   });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await requireAdmin();
-    const users = await listUsers();
-    return jsonOk({ users, total: users.length });
+    const url = new URL(req.url);
+    const app = parseClientAppFilter(url.searchParams.get("app"));
+    const users = await listUsers(app);
+    return jsonOk({ users, total: users.length, app });
   } catch (err) {
     const mapped = adminError(err);
     if (mapped) return mapped;

@@ -8,6 +8,8 @@ export type AdminMenuItem = {
   path: string;
   label: string;
   roles: AdminMenuRole[];
+  /** Sidebar group title, e.g. 仓鼠单词. */
+  group?: string;
 };
 
 export const ADMIN_MENU: AdminMenuItem[] = [
@@ -95,6 +97,27 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     label: "日活统计",
     roles: ["admin"],
   },
+  {
+    key: "hamster-users",
+    path: "/admin/hamster/users",
+    label: "用户",
+    roles: ["admin"],
+    group: "仓鼠单词",
+  },
+  {
+    key: "hamster-orders",
+    path: "/admin/hamster/orders",
+    label: "支付订单",
+    roles: ["admin"],
+    group: "仓鼠单词",
+  },
+  {
+    key: "hamster-stats",
+    path: "/admin/hamster/stats",
+    label: "数据统计",
+    roles: ["admin"],
+    group: "仓鼠单词",
+  },
 ];
 
 export function canAccessAdminShell(user: SessionUser): boolean {
@@ -134,6 +157,9 @@ export function canAccessAdminPath(
   pathname: string,
 ): boolean {
   if (pathname === "/admin" || pathname === "/admin/") return true;
+  if (pathname === "/admin/hamster" || pathname === "/admin/hamster/") {
+    return isAdminUsername(user.username);
+  }
   const menu = getMenuForUser(user);
   return menu.some(
     (item) => pathname === item.path || pathname.startsWith(`${item.path}/`),

@@ -1,6 +1,13 @@
 import { createPublicKey, createSign, createVerify } from "node:crypto";
+import {
+  DEFAULT_CLIENT_APP,
+  type ClientAppId,
+} from "@/lib/client-app";
 
 const DEFAULT_GATEWAY = "https://openapi.alipay.com/gateway.do";
+
+/** 仓鼠单词开放平台 APPID（公开，非密钥）。 */
+export const ALIPAY_HAMSTER_APP_ID_DEFAULT = "2021006197643085";
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -8,6 +15,11 @@ function requireEnv(name: string): string {
     throw new Error(`未配置 ${name}`);
   }
   return value;
+}
+
+function readEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value || undefined;
 }
 
 /** Normalize PEM: accept raw base64 or full PEM block. */
@@ -29,24 +41,93 @@ function toPem(key: string, kind: "private" | "public"): string {
   return `-----BEGIN ${label}-----\n${lines.join("\n")}\n-----END ${label}-----`;
 }
 
-function getAppId(): string {
-  return requireEnv("ALIPAY_APP_ID");
-}
-
-function getPrivateKeyPem(): string {
-  return toPem(requireEnv("ALIPAY_PRIVATE_KEY"), "private");
-}
-
-function getAlipayPublicKeyPem(): string {
-  const pem = toPem(requireEnv("ALIPAY_PUBLIC_KEY"), "public");
+function validatedPublicKeyPem(raw: string, envName: string): string {
+  const pem = toPem(raw, "public");
   try {
     createPublicKey(pem);
   } catch {
     throw new Error(
-      "ALIPAY_PUBLIC_KEY 无效：请粘贴开放平台「支付宝公钥」（非应用公钥），且不要重复粘贴",
+      `${envName} 无效：请粘贴开放平台「支付宝公钥」（非应用公钥），且不要重复粘贴`,
     );
   }
   return pem;
+}
+
+export type AlipayMerchant = {
+  clientApp: ClientAppId;
+  appId: string;
+  privateKeyPem: string;
+  publicKeyPem: string;
+};
+
+function getQiaoqiaoAppId(): string {
+  return requireEnv("ALIPAY_APP_ID");
+}
+
+function getHamsterAppId(): string {
+  return readEnv("ALIPAY_HAMSTER_APP_ID") || ALIPAY_HAMSTER_APP_ID_DEFAULT;
+}
+
+function getQiaoqiaoMerchant(): AlipayMerchant {
+  return {
+    clientApp: "qiaoqiao",
+    appId: getQiaoqiaoAppId(),
+    privateKeyPem: toPem(requireEnv("ALIPAY_PRIVATE_KEY"), "private"),
+    publicKeyPem: validatedPublicKeyPem(
+      requireEnv("ALIPAY_PUBLIC_KEY"),
+      "ALIPAY_PUBLIC_KEY",
+    ),
+  };
+}
+
+function getHamsterMerchant(): AlipayMerchant {
+  return {
+    clientApp: "hamster",
+    appId: getHamsterAppId(),
+    privateKeyPem: toPem(requireEnv("ALIPAY_HAMSTER_PRIVATE_KEY"), "private"),
+    publicKeyPem: validatedPublicKeyPem(
+      requireEnv("ALIPAY_HAMSTER_PUBLIC_KEY"),
+      "ALIPAY_HAMSTER_PUBLIC_KEY",
+    ),
+  };
+}
+
+export function getAlipayMerchant(
+  clientApp: ClientAppId = DEFAULT_CLIENT_APP,
+): AlipayMerchant {
+  return clientApp === "hamster" ? getHamsterMerchant() : getQiaoqiaoMerchant();
+}
+
+function tryGetAlipayMerchant(clientApp: ClientAppId): AlipayMerchant | null {
+  try {
+    return getAlipayMerchant(clientApp);
+  } catch {
+    return null;
+  }
+}
+
+export function isKnownAlipayAppId(appId: string): boolean {
+  const qiaoId = readEnv("ALIPAY_APP_ID");
+  if (qiaoId && appId === qiaoId) return true;
+  return appId === getHamsterAppId();
+}
+
+/**
+ * Resolve merchant credentials from a notify / query `app_id`.
+ * Returns null if the id is unknown or that merchant's keys are missing.
+ */
+export function resolveAlipayMerchantByAppId(
+  appId: string | undefined,
+): AlipayMerchant | null {
+  if (!appId) return null;
+  const qiaoId = readEnv("ALIPAY_APP_ID");
+  if (qiaoId && appId === qiaoId) {
+    return tryGetAlipayMerchant("qiaoqiao");
+  }
+  if (appId === getHamsterAppId()) {
+    return tryGetAlipayMerchant("hamster");
+  }
+  return null;
 }
 
 function getNotifyUrl(): string {
@@ -58,8 +139,13 @@ function getAppGatewayUrl(): string {
   return requireEnv("ALIPAY_APP_GATEWAY_URL");
 }
 
-export function getAlipayAppId(): string {
-  return getAppId();
+export function getAlipayAppId(
+  clientApp: ClientAppId = DEFAULT_CLIENT_APP,
+): string {
+  if (clientApp === "hamster") {
+    return getHamsterAppId();
+  }
+  return getQiaoqiaoAppId();
 }
 
 /** APP 支付异步通知地址（接口 notify_url）。 */
@@ -107,7 +193,10 @@ export function buildSignContent(
     .join("&");
 }
 
-export function signRsa2(content: string, privateKeyPem = getPrivateKeyPem()): string {
+export function signRsa2(
+  content: string,
+  privateKeyPem = getQiaoqiaoMerchant().privateKeyPem,
+): string {
   const signer = createSign("RSA-SHA256");
   signer.update(content, "utf8");
   signer.end();
@@ -117,20 +206,21 @@ export function signRsa2(content: string, privateKeyPem = getPrivateKeyPem()): s
 export function verifyRsa2(
   content: string,
   signature: string,
-  publicKeyPem = getAlipayPublicKeyPem(),
+  publicKeyPem?: string,
 ): boolean {
+  const pem = publicKeyPem ?? tryGetAlipayMerchant("qiaoqiao")?.publicKeyPem;
+  if (!pem) return false;
   try {
     const verifier = createVerify("RSA-SHA256");
     verifier.update(content, "utf8");
     verifier.end();
-    return verifier.verify(publicKeyPem, signature, "base64");
+    return verifier.verify(pem, signature, "base64");
   } catch {
     return false;
   }
 }
 
 function formatTimestamp(date = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
   // Alipay expects Asia/Shanghai wall time
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Shanghai",
@@ -153,6 +243,7 @@ export type AppPayOrderInput = {
   /** Amount in yuan, e.g. 8.00 */
   totalAmount: string;
   body?: string;
+  clientApp?: ClientAppId;
 };
 
 /**
@@ -160,6 +251,7 @@ export type AppPayOrderInput = {
  * Client passes this string to the native pay() API.
  */
 export function createAppPayOrderString(input: AppPayOrderInput): string {
+  const merchant = getAlipayMerchant(input.clientApp ?? DEFAULT_CLIENT_APP);
   const bizContent = JSON.stringify({
     out_trade_no: input.outTradeNo,
     total_amount: input.totalAmount,
@@ -169,7 +261,7 @@ export function createAppPayOrderString(input: AppPayOrderInput): string {
   });
 
   const params: Record<string, string> = {
-    app_id: getAppId(),
+    app_id: merchant.appId,
     method: "alipay.trade.app.pay",
     charset: "utf-8",
     sign_type: "RSA2",
@@ -180,7 +272,7 @@ export function createAppPayOrderString(input: AppPayOrderInput): string {
   };
 
   const content = buildSignContent(params);
-  const sign = signRsa2(content);
+  const sign = signRsa2(content, merchant.privateKeyPem);
 
   const encoded = Object.keys(params)
     .sort()
@@ -200,8 +292,10 @@ export function verifyAlipayNotify(
 ): boolean {
   const sign = params.sign;
   if (!sign) return false;
+  const merchant = resolveAlipayMerchantByAppId(params.app_id);
+  if (!merchant) return false;
   const content = buildSignContent(params, { excludeSignType: true });
-  return verifyRsa2(content, sign);
+  return verifyRsa2(content, sign, merchant.publicKeyPem);
 }
 
 export function isAlipayTradeSuccess(tradeStatus: string | undefined): boolean {
@@ -229,19 +323,16 @@ export type AlipayTradeQueryResult = {
   appId?: string;
 };
 
-/**
- * Server-side trade query (`alipay.trade.query`).
- * Used as a fallback when async notify is delayed / missed.
- */
-export async function queryAlipayTrade(input: {
-  outTradeNo: string;
-}): Promise<AlipayTradeQueryResult> {
+async function queryAlipayTradeWithMerchant(
+  outTradeNo: string,
+  merchant: AlipayMerchant,
+): Promise<AlipayTradeQueryResult> {
   const bizContent = JSON.stringify({
-    out_trade_no: input.outTradeNo,
+    out_trade_no: outTradeNo,
   });
 
   const params: Record<string, string> = {
-    app_id: getAppId(),
+    app_id: merchant.appId,
     method: "alipay.trade.query",
     charset: "utf-8",
     sign_type: "RSA2",
@@ -251,7 +342,7 @@ export async function queryAlipayTrade(input: {
   };
 
   const content = buildSignContent(params);
-  params.sign = signRsa2(content);
+  params.sign = signRsa2(content, merchant.privateKeyPem);
 
   const body = new URLSearchParams(params);
   const res = await fetch(getAlipayGateway(), {
@@ -287,6 +378,35 @@ export async function queryAlipayTrade(input: {
       data.trade_status != null ? String(data.trade_status) : undefined,
     totalAmount:
       data.total_amount != null ? String(data.total_amount) : undefined,
-    appId: data.app_id != null ? String(data.app_id) : getAppId(),
+    appId: data.app_id != null ? String(data.app_id) : merchant.appId,
   };
+}
+
+/**
+ * Server-side trade query (`alipay.trade.query`).
+ * Used as a fallback when async notify is delayed / missed.
+ * Tries `clientApp` first, then the other merchant if configured.
+ */
+export async function queryAlipayTrade(input: {
+  outTradeNo: string;
+  clientApp?: ClientAppId;
+}): Promise<AlipayTradeQueryResult> {
+  const preferred = input.clientApp ?? DEFAULT_CLIENT_APP;
+  const other: ClientAppId = preferred === "hamster" ? "qiaoqiao" : "hamster";
+
+  let last: AlipayTradeQueryResult | null = null;
+  let lastErr: unknown;
+  for (const clientApp of [preferred, other] as const) {
+    const merchant = tryGetAlipayMerchant(clientApp);
+    if (!merchant) continue;
+    try {
+      last = await queryAlipayTradeWithMerchant(input.outTradeNo, merchant);
+      if (last.code === "10000") return last;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (last) return last;
+  if (lastErr) throw lastErr;
+  throw new Error("未配置支付宝");
 }

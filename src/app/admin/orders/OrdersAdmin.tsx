@@ -16,6 +16,7 @@ import {
 } from "@arco-design/web-react";
 import type { ColumnProps } from "@arco-design/web-react/es/Table";
 import type { PaginationProps } from "@arco-design/web-react/es/Pagination/interface";
+import type { ClientAppFilter } from "@/lib/client-app";
 
 const { Row, Col } = Grid;
 
@@ -128,7 +129,11 @@ function userCell(o: {
   );
 }
 
-export function OrdersAdmin() {
+export function OrdersAdmin({
+  app = "qiaoqiao",
+}: {
+  app?: ClientAppFilter;
+}) {
   const [channel, setChannel] = useState<PayChannel>("alipay");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [appleOrders, setAppleOrders] = useState<AdminAppleOrder[]>([]);
@@ -165,6 +170,7 @@ export function OrdersAdmin() {
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
       if (queryText.trim()) params.set("q", queryText.trim());
+      params.set("app", app);
 
       if (channel === "apple") {
         if (appleStatusFilter !== "all") params.set("status", appleStatusFilter);
@@ -215,6 +221,7 @@ export function OrdersAdmin() {
       setLoading(false);
     }
   }, [
+    app,
     channel,
     page,
     pageSize,

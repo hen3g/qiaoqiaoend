@@ -15,8 +15,12 @@ import {
 import type { ColumnProps } from "@arco-design/web-react/es/Table";
 import { useRouter } from "next/navigation";
 import type { SessionUser } from "@/lib/auth";
-import type { ClientAppId } from "@/lib/client-app";
-import { clientAppLabel, clientAppTagColor } from "@/lib/client-app";
+import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
+import {
+  CLIENT_APP_FILTER_LABELS,
+  clientAppLabel,
+  clientAppTagColor,
+} from "@/lib/client-app";
 
 type ClientUsage = "none" | "client" | "web" | "both";
 
@@ -59,18 +63,25 @@ function usageLabel(u: AdminUser): ClientUsage {
         : "none";
 }
 
-export function UsersAdmin() {
+export function UsersAdmin({
+  app = "qiaoqiao",
+}: {
+  app?: ClientAppFilter;
+}) {
   const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [error, setError] = useState("");
   const [queryText, setQueryText] = useState("");
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const appLabel = CLIENT_APP_FILTER_LABELS[app];
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/users");
+      const params = new URLSearchParams();
+      params.set("app", app);
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setError(data.error || "加载失败");
@@ -81,7 +92,7 @@ export function UsersAdmin() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [app]);
 
   useEffect(() => {
     void loadUsers();
@@ -264,9 +275,9 @@ export function UsersAdmin() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
-      <Card title="用户后台">
+      <Card title={app === "hamster" ? "用户" : "用户后台"}>
         <Typography.Paragraph type="secondary">
-          共 {users.length} 人，会员 {vipCount} 人，推广者 {promoterCount}{" "}
+          {appLabel}：共 {users.length} 人，会员 {vipCount} 人，推广者 {promoterCount}{" "}
           人；客户端 {usageCounts.clientOnly} 人，在线版 {usageCounts.webOnly}{" "}
           人，都使用了 {usageCounts.both} 人。
         </Typography.Paragraph>

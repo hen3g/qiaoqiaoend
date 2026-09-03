@@ -1,6 +1,7 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser, mapUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
+import { clientAppFromRequest } from "@/lib/client-app";
 import { query } from "@/lib/db";
 import {
   getDiamondPack,
@@ -43,7 +44,11 @@ export async function GET(req: Request, ctx: Ctx) {
 
     if (order.status === "pending") {
       try {
-        order = (await syncPendingOrderFromAlipay(outTradeNo)) ?? order;
+        order =
+          (await syncPendingOrderFromAlipay(
+            outTradeNo,
+            clientAppFromRequest(req),
+          )) ?? order;
       } catch (err) {
         console.error(
           "[diamonds/orders/:id] alipay query sync failed",
