@@ -275,20 +275,38 @@ describe("validateDictionaryEntry candy fixture", () => {
     assert.equal(usa.word, "USA");
   });
 
-  it("rejects drag and wrong question count", () => {
+  it("keeps valid questions and drops bad ones instead of failing all", () => {
+    const five = validateDictionaryEntry({
+      ...candy,
+      questions: candy.questions.slice(0, 5),
+    });
+    assert.equal(five.questions.length, 5);
+
+    const withDrag = validateDictionaryEntry({
+      ...candy,
+      questions: [
+        ...candy.questions.slice(0, 5),
+        { ...candy.questions[5], type: "drag", id: "candy-trans" },
+      ],
+    });
+    assert.equal(withDrag.questions.length, 5);
+    assert.ok(withDrag.questions.every((q) => q.type !== "drag"));
+
+    const badListening = {
+      ...candy.questions[1],
+      options: ["candy", "only-two"],
+    };
+    const filtered = validateDictionaryEntry({
+      ...candy,
+      questions: [candy.questions[0], badListening, ...candy.questions.slice(2)],
+    });
+    assert.equal(filtered.questions.length, 5);
+    assert.ok(filtered.questions.every((q) => q.type !== "listening"));
+
     assert.throws(() =>
       validateDictionaryEntry({
         ...candy,
-        questions: candy.questions.slice(0, 5),
-      }),
-    );
-    assert.throws(() =>
-      validateDictionaryEntry({
-        ...candy,
-        questions: [
-          ...candy.questions.slice(0, 5),
-          { ...candy.questions[5], type: "drag", id: "candy-trans" },
-        ],
+        questions: [{ ...candy.questions[1], options: ["x"] }],
       }),
     );
   });
