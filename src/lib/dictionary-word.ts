@@ -129,7 +129,7 @@ zh_to_en → listening → choice → sentence_cloze → en_to_zh_choice → sen
 2. listening：prompt 固定「听发音，选择正确的拼写」。audioText 和 answer 都是目标词/短语。options 恰好 8 个（1 答案 + 7 形近干扰）。只有本题用形近干扰。
 3. choice：prompt 必须是「选择“中文词义”对应的英文」。options 恰好 8 个英文项，禁止汉字。
 4. sentence_cloze：prompt 把目标换成一个 ___ 。整个短语一个 ___。answer 是原形。options 8 个英文。干扰项必须语义干扰禁止形近堆砌，禁止近义词，禁止超纲。translation 纯中文无 ___。
-5. en_to_zh_choice：prompt 含目标词的英文整句。targetForm 是 prompt 子串。answer 是句中中文词义。options 8 个中文词义，语义干扰禁止近义堆砌。
+5. en_to_zh_choice：prompt 含目标词的英文整句。targetForm 是 prompt 子串。answer 是句中中文词义（不是整句）。options 8 个中文词义，语义干扰禁止近义堆砌。translation 是 prompt 整句的纯中文翻译，必须是完整句子，不能只写词义。
 6. sentence_translation：prompt 英文整句。targetForm 子串。audioText 与 prompt 完全相同。answer 完整中文。options 8 个完整中文句子，必须是明显错译不是近义改写。
 
 ## 通用规则
@@ -176,7 +176,7 @@ function fold(s: string): string {
 }
 
 function clozeFilled(prompt: string, answer: string): string {
-  return prompt.replace(/_{3,}/g, answer).replace(/\s+/g, " ").trim();
+  return prompt.replace(/_{2,}/g, answer).replace(/\s+/g, " ").trim();
 }
 
 function validateOptions(
@@ -509,6 +509,17 @@ export function collectDictionarySpeakableTexts(
   add(entry.example);
   for (const question of entry.questions) {
     add(question.audioText);
+    // App2 句中选义 / 听句选译：朗读 prompt 英文句（未必带 audioText）
+    if (
+      question.type === "en_to_zh_choice" ||
+      question.type === "sentence_translation"
+    ) {
+      add(question.prompt);
+    }
+    // App2 句中填空：朗读填入答案后的完整句
+    if (question.type === "sentence_cloze") {
+      add(clozeFilled(question.prompt, question.answer));
+    }
   }
   return texts;
 }

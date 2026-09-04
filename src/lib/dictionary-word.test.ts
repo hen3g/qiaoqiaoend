@@ -82,6 +82,7 @@ const candy = {
       prompt: "He put a candy in his mouth and smiled.",
       targetForm: "candy",
       answer: "糖果",
+      translation: "他把一颗糖放进嘴里，笑了。",
       options: [
         "糖果",
         "饼干",
@@ -207,6 +208,19 @@ describe("lowercase app2 audio filename", () => {
         "The store sells different kinds of candy.",
       ),
       true,
+    );
+    const speakable = collectDictionarySpeakableTexts(candy as never);
+    assert.equal(
+      speakable.includes("He put a candy in his mouth and smiled."),
+      true,
+      "en_to_zh_choice prompt must be spoken",
+    );
+    assert.equal(
+      speakable.includes(
+        "The children each got a piece of candy after dinner.",
+      ),
+      true,
+      "sentence_cloze filled sentence must be spoken",
     );
   });
 
