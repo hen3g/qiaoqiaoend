@@ -74,8 +74,9 @@ export function expectedQuestionIds(word: string): string[] {
   return QUESTION_ID_SUFFIXES.map((suffix) => `${prefix}-${suffix}`);
 }
 
+/** 仅整理空白；词典形大小写由 AI 的 word 字段决定。 */
 export function normalizeDictionaryWord(raw: unknown): string {
-  return String(raw ?? "").trim();
+  return String(raw ?? "").trim().replace(/\s+/g, " ");
 }
 
 export function dictionarySourceFromInput(input: {
@@ -101,7 +102,7 @@ export const SYSTEM_GENERATE_DICTIONARY_WORD = `你是专业英语测评设计�
 
 ## 顶层结构（单词对象，不是套卷）
 {
-  "word": "必须与用户给定拼写、空格、大小写、标点完全一致",
+  "word": "词典形：字母与用户一致（color≠colour），但大小写按英语词典习惯",
   "phonetic": "/IPA/",
   "meaning": "中文释义；必须覆盖本题所有用到的义项，多义用中文分号「；」分隔",
   "partOfSpeech": "词性简写，如 n. / v. / adj. / adv. / prep. / phr.",
@@ -133,7 +134,9 @@ zh_to_en → listening → choice → sentence_cloze → en_to_zh_choice → sen
 6. sentence_translation：prompt 英文整句。targetForm 子串。audioText 与 prompt 完全相同。answer 完整中文。options 8 个完整中文句子，必须是明显错译不是近义改写。
 
 ## 通用规则
-- 不得改写用户给定拼写（color ≠ colour）。
+- 字母拼写不得英美混改（color ≠ colour）；与用户比对时大小写不敏感，但 word 字段的大小写由你按词典习惯决定，服务端会原样采用。
+- word 必须是词典形大小写：普通词小写（apple）；专有名词/商标规范大小写（London、iPhone）；常见缩写全大写（USA）。禁止把用户乱打的 APPLE/Apple/aPpLe 原样写进 word。
+- 例句与题干中的目标词按英语习惯书写：句中普通词小写，仅句首或专有名词大写。zh_to_en/listening/choice/cloze 的 answer 必须与 word 字段大小写完全一致。targetForm 必须是 prompt 里实际出现的那一段（大小写与句中一致）。
 - 中文纯中文。音标用斜杠。
 - 带 options 的题恰好 8 项，trim+小写去重后仍 8，answer 出现恰好 1 次。
 - 义项必须写入 meaning。
@@ -173,6 +176,27 @@ function hasLatin(s: string): boolean {
 
 function fold(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** 在英文句中找到与 lemma 大小写不敏感匹配的实际片段（用于 targetForm）。 */
+function matchLemmaSpan(sentence: string, lemma: string): string | null {
+  const needle = fold(lemma);
+  if (!needle || !sentence) return null;
+  const hay = sentence;
+  const hayFold = fold(hay);
+  const at = hayFold.indexOf(needle);
+  if (at < 0) return null;
+  // fold 只做 lower+空白折叠；无空白变化时下标与原文一致
+  if (hay.length === hayFold.length) {
+    return hay.slice(at, at + needle.length);
+  }
+  // 空白被折叠时，用正则抓原文
+  const pattern = needle
+    .split(/\s+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("\\s+");
+  const match = hay.match(new RegExp(pattern, "i"));
+  return match?.[0] ?? null;
 }
 
 function clozeFilled(prompt: string, answer: string): string {
@@ -318,7 +342,8 @@ export function validateDictionaryEntry(
     .map((item, i) => parseQuestion(item, i, issues))
     .filter((item): item is DictionaryQuestion => Boolean(item));
 
-  const canonicalWord = opts.expectedWord || word;
+  // 大小写以 AI 返回的 word 为准；expectedWord 只做拼写（fold）对齐
+  const canonicalWord = word;
   const expectedIds = canonicalWord ? expectedQuestionIds(canonicalWord) : [];
 
   for (let i = 0; i < Math.min(questions.length, 6); i++) {
@@ -391,8 +416,11 @@ export function validateDictionaryEntry(
     if (!hasLatin(enToZh.prompt)) {
       issues.push("en_to_zh_choice 的 prompt 必须是英文整句");
     }
-    if (!enToZh.targetForm || !enToZh.prompt.includes(enToZh.targetForm)) {
+    const en2zhForm = matchLemmaSpan(enToZh.prompt, enToZh.targetForm || canonicalWord);
+    if (!en2zhForm) {
       issues.push("en_to_zh_choice 的 targetForm 必须是 prompt 子串");
+    } else {
+      enToZh.targetForm = en2zhForm;
     }
     if (!hasHan(enToZh.answer)) {
       issues.push("en_to_zh_choice 的 answer 必须是中文词义");
@@ -404,8 +432,11 @@ export function validateDictionaryEntry(
     if (!hasLatin(trans.prompt)) {
       issues.push("sentence_translation 的 prompt 必须是英文整句");
     }
-    if (!trans.targetForm || !trans.prompt.includes(trans.targetForm)) {
+    const transForm = matchLemmaSpan(trans.prompt, trans.targetForm || canonicalWord);
+    if (!transForm) {
       issues.push("sentence_translation 的 targetForm 必须是 prompt 子串");
+    } else {
+      trans.targetForm = transForm;
     }
     if ((trans.audioText || "") !== trans.prompt) {
       issues.push("sentence_translation 的 audioText 必须与 prompt 完全相同");
@@ -434,7 +465,7 @@ export function validateDictionaryEntry(
     throw new DictionaryValidationError(issues);
   }
 
-  const entryWord = opts.expectedWord || word;
+  const entryWord = word;
   const entry: DictionaryWordEntry = {
     word: entryWord,
     phonetic,

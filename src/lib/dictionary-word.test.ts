@@ -164,16 +164,115 @@ describe("validateDictionaryEntry candy fixture", () => {
     assert.equal(entry._source?.paperId, "custom-0-v1");
   });
 
-  it("keeps requester spelling and rejects color vs colour", () => {
-    const fromAi = { ...candy, word: "Candy" };
-    const entry = validateDictionaryEntry(fromAi, { expectedWord: "candy" });
+  it("accepts AI casing when spelling matches fold, rejects colour rewrite", () => {
+    const entry = validateDictionaryEntry(
+      { ...candy, word: "candy" },
+      { expectedWord: "CANDY" },
+    );
     assert.equal(entry.word, "candy");
+    assert.equal(entry.questions[0]?.answer, "candy");
     assert.throws(() =>
       validateDictionaryEntry(
         { ...candy, word: "colour" },
         { expectedWord: "color" },
       ),
     );
+  });
+
+  it("keeps AI dictionary casing for proper nouns and acronyms", () => {
+    const make = (head: string, example: string, en2zh: string, trans: string) => {
+      const ids = expectedQuestionIds(head);
+      return {
+        word: head,
+        phonetic: "/x/",
+        meaning: "测试",
+        partOfSpeech: "n.",
+        example,
+        translation: "测试例句。",
+        questions: [
+          {
+            id: ids[0],
+            type: "zh_to_en",
+            prompt: "「测试」的英文是什么？",
+            answer: head,
+            hints: ["提示一", "提示二"],
+          },
+          {
+            id: ids[1],
+            type: "listening",
+            prompt: "听发音，选择正确的拼写",
+            answer: head,
+            audioText: head,
+            options: [head, "a", "b", "c", "d", "e", "f", "g"],
+          },
+          {
+            id: ids[2],
+            type: "choice",
+            prompt: "选择“测试”对应的英文",
+            answer: head,
+            options: [head, "a", "b", "c", "d", "e", "f", "g"],
+          },
+          {
+            id: ids[3],
+            type: "sentence_cloze",
+            prompt: "We study ___ today.",
+            answer: head,
+            translation: "我们今天学习它。",
+            options: [head, "a", "b", "c", "d", "e", "f", "g"],
+          },
+          {
+            id: ids[4],
+            type: "en_to_zh_choice",
+            prompt: en2zh,
+            targetForm: head,
+            answer: "测试",
+            translation: "这是一句完整中文翻译。",
+            options: ["测试", "甲", "乙", "丙", "丁", "戊", "己", "庚"],
+          },
+          {
+            id: ids[5],
+            type: "sentence_translation",
+            prompt: trans,
+            targetForm: head,
+            audioText: trans,
+            answer: "这是另一句完整中文翻译。",
+            options: [
+              "这是另一句完整中文翻译。",
+              "错译一。",
+              "错译二。",
+              "错译三。",
+              "错译四。",
+              "错译五。",
+              "错译六。",
+              "错译七。",
+            ],
+          },
+        ],
+      };
+    };
+
+    const london = validateDictionaryEntry(
+      make(
+        "London",
+        "Many people live in London.",
+        "London is busy today.",
+        "I flew to London yesterday.",
+      ),
+      { expectedWord: "LONDON" },
+    );
+    assert.equal(london.word, "London");
+    assert.equal(london.questions[0]?.answer, "London");
+
+    const usa = validateDictionaryEntry(
+      make(
+        "USA",
+        "She visited the USA last year.",
+        "The USA is large.",
+        "He works in the USA now.",
+      ),
+      { expectedWord: "usa" },
+    );
+    assert.equal(usa.word, "USA");
   });
 
   it("rejects drag and wrong question count", () => {
