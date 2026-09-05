@@ -13,7 +13,7 @@ const UPDATED_AT = "2026年9月2日";
 
 export default function HamsterVipAgreementPage() {
   return (
-    <CompanyShell>
+    <CompanyShell hideChrome>
       <article className={styles.legal}>
         <p className={styles.legal__eyebrow}>Legal</p>
         <h1>会员服务协议</h1>

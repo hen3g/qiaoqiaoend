@@ -28,7 +28,7 @@ const SDK_ROWS = [
 
 export default function HamsterPrivacyPage() {
   return (
-    <CompanyShell>
+    <CompanyShell hideChrome>
       <article className={styles.legal}>
         <p className={styles.legal__eyebrow}>Legal</p>
         <h1>隐私政策</h1>

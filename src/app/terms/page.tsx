@@ -13,7 +13,7 @@ const UPDATED_AT = "2026年8月19日";
 
 export default function TermsPage() {
   return (
-    <CompanyShell>
+    <CompanyShell hideChrome>
       <article className={styles.legal}>
         <p className={styles.legal__eyebrow}>Legal</p>
         <h1>用户协议</h1>

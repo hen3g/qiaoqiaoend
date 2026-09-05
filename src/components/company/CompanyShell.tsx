@@ -14,20 +14,24 @@ const NAV = [
 export function CompanyShell({
   children,
   home = false,
+  hideChrome = false,
 }: {
   children: React.ReactNode;
   home?: boolean;
+  /** 仅渲染页面内容，不显示顶部导航与页脚（用于协议类页面） */
+  hideChrome?: boolean;
 }) {
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    if (hideChrome) return;
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [hideChrome]);
 
   const closeMenu = () => setMenuOpen(false);
   const brandHref = home ? "#top" : "/";
@@ -62,97 +66,107 @@ export function CompanyShell({
         />
       </div>
 
-      <header
-        className={`${styles["site-header"]}${
-          scrolled ? ` ${styles["is-scrolled"]}` : ""
-        }`}
-      >
-        <Link
-          className={styles["brand-mark"]}
-          href={brandHref}
-          aria-label="言词科技首页"
-        >
-          <span className={styles["brand-mark__glyph"]} aria-hidden="true">
-            言
-          </span>
-          <span className={styles["brand-mark__text"]}>言词科技</span>
-        </Link>
-        <nav className={styles["site-nav"]} aria-label="主导航">
-          {NAV.map((item) => (
-            <Link key={item.href} href={navHref(item.href)}>
-              {item.label}
-            </Link>
-          ))}
-          {accountLinks}
-        </nav>
-        <button
-          className={styles["nav-toggle"]}
-          type="button"
-          aria-expanded={menuOpen}
-          aria-controls="mobile-nav"
-          aria-label={menuOpen ? "关闭菜单" : "打开菜单"}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span />
-          <span />
-        </button>
-      </header>
-
-      <div id="mobile-nav" className={styles["mobile-nav"]} hidden={!menuOpen}>
-        {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={navHref(item.href)}
-            onClick={closeMenu}
+      {!hideChrome ? (
+        <>
+          <header
+            className={`${styles["site-header"]}${
+              scrolled ? ` ${styles["is-scrolled"]}` : ""
+            }`}
           >
-            {item.label}
-          </Link>
-        ))}
-        {accountLinks}
-      </div>
+            <Link
+              className={styles["brand-mark"]}
+              href={brandHref}
+              aria-label="言词科技首页"
+            >
+              <span className={styles["brand-mark__glyph"]} aria-hidden="true">
+                言
+              </span>
+              <span className={styles["brand-mark__text"]}>言词科技</span>
+            </Link>
+            <nav className={styles["site-nav"]} aria-label="主导航">
+              {NAV.map((item) => (
+                <Link key={item.href} href={navHref(item.href)}>
+                  {item.label}
+                </Link>
+              ))}
+              {accountLinks}
+            </nav>
+            <button
+              className={styles["nav-toggle"]}
+              type="button"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+              aria-label={menuOpen ? "关闭菜单" : "打开菜单"}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span />
+              <span />
+            </button>
+          </header>
 
-      <main id="top">{children}</main>
-
-      <footer className={styles["site-footer"]}>
-        <div className={styles["site-footer__top"]}>
-          <div>
-            <p className={styles["site-footer__brand"]}>言词科技</p>
-            <p className={styles["site-footer__tag"]}>英语学习软件 · 大连</p>
-          </div>
-          <div className={styles["site-footer__links"]}>
+          <div
+            id="mobile-nav"
+            className={styles["mobile-nav"]}
+            hidden={!menuOpen}
+          >
             {NAV.map((item) => (
-              <Link key={item.href} href={navHref(item.href)}>
+              <Link
+                key={item.href}
+                href={navHref(item.href)}
+                onClick={closeMenu}
+              >
                 {item.label}
               </Link>
             ))}
-            <Link href="/privacy">隐私政策</Link>
-            <Link href="/terms">用户协议</Link>
-            <Link href="/vip-agreement">会员服务协议</Link>
-            <Link href="/guide">敲敲英语用户指南</Link>
-            <Link href="/hamster/guide">仓鼠单词用户指南</Link>
+            {accountLinks}
           </div>
-        </div>
-        <div className={styles["site-footer__bottom"]}>
-          <p>© 2026 言词科技（大连）有限公司</p>
-          <p className={styles["site-footer__beian"]}>
-            <a
-              href="https://beian.miit.gov.cn/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              辽ICP备2026017437号
-            </a>
-            <span aria-hidden="true">|</span>
-            <a
-              href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=21021102001931"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              辽公网安备21021102001931号
-            </a>
-          </p>
-        </div>
-      </footer>
+        </>
+      ) : null}
+
+      <main id="top">{children}</main>
+
+      {!hideChrome ? (
+        <footer className={styles["site-footer"]}>
+          <div className={styles["site-footer__top"]}>
+            <div>
+              <p className={styles["site-footer__brand"]}>言词科技</p>
+              <p className={styles["site-footer__tag"]}>英语学习软件 · 大连</p>
+            </div>
+            <div className={styles["site-footer__links"]}>
+              {NAV.map((item) => (
+                <Link key={item.href} href={navHref(item.href)}>
+                  {item.label}
+                </Link>
+              ))}
+              <Link href="/privacy">隐私政策</Link>
+              <Link href="/terms">用户协议</Link>
+              <Link href="/vip-agreement">会员服务协议</Link>
+              <Link href="/guide">敲敲英语用户指南</Link>
+              <Link href="/hamster/guide">仓鼠单词用户指南</Link>
+            </div>
+          </div>
+          <div className={styles["site-footer__bottom"]}>
+            <p>© 2026 言词科技（大连）有限公司</p>
+            <p className={styles["site-footer__beian"]}>
+              <a
+                href="https://beian.miit.gov.cn/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                辽ICP备2026017437号
+              </a>
+              <span aria-hidden="true">|</span>
+              <a
+                href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=21021102001931"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                辽公网安备21021102001931号
+              </a>
+            </p>
+          </div>
+        </footer>
+      ) : null}
     </div>
   );
 }
