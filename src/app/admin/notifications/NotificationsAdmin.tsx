@@ -102,7 +102,7 @@ export function NotificationsAdmin() {
         body: JSON.stringify({
           type: audience === "user" ? "message" : type,
           appId: audience === "user" ? "hamster" : appId,
-          targetUser: audience === "user" ? targetUser.trim() : null,
+          ...(audience === "user" ? { targetUser: targetUser.trim() } : {}),
           version: type === "update" && audience === "broadcast" ? version : null,
           title,
           summary,

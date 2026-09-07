@@ -21,9 +21,7 @@ const createSchema = z
     summary: z.string().trim().min(1, "请填写简介").max(500),
     appId: z.enum(["all", "qiaoqiao", "hamster"]).optional().default("all"),
     targetUser: z
-      .string()
-      .trim()
-      .max(32)
+      .union([z.string().trim().max(32), z.literal(""), z.null()])
       .optional()
       .transform((v) => (v && v.length > 0 ? v : null)),
     imageUrl: z
