@@ -67,6 +67,7 @@ Next.js 生产环境会自动读取项目根目录的 `.env.local`。服务器�
 | `OAUTH_CLIENT_ID` / `OAUTH_REDIRECT_URIS` | 客户端登录回调 |
 | `ALIPAY_*` | APP 支付与异步通知 |
 | （无需密钥）Apple IAP | App Store Connect 服务器通知填 `https://qiaoqiaoengapp.word19.com/api/iap/apple/notify`（生产与沙盒同一地址） |
+| `GOOGLE_PLAY_LICENSE_KEY` | Google Play 本地验签公钥（仓鼠单词 AAB）。Play Console → 变现设置 → 许可。国内服务器不需要访问 Google |
 | `R2_*` | 课程包存储 |
 | `AI_PROVIDER` 及对应 Token | 自制课程 AI |
 | `SECRET_ID` / `SECRET_KEY` / `TENCENT_SES_*` | 邮箱验证码 |

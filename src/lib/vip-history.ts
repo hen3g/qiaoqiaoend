@@ -8,6 +8,11 @@ import {
 import { ensureAppleTransactionsTable } from "@/lib/apple-transactions";
 import type { ClientAppId } from "@/lib/client-app";
 import { query } from "@/lib/db";
+import { getGoogleProduct } from "@/lib/google-products";
+import {
+  ensureGoogleTransactionsTable,
+  listUserGoogleVipRows,
+} from "@/lib/google-transactions";
 import { ensurePaymentOrdersTable, paymentPlanTitle } from "@/lib/payment-orders";
 import { getVipPlan, isVipPlanId } from "@/lib/vip";
 
@@ -16,7 +21,7 @@ export type UserVipRecord = {
   planTitle: string;
   days: number;
   grantedAt: string;
-  channel: "alipay" | "apple";
+  channel: "alipay" | "apple" | "google";
 };
 
 type PayRow = RowDataPacket & {
@@ -46,6 +51,7 @@ export async function listUserVipRecords(
 ): Promise<UserVipRecord[]> {
   await ensurePaymentOrdersTable();
   await ensureAppleTransactionsTable();
+  await ensureGoogleTransactionsTable();
 
   const skuPrefix =
     clientApp === "hamster"
@@ -101,6 +107,23 @@ export async function listUserVipRecords(
       grantedAt: toIso(row.created_at),
       channel: "apple",
     });
+  }
+
+  if (clientApp === "hamster") {
+    const googleRows = await listUserGoogleVipRows(userId);
+    for (const row of googleRows) {
+      const product = getGoogleProduct(row.productId);
+      const grantId = product?.grantId || row.grantId;
+      if (!isVipPlanId(grantId)) continue;
+      const plan = getVipPlan(grantId);
+      records.push({
+        id: `google:${row.purchaseToken}`,
+        planTitle: plan.title,
+        days: plan.days,
+        grantedAt: toIso(row.createdAt),
+        channel: "google",
+      });
+    }
   }
 
   records.sort((a, b) => (a.grantedAt < b.grantedAt ? 1 : -1));
