@@ -22,6 +22,8 @@ import {
   ensureUserAppColumns,
   ensureUserDiamondsColumn,
   ensureUserPromoterColumns,
+  ensureUserRegisterPlatformColumn,
+  isRegisterPlatform,
 } from "@/lib/user-schema";
 
 const schema = z
@@ -33,6 +35,7 @@ const schema = z
       .regex(/^[a-zA-Z0-9_]+$/, "用户名仅支持字母、数字和下划线"),
     password: z.string().min(6, "密码至少 6 位").max(72, "密码过长"),
     passwordConfirm: z.string().min(1, "请再次输入密码"),
+    platform: z.enum(["ios", "android"]).optional(),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: "两次输入的密码不一致",
@@ -82,11 +85,15 @@ export async function POST(req: Request) {
     const nickname = await allocateDefaultNickname();
     const passwordHash = await hashPassword(body.password);
     const appId = clientAppFromRequest(req);
+    const registerPlatform = isRegisterPlatform(body.platform)
+      ? body.platform
+      : null;
     await ensureUserAppColumns();
+    await ensureUserRegisterPlatformColumn();
     const result = await execute(
-      `INSERT INTO users (username, password_hash, nickname, register_app_id, last_app_id)
-       VALUES (:username, :passwordHash, :nickname, :appId, :appId)`,
-      { username, passwordHash, nickname, appId },
+      `INSERT INTO users (username, password_hash, nickname, register_app_id, last_app_id, register_platform)
+       VALUES (:username, :passwordHash, :nickname, :appId, :appId, :registerPlatform)`,
+      { username, passwordHash, nickname, appId, registerPlatform },
     );
 
     const userId = Number(result.insertId);

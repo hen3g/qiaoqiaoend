@@ -24,6 +24,8 @@ type DailyStat = {
   ios: number;
   android: number;
   registrations: number;
+  registrationsIos: number;
+  registrationsAndroid: number;
 };
 
 export function StatsAdmin({
@@ -81,9 +83,11 @@ export function StatsAdmin({
       ),
     },
     { title: "未登录", dataIndex: "anonymous" },
-    { title: "iOS", dataIndex: "ios" },
-    { title: "Android", dataIndex: "android" },
+    { title: "登录 iOS", dataIndex: "ios" },
+    { title: "登录 Android", dataIndex: "android" },
     { title: "注册", dataIndex: "registrations" },
+    { title: "注册 iOS", dataIndex: "registrationsIos" },
+    { title: "注册 Android", dataIndex: "registrationsAndroid" },
   ];
 
   const appLabel = CLIENT_APP_FILTER_LABELS[app];
@@ -103,7 +107,7 @@ export function StatsAdmin({
       >
         <Typography.Paragraph type="secondary">
           按 App 分开统计。客户端每日上报一次：未登录按设备去重；登录后按用户去重并区分
-          iOS / Android。注册数为当日在该 App 新建的账号。未带头的旧客户端记入敲敲英语。
+          iOS / Android。注册数按当日新建账号统计，并区分注册平台（旧用户无平台记为总数中的未知）。未带头的旧客户端记入敲敲英语。
         </Typography.Paragraph>
         {lockApp ? null : (
           <Radio.Group
@@ -158,13 +162,29 @@ export function StatsAdmin({
               />
             </Card>
           </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title={`${appLabel} · 今日注册 iOS`}
+                value={today.registrationsIos ?? 0}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title={`${appLabel} · 今日注册 Android`}
+                value={today.registrationsAndroid ?? 0}
+              />
+            </Card>
+          </Col>
         </Row>
       ) : null}
 
       {detail && detailDate !== today?.date ? (
         <Alert
           type="info"
-          content={`已选日期 ${detailDate}（${appLabel}）：未登录 ${detail.anonymous} · iOS ${detail.ios} · Android ${detail.android} · 注册 ${detail.registrations}`}
+          content={`已选日期 ${detailDate}（${appLabel}）：未登录 ${detail.anonymous} · 登录 iOS ${detail.ios} · 登录 Android ${detail.android} · 注册 ${detail.registrations}（iOS ${detail.registrationsIos ?? 0} / Android ${detail.registrationsAndroid ?? 0}）`}
         />
       ) : null}
 

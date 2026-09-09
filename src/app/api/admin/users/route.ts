@@ -18,6 +18,9 @@ import {
   ensureUserAppColumns,
   ensureUserDiamondsColumn,
   ensureUserPromoterColumns,
+  ensureUserRegisterPlatformColumn,
+  isRegisterPlatform,
+  type RegisterPlatform,
 } from "@/lib/user-schema";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +38,7 @@ type UserRow = RowDataPacket & {
   promoter_id?: number | null;
   register_app_id?: string | null;
   last_app_id?: string | null;
+  register_platform?: string | null;
   created_at: Date | string | null;
   token_version: number;
   unlocked_difficulty: number | null;
@@ -58,6 +62,7 @@ export type AdminUserDto = SessionUser & {
   notificationHitCount: number;
   registerAppId: ClientAppId;
   lastAppId: ClientAppId | null;
+  registerPlatform: RegisterPlatform | null;
 };
 
 const patchSchema = z.object({
@@ -100,13 +105,14 @@ async function listUsers(app: ClientAppFilter): Promise<AdminUserDto[]> {
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
   await ensureUserAppColumns();
+  await ensureUserRegisterPlatformColumn();
   const params: Record<string, string> = {};
   const appSql = sqlRegisterAppPredicate("u.register_app_id", app, params);
   const whereSql = appSql ? `WHERE ${appSql}` : "";
   const rows = await query<UserRow[]>(
     `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.diamonds,
             u.share_custom_courses, u.is_promoter, u.promoter_id,
-            u.register_app_id, u.last_app_id,
+            u.register_app_id, u.last_app_id, u.register_platform,
             u.created_at, u.token_version,
             sp.unlocked_difficulty,
             COALESCE(n.has_client, 0) AS has_client,
@@ -148,6 +154,9 @@ async function listUsers(app: ClientAppFilter): Promise<AdminUserDto[]> {
         ? row.register_app_id
         : DEFAULT_CLIENT_APP,
       lastAppId: isClientAppId(row.last_app_id) ? row.last_app_id : null,
+      registerPlatform: isRegisterPlatform(row.register_platform)
+        ? row.register_platform
+        : null,
     };
   });
 }

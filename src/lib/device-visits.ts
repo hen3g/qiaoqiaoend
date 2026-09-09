@@ -7,7 +7,7 @@ import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
 import { todayInShanghai } from "@/lib/notification-stats";
 import { readAccessToken } from "@/lib/oauth";
-import { ensureUserAppColumns } from "@/lib/user-schema";
+import { ensureUserAppColumns, ensureUserRegisterPlatformColumn } from "@/lib/user-schema";
 
 export type VisitPlatform = "ios" | "android";
 
@@ -17,6 +17,8 @@ export type DailyVisitStatDto = {
   ios: number;
   android: number;
   registrations: number;
+  registrationsIos: number;
+  registrationsAndroid: number;
 };
 
 let ensured = false;
@@ -159,6 +161,8 @@ type VisitAggRow = RowDataPacket & {
 type RegRow = RowDataPacket & {
   stat_date: Date | string;
   registrations: number;
+  registrations_ios: number;
+  registrations_android: number;
 };
 
 function appWhere(app: ClientAppFilter, column = "app_id"): string {
@@ -173,16 +177,34 @@ function appParams(app: ClientAppFilter): { appId?: ClientAppId } {
 export async function countRegistrationsOn(
   statDate: string,
   app: ClientAppFilter = "all",
-): Promise<number> {
+): Promise<{
+  total: number;
+  ios: number;
+  android: number;
+}> {
   await ensureUserAppColumns();
-  const rows = await query<(RowDataPacket & { cnt: number })[]>(
-    `SELECT COUNT(*) AS cnt FROM users
+  await ensureUserRegisterPlatformColumn();
+  const rows = await query<
+    (RowDataPacket & {
+      total: number;
+      ios: number;
+      android: number;
+    })[]
+  >(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN register_platform = 'ios' THEN 1 ELSE 0 END) AS ios,
+            SUM(CASE WHEN register_platform = 'android' THEN 1 ELSE 0 END) AS android
+     FROM users
      WHERE created_at >= :statDate
        AND created_at < DATE_ADD(:statDate, INTERVAL 1 DAY)
        AND ${appWhere(app, "register_app_id")}`,
     { statDate, ...appParams(app) },
   );
-  return Number(rows[0]?.cnt) || 0;
+  return {
+    total: Number(rows[0]?.total) || 0,
+    ios: Number(rows[0]?.ios) || 0,
+    android: Number(rows[0]?.android) || 0,
+  };
 }
 
 export async function getVisitStatsForDate(
@@ -213,12 +235,15 @@ export async function getVisitStatsForDate(
     if (row.platform === "android") android = Number(row.cnt) || 0;
   }
 
+  const regs = await countRegistrationsOn(statDate, app);
   return {
     date: statDate,
     anonymous: Number(anonRows[0]?.cnt) || 0,
     ios,
     android,
-    registrations: await countRegistrationsOn(statDate, app),
+    registrations: regs.total,
+    registrationsIos: regs.ios,
+    registrationsAndroid: regs.android,
   };
 }
 
@@ -228,6 +253,7 @@ export async function listDailyVisitStats(
 ): Promise<DailyVisitStatDto[]> {
   await ensureDeviceVisitTables();
   await ensureUserAppColumns();
+  await ensureUserRegisterPlatformColumn();
   const safeDays = Math.min(Math.max(Math.floor(days), 1), 365);
   const extra = appParams(app);
 
@@ -268,7 +294,10 @@ export async function listDailyVisitStats(
   );
 
   const regRows = await query<RegRow[]>(
-    `SELECT DATE(created_at) AS stat_date, COUNT(*) AS registrations
+    `SELECT DATE(created_at) AS stat_date,
+            COUNT(*) AS registrations,
+            SUM(CASE WHEN register_platform = 'ios' THEN 1 ELSE 0 END) AS registrations_ios,
+            SUM(CASE WHEN register_platform = 'android' THEN 1 ELSE 0 END) AS registrations_android
      FROM users
      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL :days DAY)
        AND ${appWhere(app, "register_app_id")}
@@ -277,43 +306,61 @@ export async function listDailyVisitStats(
     { days: safeDays, ...extra },
   );
 
-  const regMap = new Map<string, number>();
+  type RegCounts = {
+    total: number;
+    ios: number;
+    android: number;
+  };
+  const emptyRegs = (): RegCounts => ({ total: 0, ios: 0, android: 0 });
+  const regMap = new Map<string, RegCounts>();
   for (const row of regRows) {
-    regMap.set(formatDate(row.stat_date), Number(row.registrations) || 0);
+    regMap.set(formatDate(row.stat_date), {
+      total: Number(row.registrations) || 0,
+      ios: Number(row.registrations_ios) || 0,
+      android: Number(row.registrations_android) || 0,
+    });
   }
 
   const byDate = new Map<string, DailyVisitStatDto>();
   for (const row of visitRows) {
     const date = formatDate(row.stat_date);
+    const regs = regMap.get(date) ?? emptyRegs();
     byDate.set(date, {
       date,
       anonymous: Number(row.anonymous_count) || 0,
       ios: Number(row.ios_count) || 0,
       android: Number(row.android_count) || 0,
-      registrations: regMap.get(date) ?? 0,
+      registrations: regs.total,
+      registrationsIos: regs.ios,
+      registrationsAndroid: regs.android,
     });
   }
 
-  for (const [date, registrations] of regMap) {
+  for (const [date, regs] of regMap) {
     if (!byDate.has(date)) {
       byDate.set(date, {
         date,
         anonymous: 0,
         ios: 0,
         android: 0,
-        registrations,
+        registrations: regs.total,
+        registrationsIos: regs.ios,
+        registrationsAndroid: regs.android,
       });
     }
   }
 
   const today = todayInShanghai();
   if (!byDate.has(today)) {
+    const regs = regMap.get(today) ?? emptyRegs();
     byDate.set(today, {
       date: today,
       anonymous: 0,
       ios: 0,
       android: 0,
-      registrations: regMap.get(today) ?? 0,
+      registrations: regs.total,
+      registrationsIos: regs.ios,
+      registrationsAndroid: regs.android,
     });
   }
 

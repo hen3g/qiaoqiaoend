@@ -20,13 +20,15 @@ CREATE TABLE IF NOT EXISTS users (
   promoter_id BIGINT UNSIGNED NULL,
   register_app_id VARCHAR(32) NOT NULL DEFAULT 'qiaoqiao',
   last_app_id VARCHAR(32) NULL,
+  register_platform VARCHAR(16) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_username (username),
   UNIQUE KEY uk_users_email (email),
   KEY idx_users_nickname (nickname),
   KEY idx_users_promoter_id (promoter_id),
-  KEY idx_users_register_app_id (register_app_id)
+  KEY idx_users_register_app_id (register_app_id),
+  KEY idx_users_register_platform (register_platform)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS email_bind_codes (

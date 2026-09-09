@@ -2,12 +2,15 @@ import type { RowDataPacket } from "mysql2";
 import type { ClientAppId } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
 
+export type RegisterPlatform = "ios" | "android";
+
 let diamondsEnsured = false;
 let shareCustomCoursesEnsured = false;
 let promoterColumnsEnsured = false;
 let emailEnsured = false;
 let passwordResetCodesEnsured = false;
 let appColumnsEnsured = false;
+let registerPlatformEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -194,4 +197,36 @@ export async function touchUserLastApp(
      LIMIT 1`,
     { appId, sameAppId: appId, userId },
   );
+}
+
+/** Which OS the account was created on (ios / android). Null for legacy users. */
+export async function ensureUserRegisterPlatformColumn(): Promise<void> {
+  if (registerPlatformEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'register_platform'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN register_platform VARCHAR(16) NULL AFTER last_app_id`,
+    );
+  }
+
+  type IndexRow = RowDataPacket & { Key_name: string };
+  const indexes = await query<IndexRow[]>(`SHOW INDEX FROM users`);
+  if (!indexes.some((row) => row.Key_name === "idx_users_register_platform")) {
+    await execute(
+      `ALTER TABLE users ADD KEY idx_users_register_platform (register_platform)`,
+    );
+  }
+
+  registerPlatformEnsured = true;
+}
+
+export function isRegisterPlatform(
+  value: unknown,
+): value is RegisterPlatform {
+  return value === "ios" || value === "android";
 }

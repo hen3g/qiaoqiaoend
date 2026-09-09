@@ -21,6 +21,7 @@ import {
   clientAppLabel,
   clientAppTagColor,
 } from "@/lib/client-app";
+import type { RegisterPlatform } from "@/lib/user-schema";
 
 type ClientUsage = "none" | "client" | "web" | "both";
 
@@ -34,6 +35,7 @@ type AdminUser = SessionUser & {
   notificationHitCount: number;
   registerAppId: ClientAppId;
   lastAppId: ClientAppId | null;
+  registerPlatform: RegisterPlatform | null;
 };
 
 const USAGE_LABEL: Record<ClientUsage, string> = {
@@ -193,12 +195,27 @@ export function UsersAdmin({
     },
     {
       title: "App",
-      width: 150,
+      width: 170,
       render: (_, u) => (
         <div>
           <Tag color={clientAppTagColor(u.registerAppId)}>
             注册 {clientAppLabel(u.registerAppId)}
           </Tag>
+          <div style={{ marginTop: 4 }}>
+            {u.registerPlatform === "ios" ? (
+              <Tag size="small" color="blue">
+                iOS
+              </Tag>
+            ) : u.registerPlatform === "android" ? (
+              <Tag size="small" color="green">
+                Android
+              </Tag>
+            ) : (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                平台未知
+              </Typography.Text>
+            )}
+          </div>
           <div>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               最近 {u.lastAppId ? clientAppLabel(u.lastAppId) : "—"}
