@@ -113,7 +113,6 @@ function AdminChrome({
     () => matchAdminMenuKey(pathname || "/admin", menu),
     [pathname, menu],
   );
-  const isHamsterArea = (pathname || "").startsWith("/admin/hamster");
   const allowed = canAccessAdminPath(user, pathname || "/admin");
 
   useEffect(() => {
@@ -151,13 +150,7 @@ function AdminChrome({
             overflow: "hidden",
           }}
         >
-          {collapsed
-            ? isHamsterArea
-              ? "仓"
-              : "敲"
-            : isHamsterArea
-              ? "仓鼠单词后台"
-              : "敲敲英语后台"}
+          {collapsed ? "管" : "管理后台"}
         </div>
         <Menu
           selectedKeys={[selectedKey]}
