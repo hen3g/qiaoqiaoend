@@ -13,6 +13,7 @@ import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { verifyAndConsumeResetCode } from "@/lib/password-reset";
 import { ensureUserEmailColumn } from "@/lib/user-schema";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z
   .object({
@@ -41,12 +42,12 @@ export async function POST(req: Request) {
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) {
-      return withAuthCors(jsonError("邮箱格式不正确", 400));
+      return withAuthCors(jsonError("邮箱格式不正确", 400, { code: ErrorCode.BAD_EMAIL }));
     }
 
     const userId = await findUserIdByEmail(email);
     if (userId == null) {
-      return withAuthCors(jsonError("该邮箱未绑定账号", 400));
+      return withAuthCors(jsonError("该邮箱未绑定账号", 400, { code: ErrorCode.EMAIL_NOT_BOUND }));
     }
 
     const verified = await verifyAndConsumeResetCode({
@@ -63,7 +64,17 @@ export async function POST(req: Request) {
         mismatch: "验证码错误",
         too_many: "验证次数过多，请重新获取验证码",
       } as const;
-      return withAuthCors(jsonError(messages[verified.reason], 400));
+      const reasonCodes = {
+        not_found: ErrorCode.VERIFY_CODE_REQUIRED,
+        expired: ErrorCode.VERIFY_CODE_EXPIRED,
+        mismatch: ErrorCode.VERIFY_CODE_MISMATCH,
+        too_many: ErrorCode.VERIFY_CODE_TOO_MANY,
+      } as const;
+      return withAuthCors(
+        jsonError(messages[verified.reason], 400, {
+          code: reasonCodes[verified.reason],
+        }),
+      );
     }
 
     const rows = await query<(RowDataPacket & { password_hash: string })[]>(
@@ -72,7 +83,7 @@ export async function POST(req: Request) {
     );
     const row = rows[0];
     if (!row) {
-      return withAuthCors(jsonError("账号不存在", 404));
+      return withAuthCors(jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND }));
     }
 
     const sameAsOld = await verifyPassword(
@@ -80,7 +91,7 @@ export async function POST(req: Request) {
       row.password_hash,
     );
     if (sameAsOld) {
-      return withAuthCors(jsonError("新密码不能与当前密码相同", 400));
+      return withAuthCors(jsonError("新密码不能与当前密码相同", 400, { code: ErrorCode.PASSWORD_SAME }));
     }
 
     const passwordHash = await hashPassword(body.newPassword);
@@ -100,6 +111,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("重置失败，请稍后重试", 500));
+    return withAuthCors(jsonError("重置失败，请稍后重试", 500, { code: ErrorCode.RESET_FAILED }));
   }
 }

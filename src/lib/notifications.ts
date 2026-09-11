@@ -2,10 +2,19 @@ import type { RowDataPacket } from "mysql2";
 import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
 import { isClientAppId } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
+import {
+  type AppUiLocale,
+  ensureUserLocaleColumn,
+  isAppUiLocale,
+  parseAppUiLocale,
+} from "@/lib/user-schema";
 
 export type NotificationType = "update" | "message";
 
 export type NotificationAppTarget = ClientAppFilter;
+
+/** Audience language filter for hamster broadcasts; null = all locales. */
+export type NotificationAudienceLocale = AppUiLocale | null;
 
 type NotificationRow = RowDataPacket & {
   id: number;
@@ -17,6 +26,9 @@ type NotificationRow = RowDataPacket & {
   version: string | null;
   title: string;
   summary: string;
+  title_ja: string | null;
+  summary_ja: string | null;
+  locale: string | null;
   image_url: string | null;
   link_url: string | null;
   created_at?: Date | string;
@@ -30,8 +42,15 @@ export type NotificationDto = {
   username: string | null;
   nickname: string | null;
   version: string | null;
+  /** Resolved copy for the requesting locale (clients keep using these). */
   title: string;
   summary: string;
+  titleZh: string | null;
+  summaryZh: string | null;
+  titleJa: string | null;
+  summaryJa: string | null;
+  /** Audience language for broadcasts; null = all. */
+  locale: NotificationAudienceLocale;
   imageUrl: string | null;
   linkUrl: string | null;
   createdAt: string | null;
@@ -69,6 +88,36 @@ export async function ensureNotificationsSchema(): Promise<void> {
     );
   }
 
+  const localeCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM notifications LIKE 'locale'`,
+  );
+  if (localeCols.length === 0) {
+    await execute(
+      `ALTER TABLE notifications
+       ADD COLUMN locale VARCHAR(8) NULL AFTER user_id`,
+    );
+  }
+
+  const titleJaCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM notifications LIKE 'title_ja'`,
+  );
+  if (titleJaCols.length === 0) {
+    await execute(
+      `ALTER TABLE notifications
+       ADD COLUMN title_ja VARCHAR(200) NULL AFTER title`,
+    );
+  }
+
+  const summaryJaCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM notifications LIKE 'summary_ja'`,
+  );
+  if (summaryJaCols.length === 0) {
+    await execute(
+      `ALTER TABLE notifications
+       ADD COLUMN summary_ja VARCHAR(500) NULL AFTER summary`,
+    );
+  }
+
   type IndexRow = RowDataPacket & { Key_name: string };
   const indexes = await query<IndexRow[]>(`SHOW INDEX FROM notifications`);
   const names = new Set(indexes.map((row) => row.Key_name));
@@ -81,6 +130,11 @@ export async function ensureNotificationsSchema(): Promise<void> {
   if (!names.has("idx_notifications_user_id")) {
     await execute(
       `ALTER TABLE notifications ADD KEY idx_notifications_user_id (user_id, id)`,
+    );
+  }
+  if (!names.has("idx_notifications_locale")) {
+    await execute(
+      `ALTER TABLE notifications ADD KEY idx_notifications_locale (locale)`,
     );
   }
   schemaEnsured = true;
@@ -97,8 +151,63 @@ function normalizeAppId(value: string | null | undefined): NotificationAppTarget
   return isClientAppId(value) ? value : "all";
 }
 
-export function mapNotification(row: NotificationRow): NotificationDto {
+function normalizeAudienceLocale(
+  value: string | null | undefined,
+): NotificationAudienceLocale {
+  return isAppUiLocale(value) ? value : null;
+}
+
+function trimOrNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
+ * Pick title/summary for a reader locale.
+ * Prefer matching language; fall back to the other, then ZH storage fields.
+ */
+export function resolveNotificationCopy(
+  input: {
+    title: string;
+    summary: string;
+    titleJa?: string | null;
+    summaryJa?: string | null;
+  },
+  prefer: AppUiLocale | null,
+): { title: string; summary: string } {
+  const zhTitle = input.title?.trim() || "";
+  const zhSummary = input.summary?.trim() || "";
+  const jaTitle = input.titleJa?.trim() || "";
+  const jaSummary = input.summaryJa?.trim() || "";
+
+  if (prefer === "ja") {
+    return {
+      title: jaTitle || zhTitle,
+      summary: jaSummary || zhSummary,
+    };
+  }
+  return {
+    title: zhTitle || jaTitle,
+    summary: zhSummary || jaSummary,
+  };
+}
+
+export function mapNotification(
+  row: NotificationRow,
+  prefer: AppUiLocale | null = null,
+): NotificationDto {
   const userId = row.user_id == null ? null : Number(row.user_id);
+  const titleJa = trimOrNull(row.title_ja);
+  const summaryJa = trimOrNull(row.summary_ja);
+  const resolved = resolveNotificationCopy(
+    {
+      title: row.title,
+      summary: row.summary,
+      titleJa,
+      summaryJa,
+    },
+    prefer,
+  );
   return {
     id: row.id,
     type: row.type,
@@ -107,16 +216,23 @@ export function mapNotification(row: NotificationRow): NotificationDto {
     username: row.username || null,
     nickname: row.nickname || null,
     version: row.version || null,
-    title: row.title,
-    summary: row.summary,
+    title: resolved.title,
+    summary: resolved.summary,
+    titleZh: trimOrNull(row.title),
+    summaryZh: trimOrNull(row.summary),
+    titleJa,
+    summaryJa,
+    locale: normalizeAudienceLocale(row.locale),
     imageUrl: row.image_url || null,
     linkUrl: row.link_url || null,
     createdAt: toIso(row.created_at),
   };
 }
 
-const SELECT_NOTIFICATIONS = `SELECT n.id, n.type, n.app_id, n.user_id, u.username, u.nickname,
-         n.version, n.title, n.summary, n.image_url, n.link_url, n.created_at
+const SELECT_NOTIFICATIONS = `SELECT n.id, n.type, n.app_id, n.user_id, n.locale,
+         u.username, u.nickname,
+         n.version, n.title, n.summary, n.title_ja, n.summary_ja,
+         n.image_url, n.link_url, n.created_at
      FROM notifications n
      LEFT JOIN users u ON u.id = n.user_id`;
 
@@ -154,50 +270,106 @@ export async function findUserByUsernameOrId(
   };
 }
 
-export async function listNotifications(): Promise<NotificationDto[]> {
+/** Split "id1, id2\\nname3" into unique non-empty tokens. */
+export function parseTargetUserTokens(input: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of input.split(/[\s,，;；]+/)) {
+    const token = part.trim();
+    if (!token) continue;
+    const key = token.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(token);
+  }
+  return out;
+}
+
+export async function listNotifications(options?: {
+  appId?: ClientAppId | "all";
+}): Promise<NotificationDto[]> {
   await ensureNotificationsSchema();
+  const appId = options?.appId;
+  const params: Record<string, string> = {};
+  let where = "";
+  if (appId && appId !== "all") {
+    // Include legacy "all" rows so history stays visible on each app page.
+    where = ` WHERE n.app_id IN ('all', :appId)`;
+    params.appId = appId;
+  }
   const rows = await query<NotificationRow[]>(
-    `${SELECT_NOTIFICATIONS}
+    `${SELECT_NOTIFICATIONS}${where}
      ORDER BY n.created_at DESC, n.id DESC`,
+    params,
   );
-  return rows.map(mapNotification);
+  return rows.map((row) => mapNotification(row, null));
+}
+
+function audienceLocaleSql(
+  userLocale: AppUiLocale | null,
+  params: Record<string, string>,
+): string {
+  // null/unknown locale → treat as zh for audience matching.
+  const effective = userLocale ?? "zh";
+  params.audienceLocale = effective;
+  return `(n.locale IS NULL OR n.locale = '' OR n.locale = :audienceLocale)`;
 }
 
 /**
  * Latest of each type for one client app.
  * Broadcast only (user_id IS NULL) so per-user hamster messages never leak
  * into 敲敲英语 or the public "latest" slot.
+ * Hamster: also respect audience locale filter.
  */
 export async function getLatestNotifications(
   appId: ClientAppId,
+  userLocale: AppUiLocale | null = null,
 ): Promise<NotificationDto[]> {
   await ensureNotificationsSchema();
+  const params: Record<string, string> = { appId };
+  const localePred =
+    appId === "hamster" ? `AND ${audienceLocaleSql(userLocale, params)}` : "";
+
   const rows = await query<NotificationRow[]>(
-    `SELECT n.id, n.type, n.app_id, n.user_id, u.username, u.nickname,
-            n.version, n.title, n.summary, n.image_url, n.link_url, n.created_at
+    `SELECT n.id, n.type, n.app_id, n.user_id, n.locale, u.username, u.nickname,
+            n.version, n.title, n.summary, n.title_ja, n.summary_ja,
+            n.image_url, n.link_url, n.created_at
      FROM notifications n
      LEFT JOIN users u ON u.id = n.user_id
      INNER JOIN (
        SELECT type, MAX(id) AS max_id
-       FROM notifications
-       WHERE app_id IN ('all', :appId)
-         AND user_id IS NULL
+       FROM notifications n
+       WHERE n.app_id IN ('all', :appId)
+         AND n.user_id IS NULL
+         ${localePred}
        GROUP BY type
      ) latest ON n.id = latest.max_id
      ORDER BY FIELD(n.type, 'update', 'message'), n.id DESC`,
-    { appId },
+    params,
   );
-  return rows.map(mapNotification);
+  return rows.map((row) => mapNotification(row, userLocale));
 }
 
 /**
- * 仓鼠单词 inbox: latest broadcast of each type, plus this user's personal messages.
- * Does not change the qiaoqiao "latest only" contract.
+ * 仓鼠单词 inbox: latest broadcast of each type (locale-aware), plus this user's personal messages.
+ * Specific-user messages are never filtered by language.
  */
 export async function listHamsterNotifications(
   userId: number | null,
+  userLocale: AppUiLocale | null = null,
 ): Promise<NotificationDto[]> {
-  const latest = await getLatestNotifications("hamster");
+  let locale = userLocale;
+  if (userId != null) {
+    await ensureUserLocaleColumn();
+    const rows = await query<(RowDataPacket & { locale: string | null })[]>(
+      `SELECT locale FROM users WHERE id = :id LIMIT 1`,
+      { id: userId },
+    );
+    // Prefer persisted users.locale; fall back to client hint (x-app-locale).
+    locale = parseAppUiLocale(rows[0]?.locale ?? null) ?? userLocale;
+  }
+
+  const latest = await getLatestNotifications("hamster", locale);
   if (userId == null) return latest;
 
   await ensureNotificationsSchema();
@@ -212,7 +384,7 @@ export async function listHamsterNotifications(
   );
 
   const byId = new Map<number, NotificationDto>();
-  for (const item of personal.map(mapNotification)) {
+  for (const item of personal.map((row) => mapNotification(row, locale))) {
     byId.set(item.id, item);
   }
   for (const item of latest) {
@@ -225,9 +397,13 @@ export async function createNotification(input: {
   type: NotificationType;
   appId: NotificationAppTarget;
   userId: number | null;
+  /** Broadcast audience language; ignored for specific-user sends. */
+  locale?: NotificationAudienceLocale;
   version: string | null;
   title: string;
   summary: string;
+  titleJa?: string | null;
+  summaryJa?: string | null;
   imageUrl: string | null;
   linkUrl: string | null;
 }): Promise<NotificationDto> {
@@ -239,16 +415,49 @@ export async function createNotification(input: {
     throw new Error("指定用户仅支持消息通知");
   }
 
+  const titleZh = trimOrNull(input.title);
+  const summaryZh = trimOrNull(input.summary);
+  const titleJa = trimOrNull(input.titleJa ?? null);
+  const summaryJa = trimOrNull(input.summaryJa ?? null);
+
+  // title/summary columns are NOT NULL — prefer ZH, else JA.
+  const title = titleZh || titleJa;
+  const summary = summaryZh || summaryJa;
+  if (!title || !summary) {
+    throw new Error("请至少填写一种语言的标题和简介");
+  }
+
+  const audienceLocale =
+    userId != null ? null : normalizeAudienceLocale(input.locale ?? null);
+
+  if (audienceLocale === "zh" && !titleZh) {
+    throw new Error("中文受众请填写中文标题");
+  }
+  if (audienceLocale === "ja" && !titleJa) {
+    throw new Error("日文受众请填写日文标题");
+  }
+  if (audienceLocale === "zh" && !summaryZh) {
+    throw new Error("中文受众请填写中文简介");
+  }
+  if (audienceLocale === "ja" && !summaryJa) {
+    throw new Error("日文受众请填写日文简介");
+  }
+
   const result = await execute(
-    `INSERT INTO notifications (type, app_id, user_id, version, title, summary, image_url, link_url)
-     VALUES (:type, :appId, :userId, :version, :title, :summary, :imageUrl, :linkUrl)`,
+    `INSERT INTO notifications
+       (type, app_id, user_id, locale, version, title, summary, title_ja, summary_ja, image_url, link_url)
+     VALUES
+       (:type, :appId, :userId, :locale, :version, :title, :summary, :titleJa, :summaryJa, :imageUrl, :linkUrl)`,
     {
       type,
       appId,
       userId,
+      locale: audienceLocale,
       version: input.version,
-      title: input.title,
-      summary: input.summary,
+      title,
+      summary,
+      titleJa,
+      summaryJa,
       imageUrl: input.imageUrl,
       linkUrl: input.linkUrl,
     },
@@ -260,7 +469,7 @@ export async function createNotification(input: {
   );
   const row = rows[0];
   if (!row) throw new Error("创建失败");
-  return mapNotification(row);
+  return mapNotification(row, null);
 }
 
 export async function deleteNotification(id: number): Promise<void> {

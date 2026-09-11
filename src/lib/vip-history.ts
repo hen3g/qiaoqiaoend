@@ -18,6 +18,7 @@ import { getVipPlan, isVipPlanId } from "@/lib/vip";
 
 export type UserVipRecord = {
   id: string;
+  planId: string;
   planTitle: string;
   days: number;
   grantedAt: string;
@@ -87,6 +88,7 @@ export async function listUserVipRecords(
     const plan = getVipPlan(row.plan_id);
     records.push({
       id: `alipay:${row.out_trade_no}`,
+      planId: row.plan_id,
       planTitle: paymentPlanTitle(row.plan_id),
       days: plan.days,
       grantedAt: toIso(row.paid_at) || toIso(row.created_at),
@@ -102,6 +104,7 @@ export async function listUserVipRecords(
     const plan = getVipPlan(grantId);
     records.push({
       id: `apple:${row.transaction_id}`,
+      planId: grantId,
       planTitle: plan.title,
       days: plan.days,
       grantedAt: toIso(row.created_at),
@@ -118,6 +121,7 @@ export async function listUserVipRecords(
       const plan = getVipPlan(grantId);
       records.push({
         id: `google:${row.purchaseToken}`,
+        planId: grantId,
         planTitle: plan.title,
         days: plan.days,
         grantedAt: toIso(row.createdAt),

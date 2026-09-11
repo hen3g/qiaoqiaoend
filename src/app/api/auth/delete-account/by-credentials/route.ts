@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { deleteAccountForUser } from "@/lib/account-delete";
 import { jsonError, jsonOk } from "@/lib/api";
+import { ErrorCode } from "@/lib/error-codes";
 import { clearSessionCookie } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { isValidEmail } from "@/lib/email-bind";
@@ -30,14 +31,14 @@ export async function POST(req: Request) {
       DELETE_LIMIT,
     );
     if (blocked) {
-      return jsonError("rate_limited", 429, { code: "rate_limited" });
+      return jsonError("rate_limited", 429, { code: ErrorCode.RATE_LIMITED });
     }
 
     const body = schema.parse(await req.json());
     const identifier = body.username.trim().toLowerCase();
     if (!identifier || !body.password) {
       return jsonError("invalid_credentials", 400, {
-        code: "invalid_credentials",
+        code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
 
@@ -57,20 +58,20 @@ export async function POST(req: Request) {
     if (!ok || !user) {
       await consumeIpRateLimit(req, "delete-account-web", DELETE_LIMIT);
       return jsonError("invalid_credentials", 401, {
-        code: "invalid_credentials",
+        code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
 
     await deleteAccountForUser(user.id);
     await clearSessionCookie();
-    return jsonOk({ code: "deleted" });
+    return jsonOk({ code: ErrorCode.DELETED });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return jsonError("invalid_credentials", 400, {
-        code: "invalid_credentials",
+        code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
     console.error(err);
-    return jsonError("failed", 500, { code: "failed" });
+    return jsonError("failed", 500, { code: ErrorCode.FAILED });
   }
 }

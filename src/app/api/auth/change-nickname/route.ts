@@ -6,6 +6,7 @@ import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { execute, query } from "@/lib/db";
 import { ipRateLimited, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { validateNickname } from "@/lib/nickname-validate";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   nickname: z.string(),
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const blocked = await ipRateLimitedPeek(req, "change-nickname", {
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
       { nickname, id: user.id },
     );
     if (taken[0]) {
-      return withAuthCors(jsonError("该昵称已被使用", 409));
+      return withAuthCors(jsonError("该昵称已被使用", 409, { code: ErrorCode.NICKNAME_TAKEN }));
     }
 
     const limited = await ipRateLimited(req, "change-nickname", { max: 10 });
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
     );
     const row = rows[0];
     if (!row) {
-      return withAuthCors(jsonError("账号不存在", 404));
+      return withAuthCors(jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND }));
     }
 
     return withAuthCors(jsonOk({ message: "昵称已更新", user: mapUser(row) }));
@@ -86,6 +87,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("修改失败，请稍后重试", 500));
+    return withAuthCors(jsonError("修改失败，请稍后重试", 500, { code: ErrorCode.UPDATE_FAILED }));
   }
 }

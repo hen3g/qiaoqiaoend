@@ -5,6 +5,7 @@ import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { fulfillAppleTransaction } from "@/lib/apple-fulfill";
 import { verifyAppleSignedTransaction } from "@/lib/apple-jws";
 import { ipRateLimited } from "@/lib/ip-rate-limit";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   jws: z.string().trim().min(20).max(120000),
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录后再支付", 401));
+      return withAuthCors(jsonError("请先登录后再支付", 401, { code: ErrorCode.LOGIN_REQUIRED_PAY }));
     }
 
     const limited = await ipRateLimited(req, "iap-verify", { max: 20 });
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
     const body = schema.parse(await req.json());
     const tx = await verifyAppleSignedTransaction(body.jws);
     if (body.productId && body.productId !== tx.productId) {
-      return withAuthCors(jsonError("商品与凭证不一致"));
+      return withAuthCors(jsonError("商品与凭证不一致", 400, { code: ErrorCode.PRODUCT_RECEIPT_MISMATCH }));
     }
 
     const result = await fulfillAppleTransaction({
@@ -62,6 +63,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(message));
     }
     console.error(err);
-    return withAuthCors(jsonError("校验失败，请稍后重试", 500));
+    return withAuthCors(jsonError("校验失败，请稍后重试", 500, { code: ErrorCode.VERIFY_FAILED }));
   }
 }

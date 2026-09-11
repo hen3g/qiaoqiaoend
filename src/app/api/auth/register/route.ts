@@ -25,6 +25,7 @@ import {
   ensureUserRegisterPlatformColumn,
   isRegisterPlatform,
 } from "@/lib/user-schema";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z
   .object({
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
       { username },
     );
     if (existing[0]) {
-      return withAuthCors(jsonError("用户名已被注册", 409));
+      return withAuthCors(jsonError("用户名已被注册", 409, { code: ErrorCode.USERNAME_TAKEN }));
     }
 
     const limited = await consumeIpRateLimitAll(req, REGISTER_LIMITS);
@@ -135,6 +136,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("注册失败，请稍后重试", 500));
+    return withAuthCors(jsonError("注册失败，请稍后重试", 500, { code: ErrorCode.REGISTER_FAILED }));
   }
 }

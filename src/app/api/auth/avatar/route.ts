@@ -12,6 +12,7 @@ import { HAMSTER_KIT_STYLE, isHamsterKitName } from "@/lib/hamster-kit";
 import { renderHamsterKitPng } from "@/lib/hamster-kit-render";
 import { ipRateLimited } from "@/lib/ip-rate-limit";
 import { uploadPublicObject } from "@/lib/r2";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   style: z.string().min(1),
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const limited = await ipRateLimited(req, "avatar-upload", { max: 5 });
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
     if (body.style === HAMSTER_KIT_STYLE) {
       if (!isHamsterKitName(body.seed)) {
-        return withAuthCors(jsonError("不支持的卡通形象"));
+        return withAuthCors(jsonError("不支持的卡通形象", 400, { code: ErrorCode.UNSUPPORTED_AVATAR }));
       }
       png = await renderHamsterKitPng({
         kit: body.seed,
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
       });
     } else {
       if (!isAvatarStyle(body.style)) {
-        return withAuthCors(jsonError("不支持的头像风格"));
+        return withAuthCors(jsonError("不支持的头像风格", 400, { code: ErrorCode.UNSUPPORTED_AVATAR_STYLE }));
       }
       png = await fetchAvatarPng({
         style: body.style,
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     );
     const row = rows[0];
     if (!row) {
-      return withAuthCors(jsonError("账号不存在", 404));
+      return withAuthCors(jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND }));
     }
 
     return withAuthCors(

@@ -17,6 +17,7 @@ import {
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 import type { RowDataPacket } from "mysql2";
+import { ErrorCode } from "@/lib/error-codes";
 
 export async function OPTIONS() {
   return authPreflight();
@@ -29,17 +30,17 @@ export async function GET(req: Request, ctx: Ctx) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const outTradeNo = decodeURIComponent(ctx.params.outTradeNo || "").trim();
     if (!outTradeNo) {
-      return withAuthCors(jsonError("缺少订单号"));
+      return withAuthCors(jsonError("缺少订单号", 400, { code: ErrorCode.MISSING_ORDER_NO }));
     }
 
     let order = await getOrderByOutTradeNo(outTradeNo);
     if (!order || order.userId !== user.id || !isDiamondPackId(order.planId)) {
-      return withAuthCors(jsonError("订单不存在", 404));
+      return withAuthCors(jsonError("订单不存在", 404, { code: ErrorCode.ORDER_NOT_FOUND }));
     }
 
     if (order.status === "pending") {
@@ -59,7 +60,7 @@ export async function GET(req: Request, ctx: Ctx) {
     }
 
     if (!isDiamondPackId(order.planId)) {
-      return withAuthCors(jsonError("订单不存在", 404));
+      return withAuthCors(jsonError("订单不存在", 404, { code: ErrorCode.ORDER_NOT_FOUND }));
     }
 
     const pack = getDiamondPack(order.planId);
@@ -109,6 +110,6 @@ export async function GET(req: Request, ctx: Ctx) {
       return withAuthCors(jsonError(err.message));
     }
     console.error(err);
-    return withAuthCors(jsonError("查询订单失败", 500));
+    return withAuthCors(jsonError("查询订单失败", 500, { code: ErrorCode.ORDER_QUERY_FAILED }));
   }
 }

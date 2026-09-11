@@ -94,6 +94,7 @@ const MENU_ICONS: Record<string, React.ReactNode> = {
   "hamster-users": <IconUser />,
   "hamster-orders": <IconFile />,
   "hamster-stats": <IconCalendar />,
+  "hamster-notifications": <IconNotification />,
 };
 
 function AdminChrome({

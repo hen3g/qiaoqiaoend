@@ -10,6 +10,7 @@ import {
   orderAmountYuan,
 } from "@/lib/payment-orders";
 import { getVipPlan, isVipPlanId } from "@/lib/vip";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   planId: z.enum(["month", "quarter", "year", "quarter18", "year38", "month6"]),
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录后再开通会员", 401));
+      return withAuthCors(jsonError("请先登录后再开通会员", 401, { code: ErrorCode.LOGIN_REQUIRED_VIP }));
     }
 
     const limited = await ipRateLimited(req, "pay-order", { max: 5 });
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
     const body = schema.parse(await req.json());
     if (!isVipPlanId(body.planId)) {
-      return withAuthCors(jsonError("请选择有效的会员方案"));
+      return withAuthCors(jsonError("请选择有效的会员方案", 400, { code: ErrorCode.VIP_PLAN_INVALID }));
     }
 
     const plan = getVipPlan(body.planId);
@@ -70,6 +71,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.message));
     }
     console.error(err);
-    return withAuthCors(jsonError("创建订单失败，请稍后重试", 500));
+    return withAuthCors(jsonError("创建订单失败，请稍后重试", 500, { code: ErrorCode.CREATE_ORDER_FAILED }));
   }
 }

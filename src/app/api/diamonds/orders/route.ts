@@ -13,6 +13,7 @@ import {
   createPendingDiamondOrder,
   orderAmountYuan,
 } from "@/lib/payment-orders";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   packId: z.enum(["pack6", "pack25", "pack28"]),
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录后再充值钻石", 401));
+      return withAuthCors(jsonError("请先登录后再充值钻石", 401, { code: ErrorCode.LOGIN_REQUIRED_DIAMONDS }));
     }
 
     const limited = await ipRateLimited(req, "pay-order", { max: 5 });
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
 
     const body = schema.parse(await req.json());
     if (!isDiamondPackId(body.packId)) {
-      return withAuthCors(jsonError("请选择有效的钻石套餐"));
+      return withAuthCors(jsonError("请选择有效的钻石套餐", 400, { code: ErrorCode.DIAMOND_PACK_INVALID }));
     }
 
     const pack = getDiamondPack(body.packId);
@@ -72,6 +73,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.message));
     }
     console.error(err);
-    return withAuthCors(jsonError("创建订单失败，请稍后重试", 500));
+    return withAuthCors(jsonError("创建订单失败，请稍后重试", 500, { code: ErrorCode.CREATE_ORDER_FAILED }));
   }
 }

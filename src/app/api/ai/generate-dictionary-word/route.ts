@@ -22,6 +22,7 @@ import {
   INSUFFICIENT_DIAMONDS_MESSAGE,
   yuanToDiamonds,
 } from "@/lib/vip";
+import { ErrorCode } from "@/lib/error-codes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     let body: Body;
@@ -234,6 +235,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.message, 422));
     }
     console.error(err);
-    return withAuthCors(jsonError("生成词条失败，请稍后重试", 500));
+    return withAuthCors(jsonError("生成词条失败，请稍后重试", 500, { code: ErrorCode.GENERATE_DICT_FAILED }));
   }
 }

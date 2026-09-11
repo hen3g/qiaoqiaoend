@@ -70,13 +70,6 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     group: "通用",
   },
   {
-    key: "notifications",
-    path: "/admin/notifications",
-    label: "通知设置",
-    roles: ["admin"],
-    group: "通用",
-  },
-  {
     key: "notification-stats",
     path: "/admin/notification-stats",
     label: "通知统计",
@@ -112,6 +105,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     group: "敲敲英语",
   },
   {
+    key: "notifications",
+    path: "/admin/notifications",
+    label: "通知推送",
+    roles: ["admin"],
+    group: "敲敲英语",
+  },
+  {
     key: "hamster-users",
     path: "/admin/hamster/users",
     label: "用户",
@@ -129,6 +129,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     key: "hamster-stats",
     path: "/admin/hamster/stats",
     label: "数据统计",
+    roles: ["admin"],
+    group: "仓鼠单词",
+  },
+  {
+    key: "hamster-notifications",
+    path: "/admin/hamster/notifications",
+    label: "通知推送",
     roles: ["admin"],
     group: "仓鼠单词",
   },

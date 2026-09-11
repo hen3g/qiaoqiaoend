@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ErrorCode } from "@/lib/error-codes";
 
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const submissions = await listFeedbackSubmissionsForUser(user.id);
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     );
   } catch (err) {
     console.error(err);
-    return withAuthCors(jsonError("加载失败", 500));
+    return withAuthCors(jsonError("加载失败", 500, { code: ErrorCode.LOAD_FAILED }));
   }
 }
 
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const limited = await ipRateLimitedAll(req, [
@@ -102,6 +103,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.message));
     }
     console.error(err);
-    return withAuthCors(jsonError("提交失败", 500));
+    return withAuthCors(jsonError("提交失败", 500, { code: ErrorCode.SUBMIT_FAILED }));
   }
 }

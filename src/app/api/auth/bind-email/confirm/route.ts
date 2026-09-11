@@ -13,6 +13,7 @@ import {
 } from "@/lib/email-bind";
 import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { ensureUserEmailColumn } from "@/lib/user-schema";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   email: z.string().min(1, "请输入邮箱"),
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const blocked = await ipRateLimitedPeek(req, "email-verify", VERIFY_LIMIT);
@@ -40,12 +41,12 @@ export async function POST(req: Request) {
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) {
-      return withAuthCors(jsonError("邮箱格式不正确", 400));
+      return withAuthCors(jsonError("邮箱格式不正确", 400, { code: ErrorCode.BAD_EMAIL }));
     }
 
     const ownerId = await findUserIdByEmail(email);
     if (ownerId != null && ownerId !== user.id) {
-      return withAuthCors(jsonError("该邮箱已被其他账号绑定", 409));
+      return withAuthCors(jsonError("该邮箱已被其他账号绑定", 409, { code: ErrorCode.EMAIL_TAKEN }));
     }
 
     const verified = await verifyAndConsumeBindCode({
@@ -62,7 +63,17 @@ export async function POST(req: Request) {
         mismatch: "验证码错误",
         too_many: "验证次数过多，请重新获取验证码",
       } as const;
-      return withAuthCors(jsonError(messages[verified.reason], 400));
+      const reasonCodes = {
+        not_found: ErrorCode.VERIFY_CODE_REQUIRED,
+        expired: ErrorCode.VERIFY_CODE_EXPIRED,
+        mismatch: ErrorCode.VERIFY_CODE_MISMATCH,
+        too_many: ErrorCode.VERIFY_CODE_TOO_MANY,
+      } as const;
+      return withAuthCors(
+        jsonError(messages[verified.reason], 400, {
+          code: reasonCodes[verified.reason],
+        }),
+      );
     }
 
     await bindUserEmail(user.id, verified.email);
@@ -90,7 +101,7 @@ export async function POST(req: Request) {
     );
     const row = rows[0];
     if (!row) {
-      return withAuthCors(jsonError("账号不存在", 404));
+      return withAuthCors(jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND }));
     }
 
     return withAuthCors(
@@ -104,6 +115,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("绑定失败，请稍后重试", 500));
+    return withAuthCors(jsonError("绑定失败，请稍后重试", 500, { code: ErrorCode.BIND_FAILED }));
   }
 }

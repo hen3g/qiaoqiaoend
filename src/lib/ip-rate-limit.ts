@@ -1,6 +1,7 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2";
 import { jsonError } from "@/lib/api";
+import { ErrorCode } from "@/lib/error-codes";
 import { execute, query } from "@/lib/db";
 
 /** Default window: 1 minute. */
@@ -160,7 +161,7 @@ function rateLimitResponse(retryAfterSeconds: number) {
   const res = jsonError(
     `请求过于频繁，请过段时间再试`,
     429,
-    { retryAfterSeconds },
+    { retryAfterSeconds, code: ErrorCode.RATE_LIMITED },
   );
   res.headers.set("Retry-After", String(retryAfterSeconds));
   return res;

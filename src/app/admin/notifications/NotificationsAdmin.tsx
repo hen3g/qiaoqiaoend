@@ -16,33 +16,47 @@ import {
   Tag,
   Typography,
 } from "@arco-design/web-react";
-import type { NotificationAppTarget, NotificationType } from "@/lib/notifications";
-import { clientAppLabel, clientAppTagColor } from "@/lib/client-app";
+import type { ClientAppId } from "@/lib/client-app";
+import { CLIENT_APP_LABELS } from "@/lib/client-app";
+import type { NotificationType } from "@/lib/notifications";
+
+type AudienceLocale = "all" | "zh" | "ja";
+type Audience = "broadcast" | "user";
 
 type NotificationDto = {
   id: number;
   type: NotificationType;
-  appId: NotificationAppTarget;
+  appId: string;
   userId: number | null;
   username: string | null;
   nickname: string | null;
   version: string | null;
   title: string;
   summary: string;
+  titleZh: string | null;
+  summaryZh: string | null;
+  titleJa: string | null;
+  summaryJa: string | null;
+  locale: "zh" | "ja" | null;
   imageUrl: string | null;
   linkUrl: string | null;
   createdAt: string | null;
 };
-
-type Audience = "broadcast" | "user";
 
 const TYPE_LABEL: Record<NotificationType, string> = {
   update: "更新通知",
   message: "消息通知",
 };
 
-export function NotificationsAdmin() {
+export function NotificationsAdmin({
+  app,
+}: {
+  app: ClientAppId;
+}) {
   const searchParams = useSearchParams();
+  const isHamster = app === "hamster";
+  const appLabel = CLIENT_APP_LABELS[app];
+
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,19 +64,21 @@ export function NotificationsAdmin() {
   const [loading, setLoading] = useState(true);
 
   const [type, setType] = useState<NotificationType>("update");
-  const [appId, setAppId] = useState<NotificationAppTarget>("all");
   const [audience, setAudience] = useState<Audience>("broadcast");
+  const [audienceLocale, setAudienceLocale] = useState<AudienceLocale>("all");
   const [targetUser, setTargetUser] = useState("");
   const [version, setVersion] = useState("");
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
+  const [titleJa, setTitleJa] = useState("");
+  const [summaryJa, setSummaryJa] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/notifications");
+      const res = await fetch(`/api/admin/notifications?app=${app}`);
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setError(data.error || "加载失败");
@@ -73,20 +89,30 @@ export function NotificationsAdmin() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [app]);
 
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
 
   useEffect(() => {
+    if (!isHamster) return;
     const user = searchParams.get("user")?.trim();
     if (!user) return;
     setAudience("user");
     setTargetUser(user);
-    setAppId("hamster");
     setType("message");
-  }, [searchParams]);
+  }, [searchParams, isHamster]);
+
+  function resetForm() {
+    setVersion("");
+    setTitle("");
+    setSummary("");
+    setTitleJa("");
+    setSummaryJa("");
+    setImageUrl("");
+    setLinkUrl("");
+  }
 
   async function publishNotification() {
     setError("");
@@ -101,11 +127,18 @@ export function NotificationsAdmin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: audience === "user" ? "message" : type,
-          appId: audience === "user" ? "hamster" : appId,
-          ...(audience === "user" ? { targetUser: targetUser.trim() } : {}),
+          appId: app,
+          ...(audience === "user"
+            ? { targetUser: targetUser.trim() }
+            : isHamster && audienceLocale !== "all"
+              ? { locale: audienceLocale }
+              : { locale: null }),
           version: type === "update" && audience === "broadcast" ? version : null,
           title,
           summary,
+          ...(isHamster
+            ? { titleJa, summaryJa }
+            : { titleJa: null, summaryJa: null }),
           imageUrl,
           linkUrl,
         }),
@@ -116,11 +149,7 @@ export function NotificationsAdmin() {
         return;
       }
       Message.success(data.message || "发布成功");
-      setVersion("");
-      setTitle("");
-      setSummary("");
-      setImageUrl("");
-      setLinkUrl("");
+      resetForm();
       await loadNotifications();
     } catch {
       setError("网络错误");
@@ -161,45 +190,52 @@ export function NotificationsAdmin() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
-      <Card title="发布通知">
+      <Card title={`${appLabel} · 发布通知`}>
         <Typography.Paragraph type="secondary">
-          广播通知可发给敲敲英语、仓鼠单词或两边都发；公开接口对敲敲英语仍只返回各类型最新一条。
-          指定用户仅支持仓鼠单词，会出现在该用户的消息列表里，敲敲英语看不到。
+          {isHamster
+            ? "仓鼠单词专用推送。广播可按语言受众筛选；填写中/日文案后，用户按自身操作语言看到对应内容。指定用户不限制语言，始终送达，文案优先用用户 locale。"
+            : "敲敲英语专用推送（中文）。不会发到仓鼠单词设备/列表。"}
         </Typography.Paragraph>
         <Form
           layout="vertical"
-          style={{ maxWidth: 560 }}
+          style={{ maxWidth: 640 }}
           onSubmit={() => {
             void publishNotification();
           }}
         >
-          <Form.Item label="发送范围">
-            <Radio.Group
-              value={audience}
-              onChange={(v) => {
-                const next = v as Audience;
-                setAudience(next);
-                if (next === "user") {
-                  setType("message");
-                  setAppId("hamster");
-                }
-              }}
-            >
-              <Radio value="broadcast">广播</Radio>
-              <Radio value="user">指定用户（仅仓鼠单词）</Radio>
-            </Radio.Group>
-          </Form.Item>
-          {audience === "user" ? (
-            <Form.Item label="用户名或用户 ID" required>
-              <Input
+          {isHamster ? (
+            <Form.Item label="发送范围">
+              <Radio.Group
+                value={audience}
+                onChange={(v) => {
+                  const next = v as Audience;
+                  setAudience(next);
+                  if (next === "user") {
+                    setType("message");
+                    setAudienceLocale("all");
+                  }
+                }}
+              >
+                <Radio value="broadcast">广播</Radio>
+                <Radio value="user">指定用户</Radio>
+              </Radio.Group>
+            </Form.Item>
+          ) : null}
+
+          {isHamster && audience === "user" ? (
+            <Form.Item label="用户名或用户 ID（可多个，逗号/换行分隔）" required>
+              <Input.TextArea
                 value={targetUser}
                 onChange={setTargetUser}
-                placeholder="例如 hamster_user 或 128"
-                maxLength={32}
+                placeholder={"例如 hamster_user 或 128\n也可一次填多个"}
+                maxLength={500}
+                autoSize={{ minRows: 2, maxRows: 5 }}
                 required
               />
             </Form.Item>
-          ) : (
+          ) : null}
+
+          {audience === "broadcast" ? (
             <>
               <Form.Item label="通知类型">
                 <Radio.Group
@@ -210,16 +246,18 @@ export function NotificationsAdmin() {
                   <Radio value="message">消息通知</Radio>
                 </Radio.Group>
               </Form.Item>
-              <Form.Item label="发送给">
-                <Radio.Group
-                  value={appId}
-                  onChange={(v) => setAppId(v as NotificationAppTarget)}
-                >
-                  <Radio value="all">两个 App</Radio>
-                  <Radio value="qiaoqiao">仅敲敲英语</Radio>
-                  <Radio value="hamster">仅仓鼠单词</Radio>
-                </Radio.Group>
-              </Form.Item>
+              {isHamster ? (
+                <Form.Item label="语言受众">
+                  <Radio.Group
+                    value={audienceLocale}
+                    onChange={(v) => setAudienceLocale(v as AudienceLocale)}
+                  >
+                    <Radio value="all">全部仓鼠用户</Radio>
+                    <Radio value="zh">仅中文</Radio>
+                    <Radio value="ja">仅日文</Radio>
+                  </Radio.Group>
+                </Form.Item>
+              ) : null}
               {type === "update" ? (
                 <Form.Item label="版本号" required>
                   <Input
@@ -232,24 +270,92 @@ export function NotificationsAdmin() {
                 </Form.Item>
               ) : null}
             </>
+          ) : null}
+
+          {isHamster ? (
+            <>
+              {(audience === "user" ||
+                audienceLocale === "all" ||
+                audienceLocale === "zh") && (
+                <>
+                  <Form.Item
+                    label="中文标题"
+                    required={
+                      audience === "user" ||
+                      audienceLocale === "all" ||
+                      audienceLocale === "zh"
+                    }
+                  >
+                    <Input
+                      value={title}
+                      onChange={setTitle}
+                      maxLength={200}
+                      placeholder="简体中文"
+                    />
+                  </Form.Item>
+                  <Form.Item label="中文简介" required={audienceLocale !== "ja"}>
+                    <Input.TextArea
+                      value={summary}
+                      onChange={setSummary}
+                      maxLength={500}
+                      autoSize={{ minRows: 3, maxRows: 6 }}
+                      placeholder="简体中文"
+                    />
+                  </Form.Item>
+                </>
+              )}
+              {(audience === "user" ||
+                audienceLocale === "all" ||
+                audienceLocale === "ja") && (
+                <>
+                  <Form.Item
+                    label="日文标题"
+                    required={audienceLocale === "ja"}
+                  >
+                    <Input
+                      value={titleJa}
+                      onChange={setTitleJa}
+                      maxLength={200}
+                      placeholder="日本語"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="日文简介"
+                    required={audienceLocale === "ja"}
+                  >
+                    <Input.TextArea
+                      value={summaryJa}
+                      onChange={setSummaryJa}
+                      maxLength={500}
+                      autoSize={{ minRows: 3, maxRows: 6 }}
+                      placeholder="日本語"
+                    />
+                  </Form.Item>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <Form.Item label="标题" required>
+                <Input
+                  value={title}
+                  onChange={setTitle}
+                  maxLength={200}
+                  required
+                />
+              </Form.Item>
+              <Form.Item label="简介" required>
+                <Input.TextArea
+                  value={summary}
+                  onChange={setSummary}
+                  maxLength={500}
+                  autoSize={{ minRows: 3, maxRows: 6 }}
+                  required
+                />
+              </Form.Item>
+            </>
           )}
-          <Form.Item label="标题" required>
-            <Input
-              value={title}
-              onChange={setTitle}
-              maxLength={200}
-              required
-            />
-          </Form.Item>
-          <Form.Item label="简介" required>
-            <Input.TextArea
-              value={summary}
-              onChange={setSummary}
-              maxLength={500}
-              autoSize={{ minRows: 3, maxRows: 6 }}
-              required
-            />
-          </Form.Item>
+
           <Form.Item label="图片链接（可选）">
             <Input
               value={imageUrl}
@@ -267,7 +373,7 @@ export function NotificationsAdmin() {
             />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={busy}>
-            {audience === "user" ? "发给该用户" : "发布通知"}
+            {audience === "user" ? "发给指定用户" : "发布通知"}
           </Button>
         </Form>
       </Card>
@@ -275,7 +381,7 @@ export function NotificationsAdmin() {
       {error ? <Alert type="error" content={error} /> : null}
 
       <Card
-        title={`全部通知（${notifications.length}）`}
+        title={`${appLabel}通知（${notifications.length}）`}
         extra={
           <Button onClick={() => void loadNotifications()} loading={loading}>
             刷新
@@ -312,16 +418,20 @@ export function NotificationsAdmin() {
                         <Tag color={n.type === "update" ? "arcoblue" : "green"}>
                           {TYPE_LABEL[n.type]}
                         </Tag>
-                        <Tag color={clientAppTagColor(n.appId)}>
-                          {clientAppLabel(n.appId)}
-                        </Tag>
+                        {n.appId === "all" ? (
+                          <Tag color="gray">历史·双端</Tag>
+                        ) : null}
                         {n.userId ? (
                           <Tag color="purple">
                             @{n.username || n.userId}
                             {n.nickname ? ` · ${n.nickname}` : ""}
                           </Tag>
+                        ) : n.locale === "zh" ? (
+                          <Tag color="blue">受众·中文</Tag>
+                        ) : n.locale === "ja" ? (
+                          <Tag color="magenta">受众·日文</Tag>
                         ) : (
-                          <Tag>广播</Tag>
+                          <Tag>广播·全部语言</Tag>
                         )}
                         {n.version ? (
                           <Typography.Text type="secondary">
@@ -334,12 +444,33 @@ export function NotificationsAdmin() {
                           </Typography.Text>
                         ) : null}
                       </Space>
-                      <Typography.Title heading={6} style={{ margin: "8px 0" }}>
-                        {n.title}
-                      </Typography.Title>
-                      <Typography.Paragraph type="secondary">
-                        {n.summary}
-                      </Typography.Paragraph>
+                      {n.titleZh || n.summaryZh ? (
+                        <>
+                          <Typography.Title
+                            heading={6}
+                            style={{ margin: "8px 0 4px" }}
+                          >
+                            {n.titleZh || n.title}
+                          </Typography.Title>
+                          <Typography.Paragraph type="secondary">
+                            {n.summaryZh || n.summary}
+                          </Typography.Paragraph>
+                        </>
+                      ) : null}
+                      {n.titleJa || n.summaryJa ? (
+                        <>
+                          <Typography.Text type="secondary">日本語</Typography.Text>
+                          <Typography.Title
+                            heading={6}
+                            style={{ margin: "4px 0" }}
+                          >
+                            {n.titleJa}
+                          </Typography.Title>
+                          <Typography.Paragraph type="secondary">
+                            {n.summaryJa}
+                          </Typography.Paragraph>
+                        </>
+                      ) : null}
                       {n.linkUrl ? (
                         <Typography.Text>
                           <a href={n.linkUrl} target="_blank" rel="noreferrer">

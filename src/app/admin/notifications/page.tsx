@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { NotificationsAdmin } from "./NotificationsAdmin";
 
-export default function AdminNotificationsPage() {
+export default function AdminQiaoqiaoNotificationsPage() {
   return (
     <Suspense fallback={null}>
-      <NotificationsAdmin />
+      <NotificationsAdmin app="qiaoqiao" />
     </Suspense>
   );
 }

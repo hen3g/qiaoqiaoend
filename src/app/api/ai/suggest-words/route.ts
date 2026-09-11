@@ -11,6 +11,7 @@ import {
   INSUFFICIENT_DIAMONDS_CODE,
   INSUFFICIENT_DIAMONDS_MESSAGE,
 } from "@/lib/vip";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   request: z.string().optional(),
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const diamonds = await getUserDiamonds(user.id);
@@ -97,6 +98,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.message, 422));
     }
     console.error(err);
-    return withAuthCors(jsonError("推荐单词失败，请稍后重试", 500));
+    return withAuthCors(jsonError("推荐单词失败，请稍后重试", 500, { code: ErrorCode.SUGGEST_WORDS_FAILED }));
   }
 }

@@ -11,11 +11,21 @@ import {
   getLatestNotifications,
   listHamsterNotifications,
 } from "@/lib/notifications";
+import { parseAppUiLocale } from "@/lib/user-schema";
 
 export const dynamic = "force-dynamic";
 
+/** Optional client hint when users.locale is not yet synced. */
+function localeHintFromRequest(req: Request): ReturnType<typeof parseAppUiLocale> {
+  return (
+    parseAppUiLocale(req.headers.get("x-app-locale")) ??
+    parseAppUiLocale(req.headers.get("accept-language"))
+  );
+}
+
 /** 公开接口：敲敲英语仍返回各类型最新一条；仓鼠单词会附带该用户的个人消息。
- *  query `source=web` 表示在线版；缺省或其它值按客户端计。 */
+ *  query `source=web` 表示在线版；缺省或其它值按客户端计。
+ *  仓鼠按用户 locale（或 x-app-locale）返回对应语言文案，并过滤受众语言。 */
 export async function OPTIONS() {
   return authPreflight();
 }
@@ -31,10 +41,12 @@ export async function GET(req: Request) {
     });
 
     const appId = clientAppFromRequest(req);
+    const visitUserId = await resolveVisitUserId(req);
+    const localeHint = localeHintFromRequest(req);
     const notifications =
       appId === "hamster"
-        ? await listHamsterNotifications(await resolveVisitUserId(req))
-        : await getLatestNotifications(appId);
+        ? await listHamsterNotifications(visitUserId, localeHint)
+        : await getLatestNotifications(appId, null);
     return withAuthCors(jsonOk({ notifications }));
   } catch (err) {
     console.error(err);

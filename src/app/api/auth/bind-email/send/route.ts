@@ -18,6 +18,7 @@ import {
   type IpRateCheck,
 } from "@/lib/ip-rate-limit";
 import { sendVerificationCodeEmail } from "@/lib/tencent-ses";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   email: z.string().min(1, "请输入邮箱"),
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const blocked = await ipRateLimitedPeekAll(req, EMAIL_SEND_LIMITS);
@@ -45,17 +46,17 @@ export async function POST(req: Request) {
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) {
-      return withAuthCors(jsonError("邮箱格式不正确", 400));
+      return withAuthCors(jsonError("邮箱格式不正确", 400, { code: ErrorCode.BAD_EMAIL }));
     }
 
     const currentEmail = await getUserEmail(user.id);
     if (currentEmail && currentEmail === email) {
-      return withAuthCors(jsonError("该邮箱已绑定到当前账号", 400));
+      return withAuthCors(jsonError("该邮箱已绑定到当前账号", 400, { code: ErrorCode.EMAIL_ALREADY_BOUND }));
     }
 
     const ownerId = await findUserIdByEmail(email);
     if (ownerId != null && ownerId !== user.id) {
-      return withAuthCors(jsonError("该邮箱已被其他账号绑定", 409));
+      return withAuthCors(jsonError("该邮箱已被其他账号绑定", 409, { code: ErrorCode.EMAIL_TAKEN }));
     }
 
     try {
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
       await sendVerificationCodeEmail({ to: email, code });
     } catch (err) {
       console.error("[bind-email/send] SES failed", err);
-      return withAuthCors(jsonError("验证码发送失败，请稍后重试", 502));
+      return withAuthCors(jsonError("验证码发送失败，请稍后重试", 502, { code: ErrorCode.CODE_SEND_FAILED }));
     }
 
     return withAuthCors(
@@ -101,6 +102,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("发送失败，请稍后重试", 500));
+    return withAuthCors(jsonError("发送失败，请稍后重试", 500, { code: ErrorCode.SEND_FAILED }));
   }
 }

@@ -5,6 +5,7 @@ import {
   createDailyGiftCode,
   listGiftCodesForUser,
 } from "@/lib/gift-codes";
+import { ErrorCode } from "@/lib/error-codes";
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).max(10000).default(1),
@@ -12,7 +13,7 @@ const listSchema = z.object({
 
 function mapAuthError(err: unknown) {
   if (err instanceof Error && err.message === "UNAUTHORIZED") {
-    return jsonError("请先登录", 401);
+    return jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED });
   }
   return null;
 }
@@ -40,10 +41,10 @@ export async function GET(req: Request) {
     const mapped = mapAuthError(err);
     if (mapped) return mapped;
     if (err instanceof Error && err.message === "FORBIDDEN") {
-      return jsonError("仅永久会员可使用", 403);
+      return jsonError("仅永久会员可使用", 403, { code: ErrorCode.PERMANENT_VIP_ONLY });
     }
     console.error(err);
-    return jsonError("加载失败", 500);
+    return jsonError("加载失败", 500, { code: ErrorCode.LOAD_FAILED });
   }
 }
 
@@ -57,7 +58,7 @@ export async function POST() {
     const mapped = mapAuthError(err);
     if (mapped) return mapped;
     if (err instanceof Error && err.message === "FORBIDDEN") {
-      return jsonError("仅永久会员可使用", 403);
+      return jsonError("仅永久会员可使用", 403, { code: ErrorCode.PERMANENT_VIP_ONLY });
     }
     if (err instanceof Error) return jsonError(err.message);
     console.error(err);

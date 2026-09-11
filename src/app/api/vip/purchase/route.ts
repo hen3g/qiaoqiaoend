@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { isVipPlanId, purchaseVipPlan, VIP_PLANS } from "@/lib/vip";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   planId: z.enum(["month", "quarter", "year", "quarter18", "year38", "month6"]),
@@ -32,18 +33,18 @@ export async function POST(req: Request) {
   try {
     if (process.env.ALLOW_TEST_VIP_PURCHASE !== "1") {
       return withAuthCors(
-        jsonError("请使用支付宝支付开通会员", 403),
+        jsonError("请使用支付宝支付开通会员", 403, { code: ErrorCode.USE_ALIPAY_FOR_VIP }),
       );
     }
 
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录后再开通会员", 401));
+      return withAuthCors(jsonError("请先登录后再开通会员", 401, { code: ErrorCode.LOGIN_REQUIRED_VIP }));
     }
 
     const body = schema.parse(await req.json());
     if (!isVipPlanId(body.planId)) {
-      return withAuthCors(jsonError("请选择有效的会员方案"));
+      return withAuthCors(jsonError("请选择有效的会员方案", 400, { code: ErrorCode.VIP_PLAN_INVALID }));
     }
 
     const result = await purchaseVipPlan(user.id, body.planId);
@@ -66,6 +67,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.message));
     }
     console.error(err);
-    return withAuthCors(jsonError("开通失败，请稍后重试", 500));
+    return withAuthCors(jsonError("开通失败，请稍后重试", 500, { code: ErrorCode.VIP_PURCHASE_FAILED }));
   }
 }

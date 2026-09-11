@@ -6,6 +6,7 @@ import {
   insertDiamondTransaction,
   type DiamondTxType,
 } from "@/lib/diamond-transactions";
+import { ErrorCode } from "@/lib/error-codes";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
@@ -114,7 +115,7 @@ export function getVipPlan(planId: VipPlanId): VipPlan {
 export const DIAMONDS_PER_YUAN = 100;
 
 /** Client/API code when a custom-course AI call is blocked for empty balance. */
-export const INSUFFICIENT_DIAMONDS_CODE = "INSUFFICIENT_DIAMONDS";
+export const INSUFFICIENT_DIAMONDS_CODE = ErrorCode.INSUFFICIENT_DIAMONDS;
 export const INSUFFICIENT_DIAMONDS_MESSAGE = "钻石不足，请充值后再试";
 
 export function yuanToDiamonds(yuan: number): number {

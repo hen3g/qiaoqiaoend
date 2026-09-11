@@ -19,6 +19,7 @@ import {
 } from "@/lib/password-reset";
 import { sendVerificationCodeEmail } from "@/lib/tencent-ses";
 import { ensureUserEmailColumn } from "@/lib/user-schema";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   email: z.string().min(1, "请输入邮箱"),
@@ -42,12 +43,12 @@ export async function POST(req: Request) {
     const body = schema.parse(await req.json());
     const email = normalizeEmail(body.email);
     if (!isValidEmail(email)) {
-      return withAuthCors(jsonError("邮箱格式不正确", 400));
+      return withAuthCors(jsonError("邮箱格式不正确", 400, { code: ErrorCode.BAD_EMAIL }));
     }
 
     const userId = await findUserIdByEmail(email);
     if (userId == null) {
-      return withAuthCors(jsonError("该邮箱未绑定账号", 400));
+      return withAuthCors(jsonError("该邮箱未绑定账号", 400, { code: ErrorCode.EMAIL_NOT_BOUND }));
     }
 
     try {
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
       await sendVerificationCodeEmail({ to: email, code });
     } catch (err) {
       console.error("[forgot-password/send] SES failed", err);
-      return withAuthCors(jsonError("验证码发送失败，请稍后重试", 502));
+      return withAuthCors(jsonError("验证码发送失败，请稍后重试", 502, { code: ErrorCode.CODE_SEND_FAILED }));
     }
 
     return withAuthCors(
@@ -93,6 +94,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("发送失败，请稍后重试", 500));
+    return withAuthCors(jsonError("发送失败，请稍后重试", 500, { code: ErrorCode.SEND_FAILED }));
   }
 }

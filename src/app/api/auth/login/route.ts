@@ -19,6 +19,7 @@ import {
   ensureUserPromoterColumns,
   touchUserLastApp,
 } from "@/lib/user-schema";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   username: z.string().min(1, "请输入用户名或邮箱"),
@@ -70,13 +71,13 @@ export async function POST(req: Request) {
     const user = rows[0];
     if (!user) {
       await consumeIpRateLimit(req, "login", LOGIN_LIMIT);
-      return withAuthCors(jsonError("用户不存在", 401));
+      return withAuthCors(jsonError("用户不存在", 401, { code: ErrorCode.USER_NOT_FOUND }));
     }
 
     const ok = await verifyPassword(body.password, user.password_hash);
     if (!ok) {
       await consumeIpRateLimit(req, "login", LOGIN_LIMIT);
-      return withAuthCors(jsonError("密码错误", 401));
+      return withAuthCors(jsonError("密码错误", 401, { code: ErrorCode.BAD_PASSWORD }));
     }
 
     const token = await createSessionToken(user.id);
@@ -95,6 +96,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("登录失败，请稍后重试", 500));
+    return withAuthCors(jsonError("登录失败，请稍后重试", 500, { code: ErrorCode.LOGIN_FAILED }));
   }
 }

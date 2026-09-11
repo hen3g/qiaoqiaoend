@@ -271,23 +271,27 @@ export function UsersAdmin({
         u.createdAt ? new Date(u.createdAt).toLocaleString("zh-CN") : "—",
     },
     { title: "token_version", dataIndex: "tokenVersion", width: 120 },
-    {
-      title: "通知",
-      width: 100,
-      render: (_, u) => (
-        <Button
-          size="mini"
-          type="text"
-          onClick={() =>
-            router.push(
-              `/admin/notifications?user=${encodeURIComponent(u.username)}`,
-            )
-          }
-        >
-          发通知
-        </Button>
-      ),
-    },
+    ...(app === "hamster"
+      ? [
+          {
+            title: "通知",
+            width: 100,
+            render: (_: unknown, u: AdminUser) => (
+              <Button
+                size="mini"
+                type="text"
+                onClick={() =>
+                  router.push(
+                    `/admin/hamster/notifications?user=${encodeURIComponent(u.username)}`,
+                  )
+                }
+              >
+                发通知
+              </Button>
+            ),
+          } as ColumnProps<AdminUser>,
+        ]
+      : []),
   ];
 
   return (

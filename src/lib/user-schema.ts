@@ -230,3 +230,74 @@ export function isRegisterPlatform(
 ): value is RegisterPlatform {
   return value === "ios" || value === "android";
 }
+
+export type AppUiLocale = "zh" | "ja";
+
+let localeEnsured = false;
+
+/** App UI language for 仓鼠单词 multilingual notifications (zh / ja). */
+export async function ensureUserLocaleColumn(): Promise<void> {
+  if (localeEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'locale'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN locale VARCHAR(8) NULL AFTER register_platform`,
+    );
+  }
+
+  type IndexRow = RowDataPacket & { Key_name: string };
+  const indexes = await query<IndexRow[]>(`SHOW INDEX FROM users`);
+  if (!indexes.some((row) => row.Key_name === "idx_users_locale")) {
+    await execute(`ALTER TABLE users ADD KEY idx_users_locale (locale)`);
+  }
+
+  localeEnsured = true;
+}
+
+export function isAppUiLocale(value: unknown): value is AppUiLocale {
+  return value === "zh" || value === "ja";
+}
+
+export function parseAppUiLocale(
+  value: string | null | undefined,
+): AppUiLocale | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "ja" || normalized === "ja-jp" || normalized.startsWith("ja-")) {
+    return "ja";
+  }
+  if (
+    normalized === "zh" ||
+    normalized === "zh-cn" ||
+    normalized === "zh-hans" ||
+    normalized.startsWith("zh-")
+  ) {
+    return "zh";
+  }
+  return null;
+}
+
+export async function getUserLocale(userId: number): Promise<AppUiLocale | null> {
+  await ensureUserLocaleColumn();
+  const rows = await query<(RowDataPacket & { locale: string | null })[]>(
+    `SELECT locale FROM users WHERE id = :id LIMIT 1`,
+    { id: userId },
+  );
+  return parseAppUiLocale(rows[0]?.locale ?? null);
+}
+
+export async function setUserLocale(
+  userId: number,
+  locale: AppUiLocale,
+): Promise<void> {
+  await ensureUserLocaleColumn();
+  await execute(
+    `UPDATE users SET locale = :locale WHERE id = :id LIMIT 1`,
+    { locale, id: userId },
+  );
+}

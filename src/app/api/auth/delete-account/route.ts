@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
+import { ErrorCode } from "@/lib/error-codes";
 
 import { deleteAccountForUser } from "@/lib/account-delete";
 import { jsonError, jsonOk } from "@/lib/api";
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return withAuthCors(jsonError("请先登录", 401));
+      return withAuthCors(jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED }));
     }
 
     const blocked = await ipRateLimitedPeek(req, "delete-account", DELETE_LIMIT);
@@ -36,13 +37,13 @@ export async function POST(req: Request) {
     );
     const row = rows[0];
     if (!row) {
-      return withAuthCors(jsonError("账号不存在", 404));
+      return withAuthCors(jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND }));
     }
 
     const ok = await verifyPassword(body.password, row.password_hash);
     if (!ok) {
       await consumeIpRateLimit(req, "delete-account", DELETE_LIMIT);
-      return withAuthCors(jsonError("当前密码不正确"));
+      return withAuthCors(jsonError("当前密码不正确", 400, { code: ErrorCode.BAD_CURRENT_PASSWORD }));
     }
 
     await deleteAccountForUser(user.id);
@@ -54,6 +55,6 @@ export async function POST(req: Request) {
       return withAuthCors(jsonError(err.issues[0]?.message || "参数错误"));
     }
     console.error(err);
-    return withAuthCors(jsonError("删除失败，请稍后重试", 500));
+    return withAuthCors(jsonError("删除失败，请稍后重试", 500, { code: ErrorCode.DELETE_FAILED }));
   }
 }

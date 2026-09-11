@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { execute, query } from "@/lib/db";
 import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z
   .object({
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
-      return jsonError("请先登录", 401);
+      return jsonError("请先登录", 401, { code: ErrorCode.LOGIN_REQUIRED });
     }
 
     const blocked = await ipRateLimitedPeek(req, "change-password", PASSWORD_LIMIT);
@@ -40,13 +41,13 @@ export async function POST(req: Request) {
     );
     const row = rows[0];
     if (!row) {
-      return jsonError("账号不存在", 404);
+      return jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND });
     }
 
     const ok = await verifyPassword(body.oldPassword, row.password_hash);
     if (!ok) {
       await consumeIpRateLimit(req, "change-password", PASSWORD_LIMIT);
-      return jsonError("当前密码不正确");
+      return jsonError("当前密码不正确", 400, { code: ErrorCode.BAD_CURRENT_PASSWORD });
     }
 
     const passwordHash = await hashPassword(body.newPassword);
@@ -61,6 +62,6 @@ export async function POST(req: Request) {
       return jsonError(err.issues[0]?.message || "参数错误");
     }
     console.error(err);
-    return jsonError("修改失败，请稍后重试", 500);
+    return jsonError("修改失败，请稍后重试", 500, { code: ErrorCode.UPDATE_FAILED });
   }
 }
