@@ -23,7 +23,8 @@ function localeHintFromRequest(req: Request): ReturnType<typeof parseAppUiLocale
   );
 }
 
-/** 公开接口：敲敲英语仍返回各类型最新一条；仓鼠单词会附带该用户的个人消息。
+/** 敲敲英语：公开，各类型最新一条广播（不含指定用户消息）。
+ *  仓鼠单词 inbox：必须登录；未登录 401，不返回广播或个人消息。
  *  query `source=web` 表示在线版；缺省或其它值按客户端计。
  *  仓鼠按用户 locale（或 x-app-locale）返回对应语言文案，并过滤受众语言。 */
 export async function OPTIONS() {
@@ -43,10 +44,17 @@ export async function GET(req: Request) {
     const appId = clientAppFromRequest(req);
     const visitUserId = await resolveVisitUserId(req);
     const localeHint = localeHintFromRequest(req);
-    const notifications =
-      appId === "hamster"
-        ? await listHamsterNotifications(visitUserId, localeHint)
-        : await getLatestNotifications(appId, null);
+    if (appId === "hamster") {
+      if (visitUserId == null) {
+        return withAuthCors(jsonError("请先登录", 401));
+      }
+      const notifications = await listHamsterNotifications(
+        visitUserId,
+        localeHint,
+      );
+      return withAuthCors(jsonOk({ notifications }));
+    }
+    const notifications = await getLatestNotifications(appId, null);
     return withAuthCors(jsonOk({ notifications }));
   } catch (err) {
     console.error(err);

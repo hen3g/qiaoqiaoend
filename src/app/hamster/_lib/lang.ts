@@ -31,7 +31,7 @@ export const HTML_LANG: Record<HamsterLang, string> = {
 
 export const COMPANY = {
   zh: "言词科技（大连）有限公司",
-  ja: "言词科技（大连）有限公司",
+  ja: "Yanci Technology (Dalian) Co., Ltd.",
 } as const;
 
 export const PRODUCT = {
@@ -39,7 +39,10 @@ export const PRODUCT = {
   ja: "倉鼠単語",
 } as const;
 
-export const CONTACT_EMAIL = "baseheng@qq.com";
+export const CONTACT_EMAIL = {
+  zh: "baseheng@qq.com",
+  ja: "ziven.charlson@outlook.com",
+} as const;
 export const CONTACT_WECHAT = "535938559";
 export const SITE_URL = "https://yancilanguage.cn/";
 export const SITE_HOST = "yancilanguage.cn";

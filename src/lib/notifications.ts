@@ -352,25 +352,24 @@ export async function getLatestNotifications(
 
 /**
  * 仓鼠单词 inbox: latest broadcast of each type (locale-aware), plus this user's personal messages.
+ * Requires a logged-in userId — guests get nothing (no broadcasts, no DMs).
  * Specific-user messages are never filtered by language.
  */
 export async function listHamsterNotifications(
   userId: number | null,
   userLocale: AppUiLocale | null = null,
 ): Promise<NotificationDto[]> {
-  let locale = userLocale;
-  if (userId != null) {
-    await ensureUserLocaleColumn();
-    const rows = await query<(RowDataPacket & { locale: string | null })[]>(
-      `SELECT locale FROM users WHERE id = :id LIMIT 1`,
-      { id: userId },
-    );
-    // Prefer persisted users.locale; fall back to client hint (x-app-locale).
-    locale = parseAppUiLocale(rows[0]?.locale ?? null) ?? userLocale;
-  }
+  if (userId == null) return [];
+
+  await ensureUserLocaleColumn();
+  const rows = await query<(RowDataPacket & { locale: string | null })[]>(
+    `SELECT locale FROM users WHERE id = :id LIMIT 1`,
+    { id: userId },
+  );
+  // Prefer persisted users.locale; fall back to client hint (x-app-locale).
+  const locale = parseAppUiLocale(rows[0]?.locale ?? null) ?? userLocale;
 
   const latest = await getLatestNotifications("hamster", locale);
-  if (userId == null) return latest;
 
   await ensureNotificationsSchema();
   const personal = await query<NotificationRow[]>(

@@ -5,7 +5,6 @@ import {
   CONTACT_EMAIL,
   CONTACT_WECHAT,
   PRODUCT,
-  SITE_HOST,
   SITE_URL,
 } from "./lang";
 
@@ -14,6 +13,8 @@ const LABELS = {
     operator: "运营者",
     product: "产品",
     website: "网站",
+    /** ZH keeps host as link text (unchanged). */
+    websiteLink: "yancilanguage.cn",
     email: "邮箱",
     wechat: "微信",
   },
@@ -21,6 +22,8 @@ const LABELS = {
     operator: "運営者",
     product: "製品",
     website: "ウェブサイト",
+    /** JA: no bare domain in link text. */
+    websiteLink: "公式サイト",
     email: "メール",
     wechat: "WeChat",
   },
@@ -47,13 +50,13 @@ export function ContactBlock({
         <>
           <br />
           {L.website}：
-          <a href={SITE_URL}>{SITE_HOST}</a>
+          <a href={SITE_URL}>{L.websiteLink}</a>
         </>
       ) : null}
       {extra}
       <br />
       {L.email}：
-      <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+      <a href={`mailto:${CONTACT_EMAIL[lang]}`}>{CONTACT_EMAIL[lang]}</a>
       {lang === "zh" ? (
         <>
           <br />

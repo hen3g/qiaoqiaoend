@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import { CompanyShell } from "@/components/company/CompanyShell";
 import styles from "@/components/company/company.module.css";
 import { ContactBlock } from "../_lib/ContactBlock";
-import { resolveHamsterLang } from "../_lib/lang";
+import {
+  CONTACT_EMAIL,
+  hamsterHref,
+  resolveHamsterLang,
+} from "../_lib/lang";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const ALIPAY_SDK_POLICY_URL =
   "https://opendocs.alipay.com/open/54/01g6qm#%E6%94%AF%E4%BB%98%E5%AE%9D%20App%20%E6%94%AF%E4%BB%98%E5%AE%A2%E6%88%B7%E7%AB%AF%20SDK%20%E9%9A%90%E7%A7%81%E6%94%BF%E7%AD%96";
-
-const PRIVACY_PAGE_URL =
-  "https://qiaoqiaoengapp.word19.com/hamster/privacy";
 
 const COPY = {
   zh: {
@@ -123,13 +124,13 @@ const COPY = {
   ja: {
     metaTitle: "倉鼠単語プライバシーポリシー",
     metaDescription:
-      "倉鼠単語のプライバシーポリシー：言词科技がどのように個人情報を収集・利用・保存・保護するか、および App に組み込まれた第三者 SDK について説明します。",
+      "倉鼠単語のプライバシーポリシー：Yanci Technology (Dalian) Co., Ltd. がどのように個人情報を収集・利用・保存・保護するかを説明します。",
     updatedAt: "2026年9月2日",
     updatedLabel: "最終更新日",
     eyebrow: "Legal",
     title: "プライバシーポリシー",
     lead:
-      "本ポリシーは、言词科技（大连）有限公司（以下「当社」）が運営する英単語学習ソフトウェア「倉鼠単語」および関連アカウントサービスに適用されます。本製品を利用することにより、本ポリシーを読み理解したものとみなされます。同意できない場合は、利用を中止してください。",
+      "本ポリシーは、Yanci Technology (Dalian) Co., Ltd.（以下「当社」）が運営する英単語学習ソフトウェア「倉鼠単語」および関連アカウントサービスに適用されます。本製品を利用することにより、本ポリシーを読み理解したものとみなされます。同意できない場合は、利用を中止してください。",
     s1Title: "1. 収集する情報",
     s1Intro: "当社はサービス提供に必要な情報のみを収集します。主なものは次のとおりです。",
     s1Items: [
@@ -143,7 +144,7 @@ const COPY = {
       },
       {
         term: "会員・取引情報：",
-        body: "会員ステータス、ダイヤ残高、注文および支払い結果。iOS では App Store の取引証明、Android では Alipay（支付宝）の取引情報が含まれる場合があります。完全な銀行カード番号は保存しません。",
+        body: "会員ステータス、ダイヤ残高、注文および支払い結果。iOS では App Store の取引証明が含まれる場合があります。完全な銀行カード番号は保存しません。",
       },
       {
         term: "フィードバック・カスタマーサポート：",
@@ -169,11 +170,10 @@ const COPY = {
       "適用法令の遵守、セキュリティ事案への対応、または権限ある機関からの適法な要請への対応。",
     ],
     s2Footer: "当社は個人情報を売却しません。",
-    s3Title: "3. 第三者 SDK による個人情報の共有一覧",
+    s3Title: "3. 第三者 SDK",
     s3IntroBefore:
-      "App の機能実現および安全・安定した運用のため、第三者 SDK を組み込んでいます。これらの SDK は関連情報を収集または利用する場合があります。当社は SDK のセキュリティ評価を行い、機能実現に必要な範囲でのみ情報を処理するよう求めています。以下の一覧は、中国全国 SDK 管理サービスプラットフォーム（",
-    s3IntroAfter:
-      "）および各 SDK の公式公開説明に基づき整理したものです。初回起動時に本ポリシーを確認し、同意するかどうかを選択できます。同意前には、個人情報の処理を伴う第三者 SDK を初期化しません。",
+      "日本語版の本製品では、第三者決済 SDK を組み込んでいません。会員・決済は主に App Store 等、各プラットフォームが提供する決済機能を利用します。初回起動時に本ポリシーを確認し、同意するかどうかを選択できます。",
+    s3IntroAfter: "",
     s3Headers: [
       "SDK 名称",
       "SDK 開発者",
@@ -183,22 +183,20 @@ const COPY = {
       "SDK プライバシーポリシー",
     ],
     s3View: "表示",
+    // Unused for JA render (SDK table is ZH-only); placeholders keep COPY shape.
     s3Sdk: {
-      name: "APP支付客户端SDK",
-      developer: "支付宝(杭州)信息技术有限公司",
-      scope:
-        "AndroidID、OAID、IDFV、センサー情報（センサー一覧）、画面密度、通信事業者情報、Wi‑Fi パラメータ、ネットワーク種別",
-      purpose:
-        "ユーザーアカウントおよび資金の安全、ならびに決済サービスの安定運用の確保；マネーロンダリング防止・テロ資金供与防止・通信ネットワーク詐欺防止等の法的義務の履行；回線選択と最適化による決済体験の向上",
-      platform: "Android（会員決済）",
+      name: "",
+      developer: "",
+      scope: "",
+      purpose: "",
+      platform: "",
     },
-    s3FooterBefore:
-      "上表の情報は全国 SDK 管理サービスプラットフォームの登録内容と一致します。「APP支付客户端SDK」（パッケージ名 com.alipay.sdk）が収集する情報の種類および利用目的は、公式の",
+    s3FooterBefore: "",
     s3FooterLink: "プライバシーポリシー",
-    s3FooterAfter: "に従います。",
+    s3FooterAfter: "",
     s4Title: "4. その他の第三者サービス",
     s4Intro:
-      "上記の App 埋め込み SDK に加え、サーバー側の決済照合、保存、メール、コンテンツ生成のため、次のカテゴリの事業者と必要情報を共有する場合があります。これらは該当サービスの提供に必要な範囲でのみデータを処理し、本ポリシーと同等以上の保護を提供するものとします。",
+      "サーバー側の決済照合、保存、メール、コンテンツ生成のため、次のカテゴリの事業者と必要情報を共有する場合があります。これらは該当サービスの提供に必要な範囲でのみデータを処理し、本ポリシーと同等以上の保護を提供するものとします。",
     s4Items: [
       "Apple（App Store、アプリ内課金およびサブスクリプション管理）",
       "クラウドストレージおよびコンテンツ配信（単語帳リソース、問題音声、アイコン等のファイル）",
@@ -287,59 +285,65 @@ export default function HamsterPrivacyPage({
 
         <section>
           <h2>{c.s3Title}</h2>
-          <p>
-            {c.s3IntroBefore}
-            <a
-              href="https://sdk.caict.ac.cn/official/#/home"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              sdk.caict.ac.cn
-            </a>
-            {c.s3IntroAfter}
-          </p>
+          {lang === "zh" ? (
+            <>
+              <p>
+                {c.s3IntroBefore}
+                <a
+                  href="https://sdk.caict.ac.cn/official/#/home"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  sdk.caict.ac.cn
+                </a>
+                {c.s3IntroAfter}
+              </p>
 
-          <div className={styles.legal__tableWrap}>
-            <table className={styles.legal__table}>
-              <thead>
-                <tr>
-                  {c.s3Headers.map((h) => (
-                    <th key={h}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{sdk.name}</td>
-                  <td>{sdk.developer}</td>
-                  <td>{sdk.platform}</td>
-                  <td>{sdk.scope}</td>
-                  <td>{sdk.purpose}</td>
-                  <td>
-                    <a
-                      href={ALIPAY_SDK_POLICY_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {c.s3View}
-                    </a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+              <div className={styles.legal__tableWrap}>
+                <table className={styles.legal__table}>
+                  <thead>
+                    <tr>
+                      {c.s3Headers.map((h) => (
+                        <th key={h}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>{sdk.name}</td>
+                      <td>{sdk.developer}</td>
+                      <td>{sdk.platform}</td>
+                      <td>{sdk.scope}</td>
+                      <td>{sdk.purpose}</td>
+                      <td>
+                        <a
+                          href={ALIPAY_SDK_POLICY_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {c.s3View}
+                        </a>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-          <p>
-            {c.s3FooterBefore}
-            <a
-              href={ALIPAY_SDK_POLICY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {c.s3FooterLink}
-            </a>
-            {c.s3FooterAfter}
-          </p>
+              <p>
+                {c.s3FooterBefore}
+                <a
+                  href={ALIPAY_SDK_POLICY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {c.s3FooterLink}
+                </a>
+                {c.s3FooterAfter}
+              </p>
+            </>
+          ) : (
+            <p>{c.s3IntroBefore}</p>
+          )}
         </section>
 
         <section>
@@ -364,7 +368,7 @@ export default function HamsterPrivacyPage({
             <li>{c.s6Items[1]}</li>
             <li>
               {c.s6DeleteBefore}
-              <a href="mailto:baseheng@qq.com">baseheng@qq.com</a>
+              <a href={`mailto:${CONTACT_EMAIL[lang]}`}>{CONTACT_EMAIL[lang]}</a>
               {c.s6DeleteAfter}
             </li>
             <li>{c.s6Items[3]}</li>
@@ -388,9 +392,8 @@ export default function HamsterPrivacyPage({
             extra={
               <>
                 <br />
-                {c.privacyPageLabel}：
-                <a href={PRIVACY_PAGE_URL}>
-                  qiaoqiaoengapp.word19.com/hamster/privacy
+                <a href={hamsterHref("/hamster/privacy", lang)}>
+                  {c.privacyPageLabel}
                 </a>
               </>
             }
