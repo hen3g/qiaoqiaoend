@@ -25,6 +25,7 @@ import {
   ensureUserRegisterPlatformColumn,
   isRegisterPlatform,
 } from "@/lib/user-schema";
+import { tryGrantAichiVipPromo } from "@/lib/aichi-vip-promo";
 import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z
@@ -100,6 +101,16 @@ export async function POST(req: Request) {
     const userId = Number(result.insertId);
     const token = await createSessionToken(userId);
     await setSessionCookie(token);
+
+    try {
+      await tryGrantAichiVipPromo({
+        userId,
+        nickname,
+        source: "register",
+      });
+    } catch (grantErr) {
+      console.error("aichi vip promo grant failed (register)", grantErr);
+    }
 
     await ensureUserDiamondsColumn();
     await ensureShareCustomCoursesColumn();

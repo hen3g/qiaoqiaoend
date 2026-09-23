@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
+import { tryGrantAichiVipPromo } from "@/lib/aichi-vip-promo";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getCurrentUser, mapUser } from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
@@ -56,6 +57,16 @@ export async function POST(req: Request) {
       nickname,
       id: user.id,
     });
+
+    try {
+      await tryGrantAichiVipPromo({
+        userId: user.id,
+        nickname,
+        source: "rename",
+      });
+    } catch (grantErr) {
+      console.error("aichi vip promo grant failed (rename)", grantErr);
+    }
 
     const rows = await query<
       (RowDataPacket & {

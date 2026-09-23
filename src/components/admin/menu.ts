@@ -112,6 +112,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     group: "敲敲英语",
   },
   {
+    key: "aichi-vip",
+    path: "/admin/aichi-vip",
+    label: "爱吃昵称VIP",
+    roles: ["admin"],
+    group: "敲敲英语",
+  },
+  {
     key: "hamster-users",
     path: "/admin/hamster/users",
     label: "用户",
