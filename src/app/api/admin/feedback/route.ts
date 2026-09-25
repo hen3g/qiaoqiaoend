@@ -6,8 +6,13 @@ import {
   listFeedbackSubmissions,
   replyToFeedbackSubmission,
 } from "@/lib/feedback";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
+
+const FEEDBACK_REPLY_NOTIFY_TITLE = "反馈回复";
+const FEEDBACK_REPLY_NOTIFY_SUMMARY =
+  "你的反馈已经得到回复。请前往反馈->历史反馈中查看。";
 
 const replySchema = z.object({
   action: z.literal("reply"),
@@ -17,6 +22,8 @@ const replySchema = z.object({
     .trim()
     .min(1, "请填写回复内容")
     .max(2000, "回复内容过长"),
+  /** Only applied for hamster feedback; ignored otherwise. */
+  notifyUser: z.boolean().optional().default(false),
 });
 
 function mapAdminError(err: unknown) {
@@ -50,9 +57,35 @@ export async function POST(req: Request) {
       id: body.id,
       reply: body.reply,
     });
+
+    let notified = false;
+    if (body.notifyUser && submission.appId === "hamster") {
+      try {
+        await createNotification({
+          type: "message",
+          appId: "hamster",
+          userId: submission.userId,
+          version: null,
+          title: FEEDBACK_REPLY_NOTIFY_TITLE,
+          summary: FEEDBACK_REPLY_NOTIFY_SUMMARY,
+          imageUrl: null,
+          linkUrl: null,
+        });
+        notified = true;
+      } catch (err) {
+        console.error("feedback reply notify:", err);
+        return jsonOk({
+          submission,
+          notified: false,
+          message: "已回复，但通知发送失败",
+        });
+      }
+    }
+
     return jsonOk({
       submission,
-      message: "已回复",
+      notified,
+      message: notified ? "已回复并通知用户" : "已回复",
     });
   } catch (err) {
     if (err instanceof z.ZodError) {

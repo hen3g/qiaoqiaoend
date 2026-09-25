@@ -5,6 +5,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Empty,
   Input,
   Message,
@@ -50,6 +51,10 @@ export function FeedbackAdmin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  /** Hamster-only: notify the user after reply. Default on. */
+  const [notifyUserById, setNotifyUserById] = useState<Record<number, boolean>>(
+    {},
+  );
   const [replyingId, setReplyingId] = useState<number | null>(null);
 
   const loadSubmissions = useCallback(async () => {
@@ -70,6 +75,14 @@ export function FeedbackAdmin() {
         }
         return next;
       });
+      setNotifyUserById((prev) => {
+        const next: Record<number, boolean> = {};
+        for (const item of list) {
+          if (item.appId !== "hamster") continue;
+          next[item.id] = prev[item.id] ?? true;
+        }
+        return next;
+      });
       setError("");
     } finally {
       setLoading(false);
@@ -80,18 +93,19 @@ export function FeedbackAdmin() {
     void loadSubmissions();
   }, [loadSubmissions]);
 
-  const onReply = async (id: number) => {
+  const onReply = async (id: number, appId: ClientAppId) => {
     const reply = (drafts[id] ?? "").trim();
     if (!reply) {
       Message.warning("请填写回复内容");
       return;
     }
+    const notifyUser = appId === "hamster" && (notifyUserById[id] ?? true);
     setReplyingId(id);
     try {
       const res = await fetch("/api/admin/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reply", id, reply }),
+        body: JSON.stringify({ action: "reply", id, reply, notifyUser }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -203,11 +217,33 @@ export function FeedbackAdmin() {
                   maxLength={2000}
                   style={{ marginTop: 8 }}
                 />
-                <div style={{ marginTop: 12, textAlign: "right" }}>
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {item.appId === "hamster" ? (
+                    <Checkbox
+                      checked={notifyUserById[item.id] ?? true}
+                      onChange={(checked) =>
+                        setNotifyUserById((prev) => ({
+                          ...prev,
+                          [item.id]: checked,
+                        }))
+                      }
+                    >
+                      回复后通知用户
+                    </Checkbox>
+                  ) : null}
                   <Button
                     type="primary"
                     loading={replyingId === item.id}
-                    onClick={() => void onReply(item.id)}
+                    onClick={() => void onReply(item.id, item.appId)}
                   >
                     {hasReply ? "更新回复" : "发送回复"}
                   </Button>
