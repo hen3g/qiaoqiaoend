@@ -6,6 +6,9 @@ import {
   Button,
   Card,
   Empty,
+  Form,
+  Input,
+  Modal,
   Space,
   Switch,
   Table,
@@ -51,9 +54,18 @@ export function AichiVipAdmin() {
   const [enabled, setEnabled] = useState(true);
   const [rule, setRule] = useState<RuleInfo | null>(null);
   const [grants, setGrants] = useState<GrantRow[]>([]);
+  const [grantCount, setGrantCount] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+
+  const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState("");
+  const [titleJa, setTitleJa] = useState("");
+  const [summaryJa, setSummaryJa] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,6 +79,7 @@ export function AichiVipAdmin() {
       setEnabled(Boolean(data.settings?.enabled));
       setRule(data.rule ?? null);
       setGrants((data.grants ?? []) as GrantRow[]);
+      setGrantCount(Number(data.grantCount ?? data.grants?.length ?? 0));
       setError("");
     } finally {
       setLoading(false);
@@ -96,6 +109,62 @@ export function AichiVipAdmin() {
       setToggling(false);
     }
   };
+
+  function resetNotifyForm() {
+    setTitle("");
+    setSummary("");
+    setTitleJa("");
+    setSummaryJa("");
+    setImageUrl("");
+    setLinkUrl("");
+  }
+
+  function onNotifySubmit() {
+    if (!title.trim() || !summary.trim()) {
+      setError("请填写中文标题和简介");
+      return;
+    }
+    if (grantCount <= 0) {
+      setError("暂无通过爱吃领取会员的用户");
+      return;
+    }
+
+    Modal.confirm({
+      title: "确认群发私信",
+      content: `将向全部 ${grantCount} 位通过爱吃领取会员的用户发送仓鼠单词私信，确认继续？`,
+      okText: "发送",
+      onOk: async () => {
+        setSending(true);
+        setError("");
+        try {
+          const res = await fetch("/api/admin/aichi-vip", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "notifyGrantees",
+              title: title.trim(),
+              summary: summary.trim(),
+              titleJa: titleJa.trim() || null,
+              summaryJa: summaryJa.trim() || null,
+              imageUrl: imageUrl.trim() || null,
+              linkUrl: linkUrl.trim() || null,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            setError(data.error || "发送失败");
+            return;
+          }
+          Message.success(data.message || "已发送");
+          resetNotifyForm();
+        } catch {
+          setError("网络错误");
+        } finally {
+          setSending(false);
+        }
+      },
+    });
+  }
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
@@ -134,9 +203,83 @@ export function AichiVipAdmin() {
         </Typography.Paragraph>
       </Card>
 
+      <Card title={`群发私信（仓鼠单词 · 共 ${grantCount} 人）`}>
+        <Typography.Paragraph type="secondary">
+          向全部通过爱吃领取会员的用户发送个人消息通知。用户打开仓鼠单词通知列表即可看到。
+        </Typography.Paragraph>
+        <Form
+          layout="vertical"
+          style={{ maxWidth: 640 }}
+          onSubmit={() => {
+            onNotifySubmit();
+          }}
+        >
+          <Form.Item label="中文标题" required>
+            <Input
+              value={title}
+              onChange={setTitle}
+              maxLength={200}
+              placeholder="简体中文"
+              required
+            />
+          </Form.Item>
+          <Form.Item label="中文简介" required>
+            <Input.TextArea
+              value={summary}
+              onChange={setSummary}
+              maxLength={500}
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              placeholder="简体中文"
+              required
+            />
+          </Form.Item>
+          <Form.Item label="日文标题（可选）">
+            <Input
+              value={titleJa}
+              onChange={setTitleJa}
+              maxLength={200}
+              placeholder="日本語"
+            />
+          </Form.Item>
+          <Form.Item label="日文简介（可选）">
+            <Input.TextArea
+              value={summaryJa}
+              onChange={setSummaryJa}
+              maxLength={500}
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              placeholder="日本語"
+            />
+          </Form.Item>
+          <Form.Item label="图片链接（可选）">
+            <Input
+              value={imageUrl}
+              onChange={setImageUrl}
+              placeholder="https://"
+              maxLength={500}
+            />
+          </Form.Item>
+          <Form.Item label="跳转链接（可选）">
+            <Input
+              value={linkUrl}
+              onChange={setLinkUrl}
+              placeholder="https://"
+              maxLength={500}
+            />
+          </Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={sending}
+            disabled={grantCount <= 0}
+          >
+            发给全部爱吃领会员用户
+          </Button>
+        </Form>
+      </Card>
+
       {error ? <Alert type="error" content={error} /> : null}
 
-      <Card title={`最近发放（${grants.length}）`}>
+      <Card title={`最近发放（${grants.length}${grantCount > grants.length ? ` / 共 ${grantCount}` : ""}）`}>
         {!loading && grants.length === 0 ? (
           <Empty description="还没有发放记录" />
         ) : (

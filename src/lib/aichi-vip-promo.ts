@@ -201,3 +201,20 @@ export async function listRecentAichiVipGrants(
     createdAt: toIso(row.created_at),
   }));
 }
+
+export async function countAichiVipGrants(): Promise<number> {
+  await ensureAichiVipGrantsTable();
+  const rows = await query<(RowDataPacket & { total: number })[]>(
+    `SELECT COUNT(*) AS total FROM aichi_vip_grants`,
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
+/** All user ids that received VIP via the 爱吃 nickname promo (deduped). */
+export async function listAllAichiVipGrantUserIds(): Promise<number[]> {
+  await ensureAichiVipGrantsTable();
+  const rows = await query<(RowDataPacket & { user_id: number })[]>(
+    `SELECT user_id FROM aichi_vip_grants ORDER BY id ASC`,
+  );
+  return rows.map((row) => Number(row.user_id)).filter((id) => id > 0);
+}
