@@ -66,6 +66,20 @@ export function AichiVipAdmin() {
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [sending, setSending] = useState(false);
+  const [stripping, setStripping] = useState(false);
+  const [lastStripResult, setLastStripResult] = useState<{
+    scanned: number;
+    renamed: number;
+    notified: number;
+    failed: number;
+    items: {
+      userId: number;
+      oldNickname: string;
+      newNickname: string;
+      notified: boolean;
+      error?: string;
+    }[];
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,6 +180,91 @@ export function AichiVipAdmin() {
     });
   }
 
+  async function onStripLeaderboardAichi() {
+    setError("");
+    setStripping(true);
+    try {
+      const previewRes = await fetch("/api/admin/aichi-vip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "previewLeaderboardAichi" }),
+      });
+      const preview = await previewRes.json();
+      if (!previewRes.ok || !preview.ok) {
+        setError(preview.error || "预览失败");
+        return;
+      }
+
+      const count = Number(preview.count ?? 0);
+      if (count <= 0) {
+        Message.info(preview.message || "没有需要处理的用户");
+        setLastStripResult(null);
+        return;
+      }
+
+      const sample = ((preview.targets ?? []) as { userId: number; nickname: string }[])
+        .slice(0, 5)
+        .map((t) => `${t.nickname} (#${t.userId})`)
+        .join("、");
+
+      Modal.confirm({
+        title: "确认去掉排行榜爱吃前缀",
+        content: (
+          <div>
+            <p>
+              将扫描敲敲星级总榜/今日榜、仓鼠答题周榜/月榜中，通过爱吃领会员且昵称仍以「爱吃」开头的用户（约{" "}
+              {count} 人）。
+            </p>
+            <p>操作：去掉「爱吃」前缀（重名则加数字），并向每人发送仓鼠单词私信。</p>
+            {sample ? (
+              <p style={{ color: "var(--color-text-3)" }}>示例：{sample}</p>
+            ) : null}
+          </div>
+        ),
+        okText: "确认执行",
+        onOk: async () => {
+          setStripping(true);
+          setError("");
+          try {
+            const res = await fetch("/api/admin/aichi-vip", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "stripLeaderboardAichi" }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) {
+              setError(data.error || "执行失败");
+              return;
+            }
+            setLastStripResult({
+              scanned: Number(data.scanned ?? 0),
+              renamed: Number(data.renamed ?? 0),
+              notified: Number(data.notified ?? 0),
+              failed: Number(data.failed ?? 0),
+              items: (data.items ?? []) as {
+                userId: number;
+                oldNickname: string;
+                newNickname: string;
+                notified: boolean;
+                error?: string;
+              }[],
+            });
+            Message.success(data.message || "已完成");
+            await load();
+          } catch {
+            setError("网络错误");
+          } finally {
+            setStripping(false);
+          }
+        },
+      });
+    } catch {
+      setError("网络错误");
+    } finally {
+      setStripping(false);
+    }
+  }
+
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       <Card
@@ -201,6 +300,70 @@ export function AichiVipAdmin() {
         <Typography.Paragraph type="secondary">
           示例：匹配「爱吃你好」「爱吃AB」；不匹配「爱吃」「爱吃A」「吃爱你好」。
         </Typography.Paragraph>
+      </Card>
+
+      <Card title="排行榜去爱吃前缀">
+        <Typography.Paragraph type="secondary">
+          针对四个学习排行榜（敲敲星级总榜/今日榜、仓鼠答题周榜/月榜）中，通过爱吃领取会员且当前昵称仍以「爱吃」开头的用户：去掉前缀（重名则加数字），并发送仓鼠单词私信说明可自行改名、不影响会员。
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary">
+          私信文案：由于你处于学习排行榜中，已将你的爱吃文字去掉。你可以自行修改其他昵称，不影响获得的会员。
+        </Typography.Paragraph>
+        <Button
+          type="primary"
+          status="warning"
+          loading={stripping}
+          onClick={() => void onStripLeaderboardAichi()}
+        >
+          批量去掉排行榜爱吃前缀
+        </Button>
+
+        {lastStripResult ? (
+          <div style={{ marginTop: 16 }}>
+            <Alert
+              type={lastStripResult.failed > 0 ? "warning" : "success"}
+              content={`扫描 ${lastStripResult.scanned} 人 · 改名 ${lastStripResult.renamed} · 私信 ${lastStripResult.notified} · 失败 ${lastStripResult.failed}`}
+              style={{ marginBottom: 12 }}
+            />
+            {lastStripResult.items.length > 0 ? (
+              <Table
+                rowKey="userId"
+                pagination={false}
+                size="small"
+                data={lastStripResult.items}
+                columns={[
+                  {
+                    title: "用户",
+                    dataIndex: "userId",
+                    width: 90,
+                    render: (id: number) => `#${id}`,
+                  },
+                  {
+                    title: "原昵称",
+                    dataIndex: "oldNickname",
+                  },
+                  {
+                    title: "新昵称",
+                    dataIndex: "newNickname",
+                  },
+                  {
+                    title: "私信",
+                    dataIndex: "notified",
+                    width: 80,
+                    render: (ok: boolean) => (
+                      <Tag color={ok ? "green" : "red"}>{ok ? "已发" : "失败"}</Tag>
+                    ),
+                  },
+                  {
+                    title: "备注",
+                    dataIndex: "error",
+                    render: (v: string | undefined) => v || "—",
+                  },
+                ]}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </Card>
 
       <Card title={`群发私信（仓鼠单词 · 共 ${grantCount} 人）`}>

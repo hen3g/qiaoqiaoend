@@ -58,6 +58,7 @@ export function NotificationsAdmin({
   const appLabel = CLIENT_APP_LABELS[app];
 
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -85,6 +86,7 @@ export function NotificationsAdmin({
         return;
       }
       setNotifications(data.notifications ?? []);
+      setTotalCount(Number(data.total ?? data.notifications?.length ?? 0));
       setError("");
     } finally {
       setLoading(false);
@@ -381,7 +383,11 @@ export function NotificationsAdmin({
       {error ? <Alert type="error" content={error} /> : null}
 
       <Card
-        title={`${appLabel}通知（${notifications.length}）`}
+        title={
+          totalCount > notifications.length
+            ? `${appLabel}通知（最近 ${notifications.length} / 共 ${totalCount}）`
+            : `${appLabel}通知（${notifications.length}）`
+        }
         extra={
           <Button onClick={() => void loadNotifications()} loading={loading}>
             刷新

@@ -287,22 +287,39 @@ export function parseTargetUserTokens(input: string): string[] {
 
 export async function listNotifications(options?: {
   appId?: ClientAppId | "all";
-}): Promise<NotificationDto[]> {
+  /** Cap admin list size; default 100 (hamster DMs can grow huge). */
+  limit?: number;
+}): Promise<{ notifications: NotificationDto[]; total: number }> {
   await ensureNotificationsSchema();
   const appId = options?.appId;
-  const params: Record<string, string> = {};
+  const limit = Math.min(
+    500,
+    Math.max(1, Math.floor(options?.limit ?? 100)),
+  );
+  const params: Record<string, string | number> = {};
   let where = "";
   if (appId && appId !== "all") {
     // Include legacy "all" rows so history stays visible on each app page.
     where = ` WHERE n.app_id IN ('all', :appId)`;
     params.appId = appId;
   }
-  const rows = await query<NotificationRow[]>(
-    `${SELECT_NOTIFICATIONS}${where}
-     ORDER BY n.created_at DESC, n.id DESC`,
+
+  const countRows = await query<(RowDataPacket & { total: number })[]>(
+    `SELECT COUNT(*) AS total FROM notifications n${where}`,
     params,
   );
-  return rows.map((row) => mapNotification(row, null));
+  const total = Number(countRows[0]?.total ?? 0);
+
+  const rows = await query<NotificationRow[]>(
+    `${SELECT_NOTIFICATIONS}${where}
+     ORDER BY n.created_at DESC, n.id DESC
+     LIMIT ${limit}`,
+    params,
+  );
+  return {
+    notifications: rows.map((row) => mapNotification(row, null)),
+    total,
+  };
 }
 
 function audienceLocaleSql(

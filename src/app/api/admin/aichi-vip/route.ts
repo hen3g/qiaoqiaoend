@@ -1,5 +1,9 @@
 import { z } from "zod";
 import {
+  listLeaderboardAichiPrefixTargets,
+  renameLeaderboardAichiUsersAndNotify,
+} from "@/lib/aichi-leaderboard-rename";
+import {
   countAichiVipGrants,
   getAichiVipPromoSettings,
   listAllAichiVipGrantUserIds,
@@ -50,9 +54,19 @@ const notifyGranteesSchema = z.object({
     .transform((v) => (v && v.length > 0 ? v : null)),
 });
 
+const stripLeaderboardAichiSchema = z.object({
+  action: z.literal("stripLeaderboardAichi"),
+});
+
+const previewLeaderboardAichiSchema = z.object({
+  action: z.literal("previewLeaderboardAichi"),
+});
+
 const postSchema = z.discriminatedUnion("action", [
   setEnabledSchema,
   notifyGranteesSchema,
+  stripLeaderboardAichiSchema,
+  previewLeaderboardAichiSchema,
 ]);
 
 function adminError(err: unknown) {
@@ -106,6 +120,31 @@ export async function POST(req: Request) {
         message: settings.enabled
           ? "已开启爱吃昵称 VIP 活动"
           : "已关闭爱吃昵称 VIP 活动",
+      });
+    }
+
+    if (body.action === "previewLeaderboardAichi") {
+      const targets = await listLeaderboardAichiPrefixTargets();
+      return jsonOk({
+        count: targets.length,
+        targets: targets.slice(0, 50),
+        message:
+          targets.length === 0
+            ? "当前排行榜中没有仍带「爱吃」前缀的领会员用户"
+            : `将处理 ${targets.length} 位用户（去掉昵称前缀并发送私信）`,
+      });
+    }
+
+    if (body.action === "stripLeaderboardAichi") {
+      const result = await renameLeaderboardAichiUsersAndNotify();
+      return jsonOk({
+        ...result,
+        message:
+          result.scanned === 0
+            ? "当前排行榜中没有仍带「爱吃」前缀的领会员用户"
+            : result.failed === 0
+              ? `已处理 ${result.renamed} 人：去掉爱吃前缀并发送私信 ${result.notified} 条`
+              : `已改名 ${result.renamed} 人，私信 ${result.notified} 条，失败 ${result.failed} 人`,
       });
     }
 

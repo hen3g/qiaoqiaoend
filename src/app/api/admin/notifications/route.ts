@@ -125,8 +125,10 @@ export async function GET(req: Request) {
     const appParam = url.searchParams.get("app");
     const appId =
       appParam === "hamster" || appParam === "qiaoqiao" ? appParam : undefined;
-    const notifications = await listNotifications(appId ? { appId } : undefined);
-    return jsonOk({ notifications, total: notifications.length });
+    const { notifications, total } = await listNotifications(
+      appId ? { appId, limit: 100 } : { limit: 100 },
+    );
+    return jsonOk({ notifications, total, limit: 100 });
   } catch (err) {
     const mapped = adminError(err);
     if (mapped) return mapped;
