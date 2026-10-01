@@ -20,7 +20,7 @@ import type { PaginationProps } from "@arco-design/web-react/es/Pagination/inter
 const { Row, Col } = Grid;
 
 type PayChannel = "alipay" | "apple";
-type OrderStatus = "pending" | "paid" | "closed";
+type OrderStatus = "pending" | "paid" | "closed" | "refunded";
 type AppleOrderStatus = "paid" | "refunded";
 type AppleKind = "vip" | "diamonds";
 
@@ -92,6 +92,7 @@ const STATUS_META: Record<OrderStatus, { text: string; color: string }> = {
   pending: { text: "待支付", color: "orangered" },
   paid: { text: "已支付", color: "green" },
   closed: { text: "已关闭", color: "gray" },
+  refunded: { text: "已退款", color: "red" },
 };
 
 const APPLE_STATUS_META: Record<

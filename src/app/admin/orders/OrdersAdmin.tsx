@@ -7,6 +7,8 @@ import {
   Card,
   Grid,
   Input,
+  Message,
+  Modal,
   Radio,
   Space,
   Statistic,
@@ -21,7 +23,7 @@ import type { ClientAppFilter } from "@/lib/client-app";
 const { Row, Col } = Grid;
 
 type PayChannel = "alipay" | "apple";
-type OrderStatus = "pending" | "paid" | "closed";
+type OrderStatus = "pending" | "paid" | "closed" | "refunded";
 type AppleOrderStatus = "paid" | "refunded";
 type AppleKind = "vip" | "diamonds";
 
@@ -35,6 +37,8 @@ type AdminOrder = {
   planTitle: string;
   amountFen: number;
   amountYuan: string;
+  daysGranted: number;
+  diamondsGranted: number;
   status: OrderStatus;
   alipayTradeNo: string | null;
   paidAt: string | null;
@@ -93,6 +97,7 @@ const STATUS_META: Record<OrderStatus, { text: string; color: string }> = {
   pending: { text: "待支付", color: "orangered" },
   paid: { text: "已支付", color: "green" },
   closed: { text: "已关闭", color: "gray" },
+  refunded: { text: "已退款", color: "red" },
 };
 
 const APPLE_STATUS_META: Record<
@@ -162,6 +167,7 @@ export function OrdersAdmin({
     paidYuan: "0.00",
     paidDisplay: "¥0.00",
   });
+  const [refundingId, setRefundingId] = useState<number | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -235,6 +241,44 @@ export function OrdersAdmin({
     void loadOrders();
   }, [loadOrders]);
 
+  function confirmRefund(order: AdminOrder) {
+    const benefit =
+      order.daysGranted > 0
+        ? `删除本单会员 ${order.daysGranted} 天，并收回钻石 ${order.diamondsGranted}（已花掉的扣到 0）`
+        : `收回本单钻石 ${order.diamondsGranted}（已花掉的扣到 0）`;
+    Modal.confirm({
+      title: "确认退款",
+      content: `将向该用户原路退回 ¥${order.amountYuan}，并${benefit}。退款后不可撤销。`,
+      okText: "退款",
+      okButtonProps: { status: "danger" },
+      onOk: async () => {
+        setRefundingId(order.id);
+        try {
+          const res = await fetch("/api/admin/orders/refund", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: order.id }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            const message = data.error || "退款失败";
+            setError(message);
+            Message.error(message);
+            return;
+          }
+          setError("");
+          Message.success(data.message || "已退款");
+          await loadOrders();
+        } catch {
+          setError("退款失败");
+          Message.error("退款失败");
+        } finally {
+          setRefundingId(null);
+        }
+      },
+    });
+  }
+
   const alipayColumns: ColumnProps<AdminOrder>[] = [
     { title: "ID", dataIndex: "id", width: 80 },
     {
@@ -293,6 +337,24 @@ export function OrdersAdmin({
       title: "创建时间",
       width: 170,
       render: (_, o) => formatTime(o.createdAt),
+    },
+    {
+      title: "操作",
+      width: 100,
+      fixed: "right" as const,
+      render: (_, o) =>
+        o.status === "paid" ? (
+          <Button
+            size="small"
+            status="danger"
+            loading={refundingId === o.id}
+            onClick={() => confirmRefund(o)}
+          >
+            退款
+          </Button>
+        ) : (
+          "—"
+        ),
     },
   ];
 
@@ -408,7 +470,7 @@ export function OrdersAdmin({
         <Typography.Paragraph type="secondary">
           {isApple
             ? "查看 App Store 内购订单（会员与钻石）。客户端验单或苹果服务器通知成功后入账。金额按收据货币显示（中国区为人民币，美区为美元），外币不与国内目录价对比标优惠。连续包月首月优惠为 ¥1。"
-            : "查看支付宝 VIP / 钻石充值订单。客户端下单后为待支付，异步通知成功后变为已支付。"}
+            : "查看支付宝 VIP / 钻石充值订单。已支付订单可原路退款，并删除本单发放的会员时长与钻石。"}
         </Typography.Paragraph>
         <Space wrap>
           <Radio.Group
@@ -461,6 +523,7 @@ export function OrdersAdmin({
               <Radio value="all">全部</Radio>
               <Radio value="paid">已支付</Radio>
               <Radio value="pending">待支付</Radio>
+              <Radio value="refunded">已退款</Radio>
               <Radio value="closed">已关闭</Radio>
             </Radio.Group>
           )}
@@ -558,7 +621,7 @@ export function OrdersAdmin({
             columns={alipayColumns}
             data={orders}
             pagination={pagination}
-            scroll={{ x: 1300 }}
+            scroll={{ x: 1400 }}
           />
         )}
       </Card>

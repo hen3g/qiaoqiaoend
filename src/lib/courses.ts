@@ -203,6 +203,26 @@ export async function unlockAllCoursesForUser(userId: number) {
   );
 }
 
+/**
+ * Take back VIP days granted by one purchase.
+ * Leaves permanent VIP (year >= 9999) unchanged.
+ * Clears expiry when the remaining time is covered by `days`.
+ */
+export async function shortenVip(userId: number, days: number) {
+  if (!Number.isFinite(days) || days <= 0) return;
+  await execute(
+    `UPDATE users
+     SET vip_expires_at = CASE
+       WHEN vip_expires_at IS NULL OR vip_expires_at <= NOW() THEN vip_expires_at
+       WHEN YEAR(vip_expires_at) >= 9999 THEN vip_expires_at
+       WHEN DATE_SUB(vip_expires_at, INTERVAL :days DAY) <= NOW() THEN NULL
+       ELSE DATE_SUB(vip_expires_at, INTERVAL :days DAY)
+     END
+     WHERE id = :userId`,
+    { userId, days },
+  );
+}
+
 export async function extendVip(userId: number, days: number) {
   await execute(
     `UPDATE users

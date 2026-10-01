@@ -323,6 +323,17 @@ export type AlipayTradeQueryResult = {
   appId?: string;
 };
 
+export type AlipayTradeRefundResult = {
+  code: string;
+  msg: string;
+  subCode?: string;
+  subMsg?: string;
+  tradeNo?: string;
+  outTradeNo?: string;
+  fundChange?: string;
+  refundFee?: string;
+};
+
 async function queryAlipayTradeWithMerchant(
   outTradeNo: string,
   merchant: AlipayMerchant,
@@ -409,4 +420,78 @@ export async function queryAlipayTrade(input: {
   if (last) return last;
   if (lastErr) throw lastErr;
   throw new Error("未配置支付宝");
+}
+
+/**
+ * Full or partial refund (`alipay.trade.refund`).
+ * Same `outRequestNo` is idempotent on Alipay's side.
+ */
+export async function refundAlipayTrade(input: {
+  outTradeNo: string;
+  tradeNo?: string | null;
+  /** Amount in yuan, e.g. 8.00 */
+  refundAmount: string;
+  outRequestNo: string;
+  refundReason?: string;
+  clientApp: ClientAppId;
+}): Promise<AlipayTradeRefundResult> {
+  const merchant = getAlipayMerchant(input.clientApp);
+  const biz: Record<string, string> = {
+    out_trade_no: input.outTradeNo,
+    refund_amount: input.refundAmount,
+    out_request_no: input.outRequestNo,
+  };
+  if (input.tradeNo) biz.trade_no = input.tradeNo;
+  if (input.refundReason) biz.refund_reason = input.refundReason;
+
+  const params: Record<string, string> = {
+    app_id: merchant.appId,
+    method: "alipay.trade.refund",
+    charset: "utf-8",
+    sign_type: "RSA2",
+    timestamp: formatTimestamp(),
+    version: "1.0",
+    biz_content: JSON.stringify(biz),
+  };
+
+  const content = buildSignContent(params);
+  params.sign = signRsa2(content, merchant.privateKeyPem);
+
+  const res = await fetch(getAlipayGateway(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+    },
+    body: new URLSearchParams(params),
+  });
+
+  if (!res.ok) {
+    throw new Error(`支付宝退款 HTTP ${res.status}`);
+  }
+
+  const json = (await res.json()) as {
+    alipay_trade_refund_response?: Record<string, unknown>;
+  };
+  const data = json.alipay_trade_refund_response;
+  if (!data) {
+    throw new Error("支付宝退款响应异常");
+  }
+
+  const result: AlipayTradeRefundResult = {
+    code: String(data.code ?? ""),
+    msg: String(data.msg ?? ""),
+    subCode: data.sub_code != null ? String(data.sub_code) : undefined,
+    subMsg: data.sub_msg != null ? String(data.sub_msg) : undefined,
+    tradeNo: data.trade_no != null ? String(data.trade_no) : undefined,
+    outTradeNo:
+      data.out_trade_no != null ? String(data.out_trade_no) : undefined,
+    fundChange:
+      data.fund_change != null ? String(data.fund_change) : undefined,
+    refundFee: data.refund_fee != null ? String(data.refund_fee) : undefined,
+  };
+
+  if (result.code !== "10000") {
+    throw new Error(result.subMsg || result.msg || "支付宝退款失败");
+  }
+  return result;
 }

@@ -11,6 +11,7 @@ export type DiamondTxType =
   | "vip_purchase"
   | "diamond_purchase"
   | "apple_refund"
+  | "alipay_refund"
   | "admin_adjust";
 
 export type DiamondTransactionDto = {
@@ -91,6 +92,8 @@ export function diamondTxTitle(type: string): string {
       return "充值钻石";
     case "apple_refund":
       return "Apple 退款收回";
+    case "alipay_refund":
+      return "支付宝退款收回";
     case "admin_adjust":
       return "系统调整";
     default:

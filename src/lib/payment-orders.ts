@@ -1,13 +1,16 @@
 import type { RowDataPacket } from "mysql2";
-import { execute, query } from "@/lib/db";
 import {
   formatAlipayAmount,
   getAlipayAppId,
   isAlipayTradeSuccess,
   queryAlipayTrade,
+  refundAlipayTrade,
   resolveAlipayMerchantByAppId,
   yuanToFen,
 } from "@/lib/alipay";
+import { shortenVip } from "@/lib/courses";
+import { execute, query, withTransaction } from "@/lib/db";
+import { ensureDiamondTransactionsTable } from "@/lib/diamond-transactions";
 import {
   getDiamondPack,
   isDiamondPackId,
@@ -16,7 +19,9 @@ import {
 } from "@/lib/diamond-packs";
 import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
 import { sqlOrderAppPredicate } from "@/lib/client-app";
+import { ensureUserDiamondsColumn } from "@/lib/user-schema";
 import {
+  deductDiamondsFloorZero,
   getVipPlan,
   isAppleSubscriptionPlanId,
   isVipPlanId,
@@ -25,7 +30,7 @@ import {
   type VipPlanId,
 } from "@/lib/vip";
 
-export type PaymentOrderStatus = "pending" | "paid" | "closed";
+export type PaymentOrderStatus = "pending" | "paid" | "closed" | "refunded";
 
 export type PaymentPlanId = VipPlanId | DiamondPackId;
 
@@ -66,7 +71,7 @@ export async function ensurePaymentOrdersTable(): Promise<void> {
       user_id BIGINT UNSIGNED NOT NULL,
       plan_id VARCHAR(16) NOT NULL,
       amount_fen INT UNSIGNED NOT NULL,
-      status ENUM('pending', 'paid', 'closed') NOT NULL DEFAULT 'pending',
+      status ENUM('pending', 'paid', 'closed', 'refunded') NOT NULL DEFAULT 'pending',
       alipay_trade_no VARCHAR(64) NULL,
       paid_at DATETIME NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -85,6 +90,16 @@ export async function ensurePaymentOrdersTable(): Promise<void> {
     await execute(
       `ALTER TABLE payment_orders
        ADD COLUMN app_id VARCHAR(16) NULL AFTER user_id`,
+    );
+  }
+  const statusCols = await query<(RowDataPacket & { Type: string })[]>(
+    `SHOW COLUMNS FROM payment_orders LIKE 'status'`,
+  );
+  const statusType = String(statusCols[0]?.Type ?? "");
+  if (!statusType.includes("refunded")) {
+    await execute(
+      `ALTER TABLE payment_orders
+       MODIFY COLUMN status ENUM('pending', 'paid', 'closed', 'refunded') NOT NULL DEFAULT 'pending'`,
     );
   }
   tableEnsured = true;
@@ -119,6 +134,22 @@ export function paymentPlanTitle(planId: string): string {
   if (isVipPlanId(planId)) return getVipPlan(planId).title;
   if (isDiamondPackId(planId)) return getDiamondPack(planId).title;
   return planId;
+}
+
+/** Days and diamonds granted when this plan was paid. */
+export function paymentPlanGrant(planId: string): {
+  days: number;
+  diamonds: number;
+} | null {
+  if (isVipPlanId(planId)) {
+    const plan = getVipPlan(planId);
+    return { days: plan.days, diamonds: plan.diamonds };
+  }
+  if (isDiamondPackId(planId)) {
+    const pack = getDiamondPack(planId);
+    return { days: 0, diamonds: pack.diamonds };
+  }
+  return null;
 }
 
 export async function createPendingVipOrder(
@@ -518,4 +549,128 @@ export async function syncPendingOrderFromAlipay(
   });
 
   return getOrderByOutTradeNo(outTradeNo);
+}
+
+export type AlipayRefundResult = {
+  alreadyRefunded: boolean;
+  outTradeNo: string;
+  amountYuan: string;
+  daysRevoked: number;
+  diamondsRevoked: number;
+};
+
+/** Which Alipay merchant created this order. */
+function paymentOrderClientApp(row: {
+  app_id: string | null;
+  register_app_id: string | null;
+}): ClientAppId {
+  if (row.app_id === "hamster" || row.app_id === "qiaoqiao") {
+    return row.app_id;
+  }
+  if (row.register_app_id === "hamster") return "hamster";
+  return "qiaoqiao";
+}
+
+/**
+ * Refund a paid Alipay order in full, then take back the membership
+ * days and diamonds that order granted.
+ * Alipay call is idempotent via a stable out_request_no.
+ */
+export async function refundPaidAlipayOrder(
+  orderId: number,
+): Promise<AlipayRefundResult> {
+  await ensurePaymentOrdersTable();
+
+  type RefundRow = RowDataPacket & {
+    id: number;
+    out_trade_no: string;
+    user_id: number;
+    app_id: string | null;
+    plan_id: string;
+    amount_fen: number;
+    status: PaymentOrderStatus;
+    alipay_trade_no: string | null;
+    register_app_id: string | null;
+  };
+
+  const rows = await query<RefundRow[]>(
+    `SELECT o.id, o.out_trade_no, o.user_id, o.app_id, o.plan_id, o.amount_fen,
+            o.status, o.alipay_trade_no, u.register_app_id
+     FROM payment_orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     WHERE o.id = :orderId
+     LIMIT 1`,
+    { orderId },
+  );
+  const order = rows[0];
+  if (!order) {
+    throw new Error("订单不存在");
+  }
+
+  const clientApp = paymentOrderClientApp(order);
+  const amountYuan = formatAlipayAmount(Number(order.amount_fen) / 100);
+  const grant = paymentPlanGrant(order.plan_id);
+  if (!grant) {
+    throw new Error("未知商品类型");
+  }
+
+  if (order.status === "refunded") {
+    return {
+      alreadyRefunded: true,
+      outTradeNo: order.out_trade_no,
+      amountYuan,
+      daysRevoked: 0,
+      diamondsRevoked: 0,
+    };
+  }
+  if (order.status !== "paid") {
+    throw new Error("只有已支付订单可以退款");
+  }
+
+  await refundAlipayTrade({
+    outTradeNo: order.out_trade_no,
+    tradeNo: order.alipay_trade_no,
+    refundAmount: amountYuan,
+    outRequestNo: `RF${order.id}`,
+    refundReason: "管理员退款",
+    clientApp,
+  });
+
+  await ensureUserDiamondsColumn();
+  await ensureDiamondTransactionsTable();
+
+  const applied = await withTransaction(async () => {
+    const updated = await execute(
+      `UPDATE payment_orders
+       SET status = 'refunded'
+       WHERE id = :orderId
+         AND status = 'paid'`,
+      { orderId },
+    );
+    if (updated.affectedRows === 0) return false;
+
+    const userId = Number(order.user_id);
+    if (grant.days > 0) {
+      await shortenVip(userId, grant.days);
+    }
+    if (grant.diamonds > 0) {
+      await deductDiamondsFloorZero(userId, grant.diamonds, {
+        type: "alipay_refund",
+        meta: {
+          channel: "alipay",
+          outTradeNo: order.out_trade_no,
+          planId: order.plan_id,
+        },
+      });
+    }
+    return true;
+  });
+
+  return {
+    alreadyRefunded: !applied,
+    outTradeNo: order.out_trade_no,
+    amountYuan,
+    daysRevoked: applied ? grant.days : 0,
+    diamondsRevoked: applied ? grant.diamonds : 0,
+  };
 }

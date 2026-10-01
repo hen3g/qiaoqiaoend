@@ -4,6 +4,7 @@ import { parseClientAppFilter } from "@/lib/client-app";
 import { requireAdmin } from "@/lib/dev-admin";
 import {
   listAdminPaymentOrders,
+  paymentPlanGrant,
   type PaymentOrderStatus,
 } from "@/lib/payment-orders";
 import { VIP_PLANS, type VipPlanId } from "@/lib/vip";
@@ -12,7 +13,7 @@ import { paymentPlanTitle } from "@/lib/payment-orders";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  status: z.enum(["pending", "paid", "closed"]).optional(),
+  status: z.enum(["pending", "paid", "closed", "refunded"]).optional(),
   q: z.string().trim().max(64).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
@@ -64,6 +65,7 @@ export async function GET(request: Request) {
       },
       orders: result.orders.map((o) => {
         const plan = VIP_PLANS[o.planId as VipPlanId];
+        const grant = paymentPlanGrant(o.planId);
         return {
           id: o.id,
           outTradeNo: o.outTradeNo,
@@ -74,6 +76,8 @@ export async function GET(request: Request) {
           planTitle: plan?.title ?? paymentPlanTitle(o.planId),
           amountFen: o.amountFen,
           amountYuan: (o.amountFen / 100).toFixed(2),
+          daysGranted: grant?.days ?? 0,
+          diamondsGranted: grant?.diamonds ?? 0,
           status: o.status,
           alipayTradeNo: o.alipayTradeNo,
           paidAt: o.paidAt,
