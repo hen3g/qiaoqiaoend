@@ -5,12 +5,20 @@ import {
   getAppleTransaction,
   insertAppleTransaction,
   claimAppleDiamondRefund,
+  appleGrantTitle,
+  applePaidAmountFen,
+  formatAppleMoney,
+  inferAppleCurrency,
 } from "@/lib/apple-transactions";
 import {
+  APPLE_HAMSTER_BUNDLE_ID,
+  APPLE_HAMSTER_SKU_PREFIX,
   getAppleProduct,
   isAppleConsumableProduct,
   userIdFromAppleAppAccountToken,
 } from "@/lib/apple-products";
+import type { ClientAppId } from "@/lib/client-app";
+import { formatPayUser, notifyPayment } from "@/lib/payment-notify";
 import type { AppleSignedTransaction } from "@/lib/apple-jws";
 import {
   extendVip,
@@ -43,6 +51,62 @@ export type AppleFulfillResult = {
   diamondsGranted: number;
   user: SessionUser;
 };
+
+function appleClientApp(productId: string, bundleId?: string): ClientAppId {
+  if (
+    bundleId === APPLE_HAMSTER_BUNDLE_ID ||
+    productId.startsWith(APPLE_HAMSTER_SKU_PREFIX)
+  ) {
+    return "hamster";
+  }
+  return "qiaoqiao";
+}
+
+function appleAmountLabel(
+  tx: AppleSignedTransaction,
+  grantId: string,
+  diamondsGranted: number,
+): string {
+  if (typeof tx.price === "number" && Number.isFinite(tx.price)) {
+    return formatAppleMoney(tx.price, inferAppleCurrency(tx.currency, tx.price));
+  }
+  const fen = applePaidAmountFen({
+    grantId,
+    diamondsGranted,
+    priceMilliunits: null,
+  });
+  return `¥${(fen / 100).toFixed(2)}`;
+}
+
+async function notifyAppleMoney(input: {
+  event: "paid" | "refunded";
+  tx: AppleSignedTransaction;
+  grantId: string;
+  diamonds: number;
+  userId: number;
+  user?: { id: number; nickname?: string | null; username?: string | null } | null;
+}): Promise<void> {
+  const details: string[] = [];
+  if (input.event === "paid" && input.diamonds > 0) {
+    details.push(`到账钻石：${input.diamonds}`);
+  }
+  if (input.event === "refunded" && input.diamonds > 0) {
+    details.push(`收回钻石：${input.diamonds}`);
+  }
+  await notifyPayment({
+    event: input.event,
+    app: appleClientApp(input.tx.productId, input.tx.bundleId),
+    channel: "App Store",
+    product: appleGrantTitle(input.grantId),
+    amount: appleAmountLabel(input.tx, input.grantId, input.diamonds),
+    userLabel: input.user
+      ? formatPayUser(input.user)
+      : `用户#${input.userId}`,
+    orderNo: input.tx.transactionId,
+    test: input.tx.environment === "Sandbox",
+    details,
+  });
+}
 
 function isIntroductoryOffer(tx: AppleSignedTransaction): boolean {
   if (tx.offerType === 1) return true;
@@ -204,7 +268,7 @@ export async function fulfillAppleTransaction(input: {
     throw new Error("该 Apple 订阅已过期");
   }
 
-  return withTransaction(async () => {
+  const result = await withTransaction(async () => {
     const existing = await getAppleTransaction(input.tx.transactionId);
     if (existing) {
       return alreadyProcessedResult(existing, input.userId);
@@ -304,6 +368,18 @@ export async function fulfillAppleTransaction(input: {
       user,
     };
   });
+
+  if (!result.alreadyProcessed) {
+    await notifyAppleMoney({
+      event: "paid",
+      tx: input.tx,
+      grantId: result.grantId,
+      diamonds: result.diamondsGranted,
+      userId: input.userId,
+      user: result.user,
+    });
+  }
+  return result;
 }
 
 /** Server notification: original purchaser, or appAccountToken on first buy. */
@@ -328,6 +404,8 @@ export async function fulfillAppleNotificationTx(
   return fulfillAppleTransaction({ tx, userId });
 }
 
+const notifiedOrphanAppleRefunds = new Set<string>();
+
 export type AppleRefundResult = {
   alreadyProcessed: boolean;
   diamondsClawed: number;
@@ -345,38 +423,90 @@ export async function clawbackAppleRefundDiamonds(
   await ensureDiamondTransactionsTable();
   await ensureAppleTransactionsTable();
 
-  return withTransaction(async () => {
+  const result = await withTransaction(async () => {
     const existing = await getAppleTransaction(tx.transactionId);
     if (!existing) {
-      return { alreadyProcessed: true, diamondsClawed: 0, userId: null };
-    }
-    if (existing.diamondsGranted <= 0 || existing.diamondsRefunded > 0) {
       return {
-        alreadyProcessed: true,
+        alreadyProcessed: true as const,
+        diamondsClawed: 0,
+        userId: null,
+        grantId: null as string | null,
+      };
+    }
+    if (existing.diamondsRefunded > 0) {
+      return {
+        alreadyProcessed: true as const,
         diamondsClawed: 0,
         userId: existing.userId,
+        grantId: existing.grantId,
       };
     }
     const claimed = await claimAppleDiamondRefund(tx.transactionId);
     if (!claimed) {
       return {
-        alreadyProcessed: true,
+        alreadyProcessed: true as const,
         diamondsClawed: 0,
         userId: existing.userId,
+        grantId: existing.grantId,
       };
     }
-    await deductDiamondsFloorZero(claimed.userId, claimed.amount, {
-      type: "apple_refund",
-      meta: {
-        channel: "apple",
-        transactionId: tx.transactionId,
-        productId: tx.productId,
-      },
-    });
+    if (claimed.amount > 0) {
+      await deductDiamondsFloorZero(claimed.userId, claimed.amount, {
+        type: "apple_refund",
+        meta: {
+          channel: "apple",
+          transactionId: tx.transactionId,
+          productId: tx.productId,
+        },
+      });
+    }
     return {
-      alreadyProcessed: false,
+      alreadyProcessed: false as const,
       diamondsClawed: claimed.amount,
       userId: claimed.userId,
+      grantId: claimed.grantId,
     };
   });
+
+  if (!result.alreadyProcessed && result.userId && result.grantId) {
+    const user = await getSessionUserById(result.userId).catch(() => null);
+    await notifyAppleMoney({
+      event: "refunded",
+      tx,
+      grantId: result.grantId,
+      diamonds: result.diamondsClawed,
+      userId: result.userId,
+      user,
+    });
+  } else if (
+    result.userId == null &&
+    !notifiedOrphanAppleRefunds.has(tx.transactionId)
+  ) {
+    notifiedOrphanAppleRefunds.add(tx.transactionId);
+    const product = getAppleProduct(tx.productId);
+    const grantId = product?.grantId ?? tx.productId;
+    const amount =
+      product != null
+        ? appleAmountLabel(tx, grantId, 0)
+        : typeof tx.price === "number" && Number.isFinite(tx.price)
+          ? formatAppleMoney(tx.price, inferAppleCurrency(tx.currency, tx.price))
+          : "未知";
+    await notifyPayment({
+      event: "refunded",
+      app: appleClientApp(tx.productId, tx.bundleId),
+      channel: "App Store",
+      product: product ? appleGrantTitle(grantId) : tx.productId,
+      amount,
+      userLabel: "未关联账号",
+      orderNo: tx.transactionId,
+      test: tx.environment === "Sandbox",
+      details: ["本地没有原订单"],
+    });
+  }
+
+  return {
+    alreadyProcessed: result.alreadyProcessed,
+    diamondsClawed: result.diamondsClawed,
+    userId: result.userId,
+  };
 }

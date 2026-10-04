@@ -93,6 +93,7 @@ export type AdminAppleOrderListResult = {
 
 let tableEnsured = false;
 let refundColumnEnsured = false;
+let refundedAtEnsured = false;
 let priceColumnsEnsured = false;
 
 export async function ensureAppleTransactionsTable(): Promise<void> {
@@ -115,7 +116,23 @@ export async function ensureAppleTransactionsTable(): Promise<void> {
   `);
   tableEnsured = true;
   await ensureAppleDiamondsRefundedColumn();
+  await ensureAppleRefundedAtColumn();
   await ensureApplePriceColumns();
+}
+
+async function ensureAppleRefundedAtColumn(): Promise<void> {
+  if (refundedAtEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM apple_transactions LIKE 'refunded_at'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE apple_transactions
+       ADD COLUMN refunded_at DATETIME NULL AFTER diamonds_refunded`,
+    );
+  }
+  refundedAtEnsured = true;
 }
 
 async function ensureAppleDiamondsRefundedColumn(): Promise<void> {
@@ -243,23 +260,32 @@ export async function insertAppleTransaction(
   return (result.affectedRows ?? 0) > 0;
 }
 
-/** Mark this tx's gifted diamonds as refunded. Returns the amount if this caller won the race. */
+/**
+ * Mark this transaction refunded once.
+ * Returns the gifted diamond amount (possibly 0) when this caller wins the race.
+ */
 export async function claimAppleDiamondRefund(
   transactionId: string,
-): Promise<{ userId: number; amount: number } | null> {
+): Promise<{ userId: number; amount: number; grantId: string; productId: string } | null> {
   await ensureAppleTransactionsTable();
   const result = await execute(
     `UPDATE apple_transactions
-     SET diamonds_refunded = diamonds_granted
+     SET diamonds_refunded = diamonds_granted,
+         refunded_at = NOW()
      WHERE transaction_id = :transactionId
-       AND diamonds_granted > 0
-       AND diamonds_refunded = 0`,
+       AND diamonds_refunded = 0
+       AND refunded_at IS NULL`,
     { transactionId },
   );
   if ((result.affectedRows ?? 0) === 0) return null;
   const row = await getAppleTransaction(transactionId);
   if (!row) return null;
-  return { userId: row.userId, amount: row.diamondsGranted };
+  return {
+    userId: row.userId,
+    amount: row.diamondsGranted,
+    grantId: row.grantId,
+    productId: row.productId,
+  };
 }
 
 export function appleGrantTitle(grantId: string): string {

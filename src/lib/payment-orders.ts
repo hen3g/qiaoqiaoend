@@ -8,8 +8,10 @@ import {
   resolveAlipayMerchantByAppId,
   yuanToFen,
 } from "@/lib/alipay";
+import { getSessionUserById } from "@/lib/auth";
 import { shortenVip } from "@/lib/courses";
 import { execute, query, withTransaction } from "@/lib/db";
+import { formatPayUser, notifyPayment } from "@/lib/payment-notify";
 import { ensureDiamondTransactionsTable } from "@/lib/diamond-transactions";
 import {
   getDiamondPack,
@@ -38,6 +40,7 @@ export type PaymentOrder = {
   id: number;
   outTradeNo: string;
   userId: number;
+  appId: string | null;
   planId: PaymentPlanId;
   amountFen: number;
   status: PaymentOrderStatus;
@@ -51,6 +54,7 @@ type OrderRow = RowDataPacket & {
   id: number;
   out_trade_no: string;
   user_id: number;
+  app_id: string | null;
   plan_id: string;
   amount_fen: number;
   status: PaymentOrderStatus;
@@ -110,6 +114,7 @@ function mapOrder(row: OrderRow): PaymentOrder {
     id: row.id,
     outTradeNo: row.out_trade_no,
     userId: Number(row.user_id),
+    appId: row.app_id ?? null,
     planId: row.plan_id as PaymentPlanId,
     amountFen: Number(row.amount_fen),
     status: row.status,
@@ -210,7 +215,7 @@ export async function getOrderByOutTradeNo(
 ): Promise<PaymentOrder | null> {
   await ensurePaymentOrdersTable();
   const rows = await query<OrderRow[]>(
-    `SELECT id, out_trade_no, user_id, plan_id, amount_fen, status,
+    `SELECT id, out_trade_no, user_id, app_id, plan_id, amount_fen, status,
             alipay_trade_no, paid_at, created_at, updated_at
      FROM payment_orders
      WHERE out_trade_no = :outTradeNo
@@ -386,7 +391,7 @@ async function listPaymentOrdersWithFilters(
   };
 
   const rows = await query<AdminOrderRow[]>(
-    `SELECT o.id, o.out_trade_no, o.user_id, o.plan_id, o.amount_fen, o.status,
+    `SELECT o.id, o.out_trade_no, o.user_id, o.app_id, o.plan_id, o.amount_fen, o.status,
             o.alipay_trade_no, o.paid_at, o.created_at, o.updated_at,
             u.username, u.nickname
      FROM payment_orders o
@@ -505,6 +510,21 @@ export async function markOrderPaidAndFulfill(input: {
     return null;
   }
 
+  try {
+    await notifyPayment({
+      event: "paid",
+      app: await resolvePaymentOrderApp(order),
+      channel: "支付宝",
+      product: paymentPlanTitle(order.planId),
+      amount: `¥${expectedAmount}`,
+      userLabel: await payUserLabel(order.userId),
+      orderNo: order.outTradeNo,
+      details: [`支付宝单号：${input.alipayTradeNo}`],
+    });
+  } catch (err) {
+    console.warn("[payment-notify] alipay paid", err);
+  }
+
   if (isDiamondPackId(order.planId)) {
     const granted = await purchaseDiamondPack(order.userId, order.planId);
     return { kind: "diamonds", ...granted };
@@ -569,6 +589,67 @@ function paymentOrderClientApp(row: {
   }
   if (row.register_app_id === "hamster") return "hamster";
   return "qiaoqiao";
+}
+
+async function resolvePaymentOrderApp(order: PaymentOrder): Promise<ClientAppId> {
+  if (order.appId === "hamster" || order.appId === "qiaoqiao") {
+    return order.appId;
+  }
+  const rows = await query<(RowDataPacket & { register_app_id: string | null })[]>(
+    `SELECT register_app_id FROM users WHERE id = :userId LIMIT 1`,
+    { userId: order.userId },
+  );
+  return paymentOrderClientApp({
+    app_id: order.appId,
+    register_app_id: rows[0]?.register_app_id ?? null,
+  });
+}
+
+async function payUserLabel(userId: number): Promise<string> {
+  try {
+    const user = await getSessionUserById(userId);
+    if (user) return formatPayUser(user);
+  } catch (err) {
+    console.warn("[payment-notify] user lookup", err);
+  }
+  return `用户#${userId}`;
+}
+
+/** Bank confirmed an Alipay refund (including refunds started outside this admin). */
+export async function notifyAlipayDepositback(input: {
+  outTradeNo: string;
+  tradeNo: string;
+  amount?: string;
+  status?: string;
+}): Promise<void> {
+  try {
+    const order = await getOrderByOutTradeNo(input.outTradeNo);
+    const amountText = input.amount?.trim()
+      ? input.amount.trim().startsWith("¥")
+        ? input.amount.trim()
+        : `¥${input.amount.trim()}`
+      : order
+        ? `¥${orderAmountYuan(order)}`
+        : "未知";
+    const status = input.status?.trim();
+    const statusText =
+      status === "S" ? "成功" : status === "F" ? "失败" : status || "";
+    await notifyPayment({
+      event: "refunded",
+      app: order ? await resolvePaymentOrderApp(order) : "qiaoqiao",
+      channel: "支付宝",
+      product: order ? paymentPlanTitle(order.planId) : "未知商品",
+      amount: amountText,
+      userLabel: order ? await payUserLabel(order.userId) : "未知用户",
+      orderNo: input.outTradeNo,
+      details: [
+        `支付宝单号：${input.tradeNo}`,
+        statusText ? `银行退回：${statusText}` : "银行已确认退回",
+      ],
+    });
+  } catch (err) {
+    console.warn("[payment-notify] alipay depositback", err);
+  }
 }
 
 /**
@@ -665,6 +746,29 @@ export async function refundPaidAlipayOrder(
     }
     return true;
   });
+
+  if (applied) {
+    const details: string[] = [];
+    if (grant.days > 0) details.push(`收回会员：${grant.days} 天`);
+    if (grant.diamonds > 0) details.push(`收回钻石：${grant.diamonds}`);
+    if (order.alipay_trade_no) {
+      details.push(`支付宝单号：${order.alipay_trade_no}`);
+    }
+    try {
+      await notifyPayment({
+        event: "refunded",
+        app: clientApp,
+        channel: "支付宝",
+        product: paymentPlanTitle(order.plan_id),
+        amount: `¥${amountYuan}`,
+        userLabel: await payUserLabel(Number(order.user_id)),
+        orderNo: order.out_trade_no,
+        details,
+      });
+    } catch (err) {
+      console.warn("[payment-notify] alipay refund", err);
+    }
+  }
 
   return {
     alreadyRefunded: !applied,

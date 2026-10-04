@@ -15,6 +15,7 @@ import {
 } from "@/lib/google-transactions";
 import { getDiamondPack, isDiamondPackId } from "@/lib/diamond-packs";
 import { ensureDiamondTransactionsTable } from "@/lib/diamond-transactions";
+import { formatPayUser, notifyPayment } from "@/lib/payment-notify";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
@@ -107,7 +108,7 @@ export async function fulfillGooglePurchase(input: {
     return alreadyProcessedResult(existing, input.userId);
   }
 
-  return withTransaction(async () => {
+  const result = await withTransaction(async () => {
     const raced = await getGoogleTransaction(input.purchaseToken);
     if (raced) {
       return alreadyProcessedResult(raced, input.userId);
@@ -190,4 +191,32 @@ export async function fulfillGooglePurchase(input: {
       user,
     };
   });
+
+  if (!result.alreadyProcessed) {
+    const amount = isVipPlanId(result.grantId)
+      ? getVipPlan(result.grantId).price
+      : isDiamondPackId(result.grantId)
+        ? getDiamondPack(result.grantId).price
+        : null;
+    const title = isVipPlanId(result.grantId)
+      ? getVipPlan(result.grantId).title
+      : isDiamondPackId(result.grantId)
+        ? getDiamondPack(result.grantId).title
+        : result.grantId;
+    await notifyPayment({
+      event: "paid",
+      app: "hamster",
+      channel: "Google Play",
+      product: title,
+      amount: amount == null ? "未知" : `¥${amount.toFixed(2)}`,
+      userLabel: formatPayUser(result.user),
+      orderNo: purchase.orderId,
+      test: googlePurchaseEnvironment(purchase) === "Test",
+      details:
+        result.diamondsGranted > 0
+          ? [`到账钻石：${result.diamondsGranted}`]
+          : undefined,
+    });
+  }
+  return result;
 }

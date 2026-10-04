@@ -3,6 +3,7 @@ import {
   isKnownAlipayAppId,
   verifyAlipayNotify,
 } from "@/lib/alipay";
+import { notifyAlipayDepositback } from "@/lib/payment-orders";
 
 function plain(body: "success" | "fail") {
   return new Response(body, {
@@ -94,6 +95,13 @@ export async function POST(req: Request) {
         dbackAmount: biz.dback_amount,
         bankAckTime: biz.bank_ack_time,
         estBankReceiptTime: biz.est_bank_receipt_time,
+      });
+
+      await notifyAlipayDepositback({
+        outTradeNo: biz.out_trade_no,
+        tradeNo: biz.trade_no,
+        amount: biz.dback_amount,
+        status: biz.dback_status,
       });
 
       return plain("success");
