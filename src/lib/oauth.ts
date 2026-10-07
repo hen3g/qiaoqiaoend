@@ -1,15 +1,17 @@
 import { createHash, randomBytes } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
-import type { RowDataPacket } from "mysql2";
 import { query } from "@/lib/db";
 import {
   getUserTokenVersion,
   mapUser,
+  SESSION_USER_COLUMNS,
   type SessionUser,
+  type SessionUserRow,
 } from "@/lib/auth";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
+  ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 
@@ -22,19 +24,7 @@ export type OAuthClient = {
   displayName: string;
 };
 
-type UserRow = RowDataPacket & {
-  id: number;
-  username: string;
-  nickname: string | null;
-  avatar_url?: string | null;
-  vip_expires_at: Date | string | null;
-  diamonds?: number | null;
-  share_custom_courses?: number | boolean | null;
-  is_promoter?: number | boolean | null;
-  promoter_id?: number | null;
-  created_at: Date | string | null;
-  token_version?: number;
-};
+type UserRow = SessionUserRow;
 
 function getSecret() {
   const secret = process.env.AUTH_SECRET;
@@ -228,10 +218,9 @@ export async function getUserById(userId: number): Promise<SessionUser | null> {
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
+  await ensureUserPaidVipColumns();
   const rows = await query<UserRow[]>(
-    `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
-            share_custom_courses, is_promoter, promoter_id, created_at,
-            token_version
+    `SELECT ${SESSION_USER_COLUMNS}, token_version
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );
@@ -246,10 +235,9 @@ export async function getUserByIdIfTokenVersion(
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
+  await ensureUserPaidVipColumns();
   const rows = await query<UserRow[]>(
-    `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
-            share_custom_courses, is_promoter, promoter_id, created_at,
-            token_version
+    `SELECT ${SESSION_USER_COLUMNS}, token_version
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );

@@ -1,7 +1,12 @@
-import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { getCurrentUser, mapUser } from "@/lib/auth";
+import {
+  getCurrentUser,
+  mapUser,
+  SESSION_USER_COLUMNS,
+  type SessionUserRow,
+} from "@/lib/auth";
+import { ensureUserPaidVipColumns } from "@/lib/user-schema";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import {
   fetchAvatarPng,
@@ -82,22 +87,9 @@ export async function POST(req: Request) {
       id: user.id,
     });
 
-    const rows = await query<
-      (RowDataPacket & {
-        id: number;
-        username: string;
-        nickname: string | null;
-        avatar_url: string | null;
-        vip_expires_at: Date | string | null;
-        diamonds: number;
-        share_custom_courses: number | boolean | null;
-        is_promoter: number | boolean | null;
-        promoter_id: number | null;
-        created_at: Date | string | null;
-      })[]
-    >(
-      `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
-              share_custom_courses, is_promoter, promoter_id, created_at
+    await ensureUserPaidVipColumns();
+    const rows = await query<SessionUserRow[]>(
+      `SELECT ${SESSION_USER_COLUMNS}
        FROM users WHERE id = :id LIMIT 1`,
       { id: user.id },
     );

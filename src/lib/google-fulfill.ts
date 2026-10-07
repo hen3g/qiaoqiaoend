@@ -15,10 +15,12 @@ import {
 } from "@/lib/google-transactions";
 import { getDiamondPack, isDiamondPackId } from "@/lib/diamond-packs";
 import { ensureDiamondTransactionsTable } from "@/lib/diamond-transactions";
+import { extendPaidVip } from "@/lib/paid-vip";
 import { formatPayUser, notifyPayment } from "@/lib/payment-notify";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
+  ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 import { addDiamonds, getVipPlan, isVipPlanId } from "@/lib/vip";
@@ -85,6 +87,7 @@ export async function fulfillGooglePurchase(input: {
   await ensureUserPromoterColumns();
   await ensureDiamondTransactionsTable();
   await ensureGoogleTransactionsTable();
+  await ensureUserPaidVipColumns();
 
   const product = getGoogleProduct(input.productId);
   if (!product) {
@@ -152,6 +155,10 @@ export async function fulfillGooglePurchase(input: {
       }
       const plan = getVipPlan(product.grantId);
       await extendVip(input.userId, plan.days);
+      // Paid membership time: real Play purchases only (license-test buys excluded).
+      if (googlePurchaseEnvironment(purchase) === "Production") {
+        await extendPaidVip(input.userId, plan.days);
+      }
       if (diamondsGranted > 0) {
         await addDiamonds(input.userId, diamondsGranted, {
           type: "vip_purchase",

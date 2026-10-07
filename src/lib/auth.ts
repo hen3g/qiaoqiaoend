@@ -6,6 +6,7 @@ import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
   ensureUserEmailColumn,
+  ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 
@@ -20,6 +21,26 @@ export function isPermanentVipExpiry(vipExpiresAt: string | null): boolean {
   return new Date(vipExpiresAt).getFullYear() >= 9999;
 }
 
+/**
+ * Column list for any `users` SELECT whose row goes through `mapUser()`.
+ * Use this instead of hand-writing columns so new fields don't drift.
+ * Call `ensureUserPaidVipColumns()` (plus the usual ensures) before querying.
+ */
+export const SESSION_USER_COLUMNS = `id, username, nickname, avatar_url,
+  vip_expires_at, is_paid_vip, paid_vip_expires_at, diamonds,
+  share_custom_courses, is_promoter, promoter_id, created_at`;
+
+/** Same as SESSION_USER_COLUMNS plus email (own-account responses). */
+export const SESSION_USER_COLUMNS_WITH_EMAIL = `email, ${SESSION_USER_COLUMNS}`;
+
+/** SESSION_USER_COLUMNS with a table alias, e.g. `u.id, u.username, …`. */
+export function sessionUserColumnsFor(alias: string, withEmail = false): string {
+  const cols = (withEmail ? SESSION_USER_COLUMNS_WITH_EMAIL : SESSION_USER_COLUMNS)
+    .split(",")
+    .map((col) => `${alias}.${col.trim()}`);
+  return cols.join(", ");
+}
+
 export type SessionUser = {
   id: number;
   username: string;
@@ -29,6 +50,12 @@ export type SessionUser = {
   vipExpiresAt: string | null;
   isVip: boolean;
   isPermanentVip: boolean;
+  /** Has a successful, non-refunded paid membership purchase (ever). Gifts excluded. */
+  isPaidVip: boolean;
+  /** End of paid membership time (gift time such as 爱吃 excluded). */
+  paidVipExpiresAt: string | null;
+  /** Paid time currently covers now (paidVipExpiresAt > now). */
+  isPaidVipActive: boolean;
   /** Diamonds for custom-course usage; stackable via membership purchases. */
   diamonds: number;
   /** Whether the user's ready custom courses appear in 课程广场. Default true. */
@@ -40,13 +67,15 @@ export type SessionUser = {
   createdAt: string | null;
 };
 
-type UserRow = RowDataPacket & {
+export type SessionUserRow = RowDataPacket & {
   id: number;
   username: string;
   nickname: string | null;
   email?: string | null;
   avatar_url?: string | null;
   vip_expires_at: Date | string | null;
+  is_paid_vip?: number | boolean | null;
+  paid_vip_expires_at?: Date | string | null;
   diamonds?: number | null;
   share_custom_courses?: number | boolean | null;
   is_promoter?: number | boolean | null;
@@ -69,12 +98,16 @@ function toIso(value: Date | string | null): string | null {
   return new Date(value).toISOString();
 }
 
-export function mapUser(row: UserRow): SessionUser {
+export function mapUser(row: SessionUserRow): SessionUser {
   const vipExpiresAt = toIso(row.vip_expires_at);
   const isPermanentVip = isPermanentVipExpiry(vipExpiresAt);
   const isVip = Boolean(
     isPermanentVip ||
       (vipExpiresAt && new Date(vipExpiresAt).getTime() > Date.now()),
+  );
+  const paidVipExpiresAt = toIso(row.paid_vip_expires_at ?? null);
+  const isPaidVipActive = Boolean(
+    paidVipExpiresAt && new Date(paidVipExpiresAt).getTime() > Date.now(),
   );
   return {
     id: row.id,
@@ -91,6 +124,9 @@ export function mapUser(row: UserRow): SessionUser {
     vipExpiresAt,
     isVip,
     isPermanentVip,
+    isPaidVip: Boolean(row.is_paid_vip),
+    paidVipExpiresAt,
+    isPaidVipActive,
     diamonds: Math.max(0, Number(row.diamonds ?? 0) || 0),
     shareCustomCourses:
       row.share_custom_courses === undefined ||
@@ -209,11 +245,10 @@ export async function getCurrentUser(
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
   await ensureUserEmailColumn();
+  await ensureUserPaidVipColumns();
 
-  const rows = await query<UserRow[]>(
-    `SELECT id, username, nickname, email, avatar_url, vip_expires_at, diamonds,
-            share_custom_courses, is_promoter, promoter_id, created_at,
-            token_version
+  const rows = await query<SessionUserRow[]>(
+    `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}, token_version
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );
@@ -230,9 +265,9 @@ export async function getSessionUserById(
   await ensureShareCustomCoursesColumn();
   await ensureUserPromoterColumns();
   await ensureUserEmailColumn();
-  const rows = await query<UserRow[]>(
-    `SELECT id, username, nickname, email, avatar_url, vip_expires_at, diamonds,
-            share_custom_courses, is_promoter, promoter_id, created_at
+  await ensureUserPaidVipColumns();
+  const rows = await query<SessionUserRow[]>(
+    `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );

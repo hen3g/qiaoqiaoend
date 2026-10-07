@@ -1,6 +1,11 @@
 import type { RowDataPacket } from "mysql2";
 import { execute, query } from "@/lib/db";
-import { mapUser, type SessionUser } from "@/lib/auth";
+import {
+  mapUser,
+  type SessionUser,
+  SESSION_USER_COLUMNS,
+  type SessionUserRow,
+} from "@/lib/auth";
 import { extendVip } from "@/lib/courses";
 import {
   insertDiamondTransaction,
@@ -11,6 +16,7 @@ import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
   ensureUserPromoterColumns,
+  ensureUserPaidVipColumns,
 } from "@/lib/user-schema";
 
 export type DiamondChangeOpts = {
@@ -205,6 +211,7 @@ export async function purchaseVipPlan(
 ): Promise<PurchaseVipResult> {
   await ensureUserDiamondsColumn();
   await ensureShareCustomCoursesColumn();
+  await ensureUserPaidVipColumns();
   await ensureUserPromoterColumns();
   if (isAppleSubscriptionPlanId(planId)) {
     throw new Error("该方案仅支持 App Store 订阅");
@@ -217,22 +224,8 @@ export async function purchaseVipPlan(
     meta: { planId: plan.id, days: plan.days },
   });
 
-  const rows = await query<
-    (RowDataPacket & {
-      id: number;
-      username: string;
-      nickname: string | null;
-      avatar_url: string | null;
-      vip_expires_at: Date | string | null;
-      diamonds: number;
-      share_custom_courses: number | boolean | null;
-      is_promoter: number | boolean | null;
-      promoter_id: number | null;
-      created_at: Date | string | null;
-    })[]
-  >(
-    `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
-            share_custom_courses, is_promoter, promoter_id, created_at
+  const rows = await query<SessionUserRow[]>(
+    `SELECT ${SESSION_USER_COLUMNS}
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );

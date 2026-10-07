@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NULL,
   avatar_url VARCHAR(500) NULL,
   vip_expires_at DATETIME NULL,
+  is_paid_vip TINYINT(1) NOT NULL DEFAULT 0,
+  paid_vip_expires_at DATETIME NULL,
   diamonds INT UNSIGNED NOT NULL DEFAULT 0,
   share_custom_courses TINYINT(1) NOT NULL DEFAULT 1,
   is_promoter TINYINT(1) NOT NULL DEFAULT 0,

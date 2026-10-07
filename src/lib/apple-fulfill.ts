@@ -19,6 +19,15 @@ import {
 } from "@/lib/apple-products";
 import type { ClientAppId } from "@/lib/client-app";
 import { formatPayUser, notifyPayment } from "@/lib/payment-notify";
+import {
+  extendPaidVip,
+  recomputePaidVipFlag,
+  setPaidVipExpiresAtLeast,
+  setPaidVipExpiresAtMost,
+  shortenPaidVip,
+} from "@/lib/paid-vip";
+import { ensurePaymentOrdersTable } from "@/lib/payment-orders";
+import { ensureGoogleTransactionsTable } from "@/lib/google-transactions";
 import type { AppleSignedTransaction } from "@/lib/apple-jws";
 import {
   extendVip,
@@ -39,6 +48,7 @@ import { ensureDiamondTransactionsTable } from "@/lib/diamond-transactions";
 import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
+  ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
 } from "@/lib/user-schema";
 
@@ -241,6 +251,7 @@ export async function fulfillAppleTransaction(input: {
   await ensureUserPromoterColumns();
   await ensureDiamondTransactionsTable();
   await ensureAppleTransactionsTable();
+  await ensureUserPaidVipColumns();
 
   const product = getAppleProduct(input.tx.productId);
   if (!product) {
@@ -320,13 +331,19 @@ export async function fulfillAppleTransaction(input: {
         throw new Error("未知的会员方案");
       }
       const plan = getVipPlan(product.grantId);
+      // Paid membership time: App Store Production only (Sandbox excluded).
+      const isPaidEnv = input.tx.environment === "Production";
       if (!isAppleConsumableProduct(product)) {
-        await setVipExpiresAtLeast(
-          input.userId,
-          subscriptionExpiryDate(input.tx, plan.days),
-        );
+        const expiresAt = subscriptionExpiryDate(input.tx, plan.days);
+        await setVipExpiresAtLeast(input.userId, expiresAt);
+        if (isPaidEnv) {
+          await setPaidVipExpiresAtLeast(input.userId, expiresAt);
+        }
       } else {
         await extendVip(input.userId, plan.days);
+        if (isPaidEnv) {
+          await extendPaidVip(input.userId, plan.days);
+        }
       }
       if (diamondsGranted > 0) {
         await addDiamonds(input.userId, diamondsGranted, {
@@ -406,6 +423,24 @@ export async function fulfillAppleNotificationTx(
 
 const notifiedOrphanAppleRefunds = new Set<string>();
 
+/** Shorten paid-membership fields for one refunded Apple VIP transaction. */
+async function revokeApplePaidVip(input: {
+  userId: number;
+  productId: string;
+  grantId: string;
+  refundedAt: Date;
+}): Promise<void> {
+  const product = getAppleProduct(input.productId);
+  const grantId = product?.grantId || input.grantId;
+  if (product && !isAppleConsumableProduct(product)) {
+    await setPaidVipExpiresAtMost(input.userId, input.refundedAt);
+  } else if (isVipPlanId(grantId)) {
+    await shortenPaidVip(input.userId, getVipPlan(grantId).days);
+  }
+  // is_paid_vip stays 1 only if another non-refunded paid purchase remains.
+  await recomputePaidVipFlag(input.userId);
+}
+
 export type AppleRefundResult = {
   alreadyProcessed: boolean;
   diamondsClawed: number;
@@ -413,8 +448,9 @@ export type AppleRefundResult = {
 };
 
 /**
- * Apple refund: claw back diamonds granted by this transaction only.
- * VIP / subscription time is left unchanged.
+ * Apple refund: claw back diamonds granted by this transaction.
+ * Overall VIP (`vip_expires_at`) is left unchanged; only the paid-membership
+ * fields are shortened (one-time: plan days; subscription: back to refund time).
  */
 export async function clawbackAppleRefundDiamonds(
   tx: AppleSignedTransaction,
@@ -422,6 +458,9 @@ export async function clawbackAppleRefundDiamonds(
   await ensureUserDiamondsColumn();
   await ensureDiamondTransactionsTable();
   await ensureAppleTransactionsTable();
+  await ensureUserPaidVipColumns();
+  await ensurePaymentOrdersTable();
+  await ensureGoogleTransactionsTable();
 
   const result = await withTransaction(async () => {
     const existing = await getAppleTransaction(tx.transactionId);
@@ -458,6 +497,14 @@ export async function clawbackAppleRefundDiamonds(
           transactionId: tx.transactionId,
           productId: tx.productId,
         },
+      });
+    }
+    if (existing.kind === "vip" && existing.environment === "Production") {
+      await revokeApplePaidVip({
+        userId: claimed.userId,
+        productId: existing.productId,
+        grantId: existing.grantId,
+        refundedAt: tx.revocationDate ? new Date(tx.revocationDate) : new Date(),
       });
     }
     return {

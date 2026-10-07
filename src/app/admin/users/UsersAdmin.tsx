@@ -112,6 +112,10 @@ export function UsersAdmin({
   }, [users, queryText]);
 
   const vipCount = useMemo(() => users.filter((u) => u.isVip).length, [users]);
+  const paidVipCount = useMemo(
+    () => users.filter((u) => u.isPaidVip).length,
+    [users],
+  );
   const promoterCount = useMemo(
     () => users.filter((u) => u.isPromoter).length,
     [users],
@@ -226,13 +230,21 @@ export function UsersAdmin({
     },
     {
       title: "会员",
-      width: 120,
-      render: (_, u) =>
-        u.isVip ? (
-          <Tag color="arcoblue">{vipLabel(u)}</Tag>
-        ) : (
-          <Typography.Text type="secondary">{vipLabel(u)}</Typography.Text>
-        ),
+      width: 140,
+      render: (_, u) => (
+        <Space direction="vertical" size={4}>
+          {u.isVip ? (
+            <Tag color="arcoblue">{vipLabel(u)}</Tag>
+          ) : (
+            <Typography.Text type="secondary">{vipLabel(u)}</Typography.Text>
+          )}
+          {u.isPaidVip ? (
+            <Tag color={u.isPaidVipActive ? "orangered" : "gray"}>
+              {u.isPaidVipActive ? "充值会员" : "充值会员（已过期）"}
+            </Tag>
+          ) : null}
+        </Space>
+      ),
     },
     {
       title: "钻石",
@@ -263,6 +275,14 @@ export function UsersAdmin({
           : u.vipExpiresAt
             ? new Date(u.vipExpiresAt).toLocaleString("zh-CN")
             : "—",
+    },
+    {
+      title: "充值到期",
+      width: 160,
+      render: (_, u) =>
+        u.paidVipExpiresAt
+          ? new Date(u.paidVipExpiresAt).toLocaleString("zh-CN")
+          : "—",
     },
     {
       title: "注册时间",
@@ -298,7 +318,7 @@ export function UsersAdmin({
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       <Card title={app === "hamster" ? "用户" : "用户后台"}>
         <Typography.Paragraph type="secondary">
-          {appLabel}：共 {users.length} 人，会员 {vipCount} 人，推广者 {promoterCount}{" "}
+          {appLabel}：共 {users.length} 人，会员 {vipCount} 人（充值会员 {paidVipCount}），推广者 {promoterCount}{" "}
           人；客户端 {usageCounts.clientOnly} 人，在线版 {usageCounts.webOnly}{" "}
           人，都使用了 {usageCounts.both} 人。
         </Typography.Paragraph>

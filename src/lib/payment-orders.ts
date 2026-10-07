@@ -21,7 +21,19 @@ import {
 } from "@/lib/diamond-packs";
 import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
 import { sqlOrderAppPredicate } from "@/lib/client-app";
-import { ensureUserDiamondsColumn } from "@/lib/user-schema";
+import {
+  ensureShareCustomCoursesColumn,
+  ensureUserDiamondsColumn,
+  ensureUserPaidVipColumns,
+  ensureUserPromoterColumns,
+} from "@/lib/user-schema";
+import { ensureAppleTransactionsTable } from "@/lib/apple-transactions";
+import { ensureGoogleTransactionsTable } from "@/lib/google-transactions";
+import {
+  extendPaidVip,
+  recomputePaidVipFlag,
+  shortenPaidVip,
+} from "@/lib/paid-vip";
 import {
   deductDiamondsFloorZero,
   getVipPlan,
@@ -532,7 +544,19 @@ export async function markOrderPaidAndFulfill(input: {
   if (!isVipPlanId(order.planId)) {
     throw new Error("未知商品类型");
   }
-  const granted = await purchaseVipPlan(order.userId, order.planId);
+  const vipPlanId: VipPlanId = order.planId;
+  // Run schema ensures before the transaction (DDL would implicitly commit).
+  await ensureUserDiamondsColumn();
+  await ensureShareCustomCoursesColumn();
+  await ensureUserPromoterColumns();
+  await ensureUserPaidVipColumns();
+  await ensureDiamondTransactionsTable();
+  // Real Alipay payment: paid fields + overall VIP + diamonds in one transaction.
+  // (Not inside purchaseVipPlan, so gated test purchases never count as paid.)
+  const granted = await withTransaction(async () => {
+    await extendPaidVip(order.userId, getVipPlan(vipPlanId).days);
+    return purchaseVipPlan(order.userId, vipPlanId);
+  });
   return { kind: "vip", ...granted };
 }
 
@@ -719,6 +743,9 @@ export async function refundPaidAlipayOrder(
 
   await ensureUserDiamondsColumn();
   await ensureDiamondTransactionsTable();
+  await ensureUserPaidVipColumns();
+  await ensureAppleTransactionsTable();
+  await ensureGoogleTransactionsTable();
 
   const applied = await withTransaction(async () => {
     const updated = await execute(
@@ -733,6 +760,9 @@ export async function refundPaidAlipayOrder(
     const userId = Number(order.user_id);
     if (grant.days > 0) {
       await shortenVip(userId, grant.days);
+      await shortenPaidVip(userId, grant.days);
+      // is_paid_vip stays 1 only if another non-refunded paid purchase remains.
+      await recomputePaidVipFlag(userId);
     }
     if (grant.diamonds > 0) {
       await deductDiamondsFloorZero(userId, grant.diamonds, {

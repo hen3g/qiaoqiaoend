@@ -1,7 +1,11 @@
 import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { mapUser, type SessionUser } from "@/lib/auth";
+import {
+  mapUser,
+  sessionUserColumnsFor,
+  type SessionUser,
+} from "@/lib/auth";
 import type { ClientAppFilter, ClientAppId } from "@/lib/client-app";
 import {
   DEFAULT_CLIENT_APP,
@@ -17,6 +21,7 @@ import {
   ensureShareCustomCoursesColumn,
   ensureUserAppColumns,
   ensureUserDiamondsColumn,
+  ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
   ensureUserRegisterPlatformColumn,
   isRegisterPlatform,
@@ -32,6 +37,8 @@ type UserRow = RowDataPacket & {
   username: string;
   nickname: string | null;
   vip_expires_at: Date | string | null;
+  is_paid_vip?: number | boolean | null;
+  paid_vip_expires_at?: Date | string | null;
   diamonds: number;
   share_custom_courses?: number | boolean | null;
   is_promoter?: number | boolean | null;
@@ -106,14 +113,14 @@ async function listUsers(app: ClientAppFilter): Promise<AdminUserDto[]> {
   await ensureUserPromoterColumns();
   await ensureUserAppColumns();
   await ensureUserRegisterPlatformColumn();
+  await ensureUserPaidVipColumns();
   const params: Record<string, string> = {};
   const appSql = sqlRegisterAppPredicate("u.register_app_id", app, params);
   const whereSql = appSql ? `WHERE ${appSql}` : "";
   const rows = await query<UserRow[]>(
-    `SELECT u.id, u.username, u.nickname, u.vip_expires_at, u.diamonds,
-            u.share_custom_courses, u.is_promoter, u.promoter_id,
+    `SELECT ${sessionUserColumnsFor("u")},
             u.register_app_id, u.last_app_id, u.register_platform,
-            u.created_at, u.token_version,
+            u.token_version,
             sp.unlocked_difficulty,
             COALESCE(n.has_client, 0) AS has_client,
             COALESCE(n.has_web, 0) AS has_web,

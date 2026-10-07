@@ -6,6 +6,8 @@ import {
   createSessionToken,
   mapUser,
   setSessionCookie,
+  SESSION_USER_COLUMNS,
+  type SessionUserRow,
 } from "@/lib/auth";
 import { clientAppFromRequest } from "@/lib/client-app";
 import { execute, query } from "@/lib/db";
@@ -24,6 +26,7 @@ import {
   ensureUserPromoterColumns,
   ensureUserRegisterPlatformColumn,
   isRegisterPlatform,
+  ensureUserPaidVipColumns,
 } from "@/lib/user-schema";
 import { tryGrantAichiVipPromo } from "@/lib/aichi-vip-promo";
 import { ErrorCode } from "@/lib/error-codes";
@@ -115,22 +118,9 @@ export async function POST(req: Request) {
     await ensureUserDiamondsColumn();
     await ensureShareCustomCoursesColumn();
     await ensureUserPromoterColumns();
-    const rows = await query<
-      (RowDataPacket & {
-        id: number;
-        username: string;
-        nickname: string | null;
-        avatar_url: string | null;
-        vip_expires_at: Date | string | null;
-        diamonds: number;
-        share_custom_courses: number | boolean | null;
-        is_promoter: number | boolean | null;
-        promoter_id: number | null;
-        created_at: Date | string | null;
-      })[]
-    >(
-      `SELECT id, username, nickname, avatar_url, vip_expires_at, diamonds,
-              share_custom_courses, is_promoter, promoter_id, created_at
+    await ensureUserPaidVipColumns();
+    const rows = await query<SessionUserRow[]>(
+      `SELECT ${SESSION_USER_COLUMNS}
        FROM users WHERE id = :id`,
       { id: userId },
     );

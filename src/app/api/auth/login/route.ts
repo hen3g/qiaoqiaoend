@@ -1,11 +1,12 @@
-import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import {
   createSessionToken,
   mapUser,
+  SESSION_USER_COLUMNS_WITH_EMAIL,
   setSessionCookie,
+  type SessionUserRow,
 } from "@/lib/auth";
 import { clientAppFromRequest } from "@/lib/client-app";
 import { query } from "@/lib/db";
@@ -16,6 +17,7 @@ import {
   ensureShareCustomCoursesColumn,
   ensureUserDiamondsColumn,
   ensureUserEmailColumn,
+  ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
   touchUserLastApp,
 } from "@/lib/user-schema";
@@ -26,19 +28,8 @@ const schema = z.object({
   password: z.string().min(1, "请输入密码"),
 });
 
-type UserAuthRow = RowDataPacket & {
-  id: number;
-  username: string;
-  nickname: string | null;
-  email: string | null;
-  avatar_url: string | null;
+type UserAuthRow = SessionUserRow & {
   password_hash: string;
-  vip_expires_at: Date | string | null;
-  diamonds: number;
-  share_custom_courses: number | boolean | null;
-  is_promoter: number | boolean | null;
-  promoter_id: number | null;
-  created_at: Date | string | null;
 };
 
 const LOGIN_LIMIT = { max: 20 } as const;
@@ -58,11 +49,11 @@ export async function POST(req: Request) {
     await ensureShareCustomCoursesColumn();
     await ensureUserPromoterColumns();
     await ensureUserEmailColumn();
+    await ensureUserPaidVipColumns();
 
     const byEmail = isValidEmail(identifier);
     const rows = await query<UserAuthRow[]>(
-      `SELECT id, username, nickname, email, avatar_url, password_hash, vip_expires_at, diamonds,
-              share_custom_courses, is_promoter, promoter_id, created_at
+      `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}, password_hash
        FROM users
        WHERE ${byEmail ? "email = :identifier" : "username = :identifier"}
        LIMIT 1`,

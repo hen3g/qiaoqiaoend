@@ -1,7 +1,11 @@
-import type { RowDataPacket } from "mysql2";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { getCurrentUser, mapUser } from "@/lib/auth";
+import {
+  getCurrentUser,
+  mapUser,
+  SESSION_USER_COLUMNS_WITH_EMAIL,
+  type SessionUserRow,
+} from "@/lib/auth";
 import { authPreflight, withAuthCors } from "@/lib/auth-cors";
 import { query } from "@/lib/db";
 import {
@@ -12,7 +16,10 @@ import {
   verifyAndConsumeBindCode,
 } from "@/lib/email-bind";
 import { consumeIpRateLimit, ipRateLimitedPeek } from "@/lib/ip-rate-limit";
-import { ensureUserEmailColumn } from "@/lib/user-schema";
+import {
+  ensureUserEmailColumn,
+  ensureUserPaidVipColumns,
+} from "@/lib/user-schema";
 import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
@@ -79,23 +86,9 @@ export async function POST(req: Request) {
     await bindUserEmail(user.id, verified.email);
     await ensureUserEmailColumn();
 
-    const rows = await query<
-      (RowDataPacket & {
-        id: number;
-        username: string;
-        nickname: string | null;
-        email: string | null;
-        avatar_url: string | null;
-        vip_expires_at: Date | string | null;
-        diamonds: number;
-        share_custom_courses: number | boolean | null;
-        is_promoter: number | boolean | null;
-        promoter_id: number | null;
-        created_at: Date | string | null;
-      })[]
-    >(
-      `SELECT id, username, nickname, email, avatar_url, vip_expires_at, diamonds,
-              share_custom_courses, is_promoter, promoter_id, created_at
+    await ensureUserPaidVipColumns();
+    const rows = await query<SessionUserRow[]>(
+      `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}
        FROM users WHERE id = :id LIMIT 1`,
       { id: user.id },
     );

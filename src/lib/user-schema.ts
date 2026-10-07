@@ -11,6 +11,7 @@ let emailEnsured = false;
 let passwordResetCodesEnsured = false;
 let appColumnsEnsured = false;
 let registerPlatformEnsured = false;
+let paidVipEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -26,6 +27,38 @@ export async function ensureUserDiamondsColumn(): Promise<void> {
     );
   }
   diamondsEnsured = true;
+}
+
+/**
+ * Ensure users.is_paid_vip + users.paid_vip_expires_at exist.
+ * is_paid_vip: has a successful, non-refunded paid membership purchase (ever).
+ * paid_vip_expires_at: end of paid membership time (gift time excluded).
+ */
+export async function ensureUserPaidVipColumns(): Promise<void> {
+  if (paidVipEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+
+  const flagCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'is_paid_vip'`,
+  );
+  if (flagCols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN is_paid_vip TINYINT(1) NOT NULL DEFAULT 0 AFTER vip_expires_at`,
+    );
+  }
+
+  const expiryCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'paid_vip_expires_at'`,
+  );
+  if (expiryCols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN paid_vip_expires_at DATETIME NULL AFTER is_paid_vip`,
+    );
+  }
+
+  paidVipEnsured = true;
 }
 
 /** Ensure users.share_custom_courses exists (default: share on). */
