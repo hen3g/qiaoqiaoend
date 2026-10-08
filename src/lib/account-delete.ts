@@ -17,6 +17,7 @@ const PERSONAL_TABLES = [
   "user_daily_star_gains",
   "user_learn_correct",
   "user_daily_correct",
+  "user_learn_sync",
   "user_course_groups",
   "user_paper_summaries",
   "user_checkin_challenges",

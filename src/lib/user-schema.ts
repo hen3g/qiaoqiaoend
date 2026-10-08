@@ -12,6 +12,7 @@ let passwordResetCodesEnsured = false;
 let appColumnsEnsured = false;
 let registerPlatformEnsured = false;
 let paidVipEnsured = false;
+let learnSyncEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -151,6 +152,52 @@ export async function ensureUserEmailColumn(): Promise<void> {
   }
 
   emailEnsured = true;
+}
+
+/**
+ * Ensure user_learn_sync exists: one gzip snapshot of 仓鼠单词 learning
+ * progress per (user_id, app_id), used by /api/learn-sync (cloud sync).
+ * `sync_enabled_at` = the account switched sync on at least once (never cleared).
+ * Mirrors scripts/schema-user-learn-sync.sql.
+ */
+export async function ensureUserLearnSyncTable(): Promise<void> {
+  if (learnSyncEnsured) return;
+
+  const tables = await query<RowDataPacket[]>(
+    `SHOW TABLES LIKE 'user_learn_sync'`,
+  );
+  if (tables.length === 0) {
+    await execute(
+      `CREATE TABLE IF NOT EXISTS user_learn_sync (
+         user_id BIGINT UNSIGNED NOT NULL,
+         app_id VARCHAR(32) NOT NULL,
+         schema_ver SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+         rev INT UNSIGNED NOT NULL DEFAULT 0,
+         blob_gz MEDIUMBLOB NULL,
+         raw_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+         gz_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+         word_count INT UNSIGNED NOT NULL DEFAULT 0,
+         last_device_id VARCHAR(64) NULL,
+         sync_enabled_at DATETIME NULL,
+         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         PRIMARY KEY (user_id, app_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    );
+  } else {
+    // Tables created before the "ever enabled" flag existed (dev / test DBs).
+    const cols = await query<RowDataPacket[]>(
+      `SHOW COLUMNS FROM user_learn_sync LIKE 'sync_enabled_at'`,
+    );
+    if (cols.length === 0) {
+      await execute(
+        `ALTER TABLE user_learn_sync
+         ADD COLUMN sync_enabled_at DATETIME NULL AFTER last_device_id`,
+      );
+    }
+  }
+
+  learnSyncEnsured = true;
 }
 
 /** Ensure password_reset_codes exists for forgot-password OTP. */

@@ -87,6 +87,11 @@ export const ErrorCode = {
   SUGGEST_WORDS_FAILED: "SUGGEST_WORDS_FAILED",
   GENERATE_DICT_FAILED: "GENERATE_DICT_FAILED",
   PERMANENT_VIP_ONLY: "PERMANENT_VIP_ONLY",
+
+  // Cloud sync (仓鼠单词 learning records)
+  CLOUD_SYNC_VIP_REQUIRED: "CLOUD_SYNC_VIP_REQUIRED",
+  CLOUD_SYNC_ACTIVITY_VIP: "CLOUD_SYNC_ACTIVITY_VIP",
+  CLOUD_SYNC_TOO_LARGE: "CLOUD_SYNC_TOO_LARGE",
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -170,6 +175,10 @@ export const ERROR_MESSAGE_TO_CODE: Record<string, ErrorCodeValue> = {
   "生成词条失败，请稍后重试": ErrorCode.GENERATE_DICT_FAILED,
   "仅永久会员可使用": ErrorCode.PERMANENT_VIP_ONLY,
   "请求过于频繁，请过段时间再试": ErrorCode.RATE_LIMITED,
+  "云端同步仅限充值会员使用，请先开通会员。": ErrorCode.CLOUD_SYNC_VIP_REQUIRED,
+  "云端同步仅限充值会员使用，您当前是活动会员，暂无法开启。":
+    ErrorCode.CLOUD_SYNC_ACTIVITY_VIP,
+  "学习记录太大，暂时无法同步": ErrorCode.CLOUD_SYNC_TOO_LARGE,
 
   // Diamonds (also exported from vip.ts)
   "钻石不足，请充值后再试": ErrorCode.INSUFFICIENT_DIAMONDS,
