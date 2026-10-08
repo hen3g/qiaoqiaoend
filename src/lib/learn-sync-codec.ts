@@ -806,12 +806,11 @@ export function sanitizeSyncDoc(doc: SyncDoc): SyncDoc {
   for (const id of ids) out.courses[id] = cleanCourse(doc.courses[id]!);
   if (doc.plan && doc.plan.v && typeof doc.plan.v === "object" && !Array.isArray(doc.plan.v)) {
     try {
-      validatePlanValue(doc.plan.v);
-      if (JSON.stringify(doc.plan.v).length <= SYNC_LIMITS.maxPlanBytes) {
-        out.plan = {
-          m: cleanLwwTime(doc.plan),
-          v: JSON.parse(JSON.stringify(doc.plan.v)) as Record<string, unknown>,
-        };
+      const cleaned = JSON.parse(JSON.stringify(doc.plan.v)) as Record<string, unknown>;
+      writePlanPrefs(cleaned, readPlanPrefs(cleaned));
+      validatePlanValue(cleaned);
+      if (JSON.stringify(cleaned).length <= SYNC_LIMITS.maxPlanBytes) {
+        out.plan = { m: cleanLwwTime(doc.plan), v: cleaned };
       }
     } catch {
       out.plan = null;
@@ -967,6 +966,127 @@ export function mergeSyncLww<T>(a: SyncLww<T> | null, b: SyncLww<T> | null): Syn
   return b.m > a.m ? b : a;
 }
 
+/**
+ * App settings ride inside the study-plan object (no new top-level field, so
+ * apps that only know schema 1 still decode the document). Bags of primitives:
+ *   _s / _s2 / …  key → value     _m / _m2 / …  key → minute-stamp
+ * Missing bags are kept from the other side, so an older app uploading a plan
+ * cannot wipe settings it doesn't know about. Each key is last-writer-wins on
+ * its own stamp; a tie keeps the existing value.
+ */
+const PREF_BAG_COUNT = 4;
+const PREF_BAG_SIZE = 30;
+
+function prefValueBag(index: number) {
+  return index === 0 ? "_s" : `_s${index + 1}`;
+}
+function prefTimeBag(index: number) {
+  return index === 0 ? "_m" : `_m${index + 1}`;
+}
+
+export function isPrefBagKey(key: string) {
+  for (let i = 0; i < PREF_BAG_COUNT; i++) {
+    if (key === prefValueBag(i) || key === prefTimeBag(i)) return true;
+  }
+  return false;
+}
+
+export type PrefValue = string | number | boolean;
+export type PrefEntry = { m: number; v: PrefValue };
+
+function asPrefValue(value: unknown): PrefValue | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.length <= 200 ? value : null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return null;
+}
+
+function readBag(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as Record<string, unknown>;
+}
+
+/** Settings carried on a plan object. Unknown keys included; bad values dropped. */
+export function readPlanPrefs(plan: Record<string, unknown> | null | undefined): Record<string, PrefEntry> {
+  const out: Record<string, PrefEntry> = {};
+  if (!plan) return out;
+  for (let i = 0; i < PREF_BAG_COUNT; i++) {
+    const values = readBag(plan[prefValueBag(i)]);
+    const times = readBag(plan[prefTimeBag(i)]);
+    for (const key of Object.keys(values)) {
+      if (key.length === 0 || key.length > 40) continue;
+      const v = asPrefValue(values[key]);
+      const m = Number(times[key]);
+      if (v === null || !Number.isFinite(m) || m <= 0) continue;
+      out[key] = { m, v };
+    }
+  }
+  return out;
+}
+
+/** Write settings back onto a plan object (replaces any previous bags). */
+export function writePlanPrefs(plan: Record<string, unknown>, prefs: Record<string, PrefEntry>) {
+  for (let i = 0; i < PREF_BAG_COUNT; i++) {
+    delete plan[prefValueBag(i)];
+    delete plan[prefTimeBag(i)];
+  }
+  const keys = Object.keys(prefs).sort();
+  for (let i = 0; i < keys.length && i < PREF_BAG_COUNT * PREF_BAG_SIZE; i++) {
+    const bag = Math.floor(i / PREF_BAG_SIZE);
+    const key = keys[i]!;
+    const entry = prefs[key]!;
+    const values = (plan[prefValueBag(bag)] ??= Object.create(null)) as Record<string, PrefValue>;
+    const times = (plan[prefTimeBag(bag)] ??= Object.create(null)) as Record<string, number>;
+    values[key] = entry.v;
+    times[key] = entry.m;
+  }
+}
+
+function mergePrefEntries(
+  base: Record<string, PrefEntry>,
+  inc: Record<string, PrefEntry>,
+): Record<string, PrefEntry> {
+  // Patch, not per-key last-writer-wins: keys in this upload replace those
+  // keys; keys the upload doesn't mention stay. An older app that sends no
+  // bags at all therefore cannot wipe settings.
+  const out: Record<string, PrefEntry> = { ...base };
+  for (const key of Object.keys(inc)) out[key] = inc[key]!;
+  return out;
+}
+
+/**
+ * What turning sync on should do with settings.
+ * No settings on the cloud yet → upload this device's settings once.
+ * Cloud already has settings → this device takes the cloud copy as-is.
+ */
+export function settingsEnableAction(cloudHasSettings: boolean): "upload" | "overwrite" {
+  return cloudHasSettings ? "overwrite" : "upload";
+}
+
+/**
+ * Study-plan fields: last writer wins, as before.
+ * Settings: a patch on top of whatever is already stored. A plan update that
+ * doesn't mention settings leaves them untouched.
+ */
+export function mergePlanWithPrefs(
+  base: SyncLww<Record<string, unknown>> | null,
+  inc: SyncLww<Record<string, unknown>> | null,
+): SyncLww<Record<string, unknown>> | null {
+  const winner = mergeSyncLww(base, inc);
+  if (!winner) return null;
+  const v = { ...winner.v };
+  const prefs = mergePrefEntries(readPlanPrefs(base?.v), readPlanPrefs(inc?.v));
+  writePlanPrefs(v, prefs);
+  const loser = winner === inc ? base : inc;
+  if (loser?.v) {
+    for (const key of Object.keys(loser.v)) {
+      if (isPrefBagKey(key)) continue;
+      if (!Object.prototype.hasOwnProperty.call(v, key)) v[key] = loser.v[key]!;
+    }
+  }
+  return { m: winner.m, v };
+}
+
 /** Server-side (and client-side) merge of an incoming delta / snapshot. */
 export function mergeSyncDoc(base: SyncDoc, inc: SyncDoc, now = Date.now()): SyncDoc {
   const out = cloneSyncDoc(base);
@@ -974,7 +1094,7 @@ export function mergeSyncDoc(base: SyncDoc, inc: SyncDoc, now = Date.now()): Syn
     const current = own(out.courses, id) ?? emptySyncCourse();
     out.courses[id] = mergeSyncCourse(current, inc.courses[id]!, now);
   }
-  out.plan = mergeSyncLww(out.plan, inc.plan);
+  out.plan = mergePlanWithPrefs(out.plan, inc.plan);
   out.review = mergeSyncLww(out.review, inc.review);
   out.active = mergeSyncLww(out.active, inc.active);
   out.wordBook = mergeSyncSet(out.wordBook, inc.wordBook, now);

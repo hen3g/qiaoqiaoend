@@ -13,6 +13,9 @@ import {
   encodeSyncDocJson,
   mergeSyncCourse,
   mergeSyncDoc,
+  readPlanPrefs,
+  settingsEnableAction,
+  writePlanPrefs,
   mergeSyncSet,
   mergeSyncWord,
   roundSyncTime,
@@ -472,4 +475,58 @@ test("schema version: a newer doc is rejected, not misread", () => {
   const raw = encodeSyncDoc(sampleDoc());
   raw[0] = 2;
   assert.throws(() => decodeSyncDoc(raw), SyncCodecError);
+});
+
+test("settings: enable uploads once when the cloud has none, otherwise the cloud copy wins", () => {
+  assert.equal(settingsEnableAction(false), "upload");
+  assert.equal(settingsEnableAction(true), "overwrite");
+});
+
+test("settings: patch update, unknown keys kept, missing key not wiped, round trip", () => {
+  const base = emptySyncDoc();
+  base.plan = {
+    m: Date.UTC(2026, 0, 1),
+    v: {
+      sessionWords: 20,
+      _s: { locale: "ja", theme: "dark", futureThing: "keep-me" },
+      _m: { locale: 1, theme: 1, futureThing: 1 },
+    },
+  };
+  // Newer study plan, and only `theme` changed. An older minute must still win:
+  // this is a patch, not per-key last-writer-wins.
+  const inc = emptySyncDoc();
+  inc.plan = {
+    m: Date.UTC(2026, 0, 2),
+    v: {
+      sessionWords: 30,
+      _s: { theme: "light" },
+      _m: { theme: 1 },
+    },
+  };
+  const merged = mergeSyncDoc(base, inc);
+  assert.equal(merged.plan!.v.sessionWords, 30);
+  const prefs = readPlanPrefs(merged.plan!.v);
+  assert.equal(prefs.theme!.v, "light");
+  assert.equal(prefs.locale!.v, "ja", "key the update didn't mention stays");
+  assert.equal(prefs.futureThing!.v, "keep-me", "unknown future key stays");
+
+  const again = decodeSyncDocJson(encodeSyncDocJson(merged));
+  assert.equal(readPlanPrefs(again.plan!.v).futureThing!.v, "keep-me");
+
+  // An older app uploading a plan with no settings bags must not wipe them.
+  const oldApp = emptySyncDoc();
+  oldApp.plan = { m: Date.UTC(2026, 0, 3), v: { sessionWords: 10 } };
+  const kept = mergeSyncDoc(again, oldApp);
+  assert.equal(kept.plan!.v.sessionWords, 10);
+  assert.equal(readPlanPrefs(kept.plan!.v).locale!.v, "ja");
+  assert.equal(readPlanPrefs(kept.plan!.v).futureThing!.v, "keep-me");
+
+  const fresh = emptySyncDoc();
+  fresh.plan = { m: 1, v: { sessionWords: 20 } };
+  writePlanPrefs(fresh.plan.v, { locale: { m: 1, v: "zh" }, accent: { m: 1, v: "amber" } });
+  const wired = decodeSyncDocJson(encodeSyncDocJson(fresh));
+  assert.deepEqual(
+    Object.keys(readPlanPrefs(wired.plan!.v)).sort(),
+    ["accent", "locale"],
+  );
 });
