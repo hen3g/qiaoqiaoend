@@ -34,9 +34,15 @@ export class CustomCoursesSyncTooLargeError extends Error {
   }
 }
 
-const RATE_MIN_GAP_MS = 2_000;
+/**
+ * Login pulls, then pushes, and a save often follows within a second.
+ * A hard 2s gap rejected that second call and the client dropped the upload.
+ * Allow a short burst; the hourly cap still stops a tight loop.
+ */
+const RATE_BURST = 8;
+const RATE_BURST_WINDOW_MS = 20_000;
 const RATE_HOUR_MS = 60 * 60 * 1000;
-const RATE_HOUR_MAX = 180;
+const RATE_HOUR_MAX = 300;
 const rateHits = new Map<string, number[]>();
 
 /** Returns seconds to wait, or 0 when allowed. */
@@ -48,14 +54,17 @@ export function customCoursesSyncRateLimit(
 ): number {
   const key = `${action}:${appId}:${userId}`;
   const hits = (rateHits.get(key) ?? []).filter((at) => now - at < RATE_HOUR_MS);
-  const last = hits[hits.length - 1];
-  if (last !== undefined && now - last < RATE_MIN_GAP_MS) {
-    rateHits.set(key, hits);
-    return Math.ceil((RATE_MIN_GAP_MS - (now - last)) / 1000);
-  }
   if (hits.length >= RATE_HOUR_MAX) {
     rateHits.set(key, hits);
-    return Math.ceil((RATE_HOUR_MS - (now - hits[0]!)) / 1000);
+    return Math.max(1, Math.ceil((RATE_HOUR_MS - (now - hits[0]!)) / 1000));
+  }
+  const recent = hits.filter((at) => now - at < RATE_BURST_WINDOW_MS);
+  if (recent.length >= RATE_BURST) {
+    rateHits.set(key, hits);
+    return Math.max(
+      1,
+      Math.ceil((RATE_BURST_WINDOW_MS - (now - recent[0]!)) / 1000),
+    );
   }
   hits.push(now);
   rateHits.set(key, hits);
