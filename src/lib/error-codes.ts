@@ -96,6 +96,9 @@ export const ErrorCode = {
   // Manor (仓鼠庄园)
   MANOR_SYNC_TOO_LARGE: "MANOR_SYNC_TOO_LARGE",
   MANOR_WISH_NEED_CORRECT: "MANOR_WISH_NEED_CORRECT",
+
+  // Custom courses (自制词库)
+  CUSTOM_COURSE_QUOTA_MAX: "CUSTOM_COURSE_QUOTA_MAX",
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -188,6 +191,7 @@ export const ERROR_MESSAGE_TO_CODE: Record<string, ErrorCodeValue> = {
 
   // Diamonds (also exported from vip.ts)
   "钻石不足，请充值后再试": ErrorCode.INSUFFICIENT_DIAMONDS,
+  "自制词库名额已达上限": ErrorCode.CUSTOM_COURSE_QUOTA_MAX,
   "钻石不足": ErrorCode.INSUFFICIENT_DIAMONDS,
 };
 

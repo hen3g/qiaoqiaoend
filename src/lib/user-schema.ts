@@ -14,6 +14,7 @@ let registerPlatformEnsured = false;
 let paidVipEnsured = false;
 let learnSyncEnsured = false;
 let manorSyncEnsured = false;
+let customCourseQuotaEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -383,6 +384,28 @@ export async function setUserLocale(
   );
 }
 
+
+
+/**
+ * Ensure users.custom_course_quota exists.
+ * Default 3 free custom-course slots; unlock with diamonds up to 10.
+ * Mirrors scripts/schema-user-custom-course-quota.sql.
+ */
+export async function ensureCustomCourseQuotaColumn(): Promise<void> {
+  if (customCourseQuotaEnsured) return;
+  type ColRow = RowDataPacket & { Field: string };
+  const cols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'custom_course_quota'`,
+  );
+  if (cols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN custom_course_quota INT UNSIGNED NOT NULL DEFAULT 3
+       AFTER share_custom_courses`,
+    );
+  }
+  customCourseQuotaEnsured = true;
+}
 
 /**
  * Ensure user_manor_sync + user_manor_wish exist for 仓鼠庄园 cloud save / wishes.
