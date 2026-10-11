@@ -13,6 +13,7 @@ let appColumnsEnsured = false;
 let registerPlatformEnsured = false;
 let paidVipEnsured = false;
 let learnSyncEnsured = false;
+let manorSyncEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -380,4 +381,52 @@ export async function setUserLocale(
     `UPDATE users SET locale = :locale WHERE id = :id LIMIT 1`,
     { locale, id: userId },
   );
+}
+
+
+/**
+ * Ensure user_manor_sync + user_manor_wish exist for 仓鼠庄园 cloud save / wishes.
+ * Mirrors scripts/schema-user-manor-sync.sql.
+ */
+export async function ensureUserManorSyncTable(): Promise<void> {
+  if (manorSyncEnsured) return;
+
+  const syncTables = await query<RowDataPacket[]>(
+    `SHOW TABLES LIKE 'user_manor_sync'`,
+  );
+  if (syncTables.length === 0) {
+    await execute(
+      `CREATE TABLE IF NOT EXISTS user_manor_sync (
+         user_id BIGINT UNSIGNED NOT NULL,
+         app_id VARCHAR(32) NOT NULL,
+         schema_ver SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+         rev INT UNSIGNED NOT NULL DEFAULT 0,
+         blob_gz MEDIUMBLOB NULL,
+         raw_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+         gz_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+         last_device_id VARCHAR(64) NULL,
+         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         PRIMARY KEY (user_id, app_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    );
+  }
+
+  const wishTables = await query<RowDataPacket[]>(
+    `SHOW TABLES LIKE 'user_manor_wish'`,
+  );
+  if (wishTables.length === 0) {
+    await execute(
+      `CREATE TABLE IF NOT EXISTS user_manor_wish (
+         user_id BIGINT UNSIGNED NOT NULL,
+         app_id VARCHAR(32) NOT NULL,
+         wish_day DATE NOT NULL,
+         wish_count INT UNSIGNED NOT NULL DEFAULT 0,
+         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         PRIMARY KEY (user_id, app_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    );
+  }
+
+  manorSyncEnsured = true;
 }

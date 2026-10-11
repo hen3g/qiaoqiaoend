@@ -18,6 +18,8 @@ const PERSONAL_TABLES = [
   "user_learn_correct",
   "user_daily_correct",
   "user_learn_sync",
+  "user_manor_sync",
+  "user_manor_wish",
   "user_course_groups",
   "user_paper_summaries",
   "user_checkin_challenges",

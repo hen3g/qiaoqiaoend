@@ -12,7 +12,8 @@ export type DiamondTxType =
   | "diamond_purchase"
   | "apple_refund"
   | "alipay_refund"
-  | "admin_adjust";
+  | "admin_adjust"
+  | "manor_wish";
 
 export type DiamondTransactionDto = {
   id: number;
@@ -96,6 +97,8 @@ export function diamondTxTitle(type: string): string {
       return "支付宝退款收回";
     case "admin_adjust":
       return "系统调整";
+    case "manor_wish":
+      return "庄园许愿";
     default:
       return "钻石变动";
   }

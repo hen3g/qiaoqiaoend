@@ -193,6 +193,42 @@ export async function deductDiamondsFloorZero(
   return balance;
 }
 
+/**
+ * Atomic spend: only deducts when balance >= amount.
+ * Returns ok:false without changing the balance when short.
+ */
+export async function tryDeductDiamonds(
+  userId: number,
+  amount: number,
+  opts?: DiamondChangeOpts,
+): Promise<{ ok: true; balance: number } | { ok: false; balance: number }> {
+  const cost = Math.floor(amount);
+  if (cost <= 0) {
+    return { ok: true, balance: await getUserDiamonds(userId) };
+  }
+  await ensureUserDiamondsColumn();
+  const result = await execute(
+    `UPDATE users
+     SET diamonds = diamonds - :amount
+     WHERE id = :userId AND diamonds >= :amount`,
+    { userId, amount: cost },
+  );
+  const balance = await getUserDiamonds(userId);
+  if (!result.affectedRows) {
+    return { ok: false, balance };
+  }
+  if (opts?.type) {
+    await insertDiamondTransaction({
+      userId,
+      amount: -cost,
+      balanceAfter: balance,
+      type: opts.type,
+      meta: opts.meta,
+    });
+  }
+  return { ok: true, balance };
+}
+
 export type PurchaseVipResult = {
   plan: VipPlan;
   diamondsGranted: number;

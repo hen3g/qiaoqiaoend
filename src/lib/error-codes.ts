@@ -92,6 +92,10 @@ export const ErrorCode = {
   CLOUD_SYNC_VIP_REQUIRED: "CLOUD_SYNC_VIP_REQUIRED",
   CLOUD_SYNC_ACTIVITY_VIP: "CLOUD_SYNC_ACTIVITY_VIP",
   CLOUD_SYNC_TOO_LARGE: "CLOUD_SYNC_TOO_LARGE",
+
+  // Manor (仓鼠庄园)
+  MANOR_SYNC_TOO_LARGE: "MANOR_SYNC_TOO_LARGE",
+  MANOR_WISH_NEED_CORRECT: "MANOR_WISH_NEED_CORRECT",
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -179,6 +183,8 @@ export const ERROR_MESSAGE_TO_CODE: Record<string, ErrorCodeValue> = {
   "云端同步仅限充值会员使用，您当前是活动会员，暂无法开启。":
     ErrorCode.CLOUD_SYNC_ACTIVITY_VIP,
   "学习记录太大，暂时无法同步": ErrorCode.CLOUD_SYNC_TOO_LARGE,
+  "庄园存档太大，暂时无法同步": ErrorCode.MANOR_SYNC_TOO_LARGE,
+  "今天先答对 10 题才能许愿": ErrorCode.MANOR_WISH_NEED_CORRECT,
 
   // Diamonds (also exported from vip.ts)
   "钻石不足，请充值后再试": ErrorCode.INSUFFICIENT_DIAMONDS,
