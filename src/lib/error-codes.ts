@@ -99,6 +99,7 @@ export const ErrorCode = {
 
   // Custom courses (自制词库)
   CUSTOM_COURSE_QUOTA_MAX: "CUSTOM_COURSE_QUOTA_MAX",
+  CUSTOM_COURSE_SYNC_TOO_LARGE: "CUSTOM_COURSE_SYNC_TOO_LARGE",
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -192,6 +193,7 @@ export const ERROR_MESSAGE_TO_CODE: Record<string, ErrorCodeValue> = {
   // Diamonds (also exported from vip.ts)
   "钻石不足，请充值后再试": ErrorCode.INSUFFICIENT_DIAMONDS,
   "自制词库名额已达上限": ErrorCode.CUSTOM_COURSE_QUOTA_MAX,
+  "自制词库太大，暂时无法同步": ErrorCode.CUSTOM_COURSE_SYNC_TOO_LARGE,
   "钻石不足": ErrorCode.INSUFFICIENT_DIAMONDS,
 };
 

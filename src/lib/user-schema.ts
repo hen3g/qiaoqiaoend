@@ -15,6 +15,7 @@ let paidVipEnsured = false;
 let learnSyncEnsured = false;
 let manorSyncEnsured = false;
 let customCourseQuotaEnsured = false;
+let customCoursesSyncEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -452,4 +453,35 @@ export async function ensureUserManorSyncTable(): Promise<void> {
   }
 
   manorSyncEnsured = true;
+}
+
+/**
+ * Ensure user_custom_courses_sync exists for 自制词库 cloud content sync.
+ * Mirrors scripts/schema-user-custom-courses-sync.sql.
+ */
+export async function ensureUserCustomCoursesSyncTable(): Promise<void> {
+  if (customCoursesSyncEnsured) return;
+
+  const tables = await query<RowDataPacket[]>(
+    `SHOW TABLES LIKE 'user_custom_courses_sync'`,
+  );
+  if (tables.length === 0) {
+    await execute(
+      `CREATE TABLE IF NOT EXISTS user_custom_courses_sync (
+         user_id BIGINT UNSIGNED NOT NULL,
+         app_id VARCHAR(32) NOT NULL,
+         schema_ver SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+         rev INT UNSIGNED NOT NULL DEFAULT 0,
+         blob_gz MEDIUMBLOB NULL,
+         raw_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+         gz_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+         last_device_id VARCHAR(64) NULL,
+         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         PRIMARY KEY (user_id, app_id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    );
+  }
+
+  customCoursesSyncEnsured = true;
 }
