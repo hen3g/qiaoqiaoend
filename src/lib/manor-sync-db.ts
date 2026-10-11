@@ -12,7 +12,8 @@ import {
 } from "@/lib/vip";
 import { ensureUserManorSyncTable } from "@/lib/user-schema";
 
-/** 仓鼠庄园 cloud sync + daily wish quota. Login required; no VIP gate. */
+/** 仓鼠庄园 cloud sync + daily wish quota. Login required; no VIP gate.
+ *  Snapshot is full ManorState gzip; placed items carry yaw + scale (1–5). */
 
 export const MANOR_SYNC_SCHEMA_VERSION = 1;
 export const MANOR_WISH_FREE_DAILY = 5;

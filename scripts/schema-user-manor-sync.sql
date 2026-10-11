@@ -1,4 +1,5 @@
 -- 仓鼠庄园 cloud sync: one gzip snapshot of manor state per (user, app).
+-- Snapshot JSON includes placed[].yaw (rotation) and placed[].scale (1–5, default 1).
 -- Used by /api/manor-sync (GET pull / POST push). Login required (no VIP gate).
 -- Wish quota lives in user_manor_wish (authoritative daily free/paid wishes).
 -- App also auto-migrates via ensureUserManorSyncTable() in src/lib/user-schema.ts.
