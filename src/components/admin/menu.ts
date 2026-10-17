@@ -140,6 +140,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     group: "仓鼠单词",
   },
   {
+    key: "hamster-manor-stats",
+    path: "/admin/hamster/manor-stats",
+    label: "庄园统计",
+    roles: ["admin"],
+    group: "仓鼠单词",
+  },
+  {
     key: "hamster-notifications",
     path: "/admin/hamster/notifications",
     label: "通知推送",
