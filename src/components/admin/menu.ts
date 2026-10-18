@@ -147,6 +147,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     group: "仓鼠单词",
   },
   {
+    key: "hamster-wechat-login",
+    path: "/admin/hamster/wechat-login",
+    label: "微信登录",
+    roles: ["admin"],
+    group: "仓鼠单词",
+  },
+  {
     key: "hamster-notifications",
     path: "/admin/hamster/notifications",
     label: "通知推送",

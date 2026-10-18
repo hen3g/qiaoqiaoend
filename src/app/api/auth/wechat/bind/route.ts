@@ -19,6 +19,7 @@ import {
   exchangeWechatCode,
   findUserIdByWechatOpenid,
 } from "@/lib/wechat";
+import { isHamsterWechatLoginEnabled } from "@/lib/wechat-login-setting";
 
 const schema = z.object({
   code: z.string().min(1, "缺少微信授权码"),
@@ -35,6 +36,14 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
+    if (!(await isHamsterWechatLoginEnabled())) {
+      return withAuthCors(
+        jsonError("微信绑定暂未开放", 403, {
+          code: ErrorCode.WECHAT_NOT_CONFIGURED,
+        }),
+      );
+    }
+
     const user = await getCurrentUser(req);
     if (!user) {
       return withAuthCors(

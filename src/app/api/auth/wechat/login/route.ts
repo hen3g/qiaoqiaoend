@@ -39,6 +39,7 @@ import {
   findUserIdByWechatOpenid,
   readWechatPendingTicket,
 } from "@/lib/wechat";
+import { isHamsterWechatLoginEnabled } from "@/lib/wechat-login-setting";
 
 const schema = z
   .object({
@@ -89,6 +90,14 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
+    if (!(await isHamsterWechatLoginEnabled())) {
+      return withAuthCors(
+        jsonError("微信登录暂未开放", 403, {
+          code: ErrorCode.WECHAT_NOT_CONFIGURED,
+        }),
+      );
+    }
+
     const blocked = await ipRateLimitedPeek(req, "login", LOGIN_LIMIT);
     if (blocked) return withAuthCors(blocked);
 
