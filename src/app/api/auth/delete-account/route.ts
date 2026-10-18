@@ -31,13 +31,19 @@ export async function POST(req: Request) {
     if (blocked) return withAuthCors(blocked);
 
     const body = schema.parse(await req.json());
-    const rows = await query<(RowDataPacket & { password_hash: string })[]>(
+    const rows = await query<(RowDataPacket & { password_hash: string | null })[]>(
       `SELECT password_hash FROM users WHERE id = :id LIMIT 1`,
       { id: user.id },
     );
     const row = rows[0];
     if (!row) {
       return withAuthCors(jsonError("账号不存在", 404, { code: ErrorCode.ACCOUNT_NOT_FOUND }));
+    }
+
+    if (!row.password_hash) {
+      return withAuthCors(
+        jsonError("请先设置密码", 400, { code: ErrorCode.PASSWORD_NOT_SET }),
+      );
     }
 
     const ok = await verifyPassword(body.password, row.password_hash);

@@ -100,6 +100,17 @@ export const ErrorCode = {
   // Custom courses (自制词库)
   CUSTOM_COURSE_QUOTA_MAX: "CUSTOM_COURSE_QUOTA_MAX",
   CUSTOM_COURSE_SYNC_TOO_LARGE: "CUSTOM_COURSE_SYNC_TOO_LARGE",
+
+  // WeChat
+  WECHAT_NOT_CONFIGURED: "WECHAT_NOT_CONFIGURED",
+  WECHAT_AUTH_FAILED: "WECHAT_AUTH_FAILED",
+  WECHAT_TICKET_EXPIRED: "WECHAT_TICKET_EXPIRED",
+  WECHAT_TAKEN: "WECHAT_TAKEN",
+  WECHAT_ALREADY_BOUND: "WECHAT_ALREADY_BOUND",
+  WECHAT_LOGIN_FAILED: "WECHAT_LOGIN_FAILED",
+  WECHAT_NOT_REGISTERED: "WECHAT_NOT_REGISTERED",
+  PASSWORD_NOT_SET: "PASSWORD_NOT_SET",
+  USE_WECHAT_LOGIN: "USE_WECHAT_LOGIN",
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -189,6 +200,16 @@ export const ERROR_MESSAGE_TO_CODE: Record<string, ErrorCodeValue> = {
   "学习记录太大，暂时无法同步": ErrorCode.CLOUD_SYNC_TOO_LARGE,
   "庄园存档太大，暂时无法同步": ErrorCode.MANOR_SYNC_TOO_LARGE,
   "今天先答对 10 题才能许愿": ErrorCode.MANOR_WISH_NEED_CORRECT,
+  "微信登录未配置": ErrorCode.WECHAT_NOT_CONFIGURED,
+  "微信授权失败，请重试": ErrorCode.WECHAT_AUTH_FAILED,
+  "微信授权已过期，请重新登录": ErrorCode.WECHAT_TICKET_EXPIRED,
+  "该微信已绑定其他账号": ErrorCode.WECHAT_TAKEN,
+  "当前账号已绑定微信": ErrorCode.WECHAT_ALREADY_BOUND,
+  "微信登录失败，请稍后重试": ErrorCode.WECHAT_LOGIN_FAILED,
+  "该用户未注册，是否自动分配账号": ErrorCode.WECHAT_NOT_REGISTERED,
+  "请先设置密码": ErrorCode.PASSWORD_NOT_SET,
+  "该账号未设置密码，请使用微信登录": ErrorCode.USE_WECHAT_LOGIN,
+
 
   // Diamonds (also exported from vip.ts)
   "钻石不足，请充值后再试": ErrorCode.INSUFFICIENT_DIAMONDS,

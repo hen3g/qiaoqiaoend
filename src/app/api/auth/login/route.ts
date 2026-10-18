@@ -19,6 +19,7 @@ import {
   ensureUserEmailColumn,
   ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
+  ensureUserWechatColumns,
   touchUserLastApp,
 } from "@/lib/user-schema";
 import { ErrorCode } from "@/lib/error-codes";
@@ -29,7 +30,7 @@ const schema = z.object({
 });
 
 type UserAuthRow = SessionUserRow & {
-  password_hash: string;
+  password_hash: string | null;
 };
 
 const LOGIN_LIMIT = { max: 20 } as const;
@@ -50,10 +51,13 @@ export async function POST(req: Request) {
     await ensureUserPromoterColumns();
     await ensureUserEmailColumn();
     await ensureUserPaidVipColumns();
+    await ensureUserWechatColumns();
 
     const byEmail = isValidEmail(identifier);
     const rows = await query<UserAuthRow[]>(
-      `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}, password_hash
+      `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}, password_hash,
+         (password_hash IS NOT NULL AND password_hash <> '') AS has_password,
+         (wechat_openid IS NOT NULL AND wechat_openid <> '') AS wechat_bound
        FROM users
        WHERE ${byEmail ? "email = :identifier" : "username = :identifier"}
        LIMIT 1`,
@@ -63,6 +67,15 @@ export async function POST(req: Request) {
     if (!user) {
       await consumeIpRateLimit(req, "login", LOGIN_LIMIT);
       return withAuthCors(jsonError("用户不存在", 401, { code: ErrorCode.USER_NOT_FOUND }));
+    }
+
+    if (!user.password_hash) {
+      await consumeIpRateLimit(req, "login", LOGIN_LIMIT);
+      return withAuthCors(
+        jsonError("该账号未设置密码，请使用微信登录", 401, {
+          code: ErrorCode.USE_WECHAT_LOGIN,
+        }),
+      );
     }
 
     const ok = await verifyPassword(body.password, user.password_hash);

@@ -8,6 +8,7 @@ import {
   ensureUserEmailColumn,
   ensureUserPaidVipColumns,
   ensureUserPromoterColumns,
+  ensureUserWechatColumns,
 } from "@/lib/user-schema";
 
 export const SESSION_COOKIE = "be_session";
@@ -65,6 +66,10 @@ export type SessionUser = {
   /** Bound promoter user id (set when redeeming a promoter code). */
   promoterId: number | null;
   createdAt: string | null;
+  /** False for WeChat auto-created accounts until初始密码 is set. */
+  hasPassword: boolean;
+  /** Whether a WeChat openid is linked. */
+  wechatBound: boolean;
 };
 
 export type SessionUserRow = RowDataPacket & {
@@ -82,6 +87,8 @@ export type SessionUserRow = RowDataPacket & {
   promoter_id?: number | null;
   created_at: Date | string | null;
   token_version?: number;
+  has_password?: number | boolean | null;
+  wechat_bound?: number | boolean | null;
 };
 
 function getSecret() {
@@ -139,6 +146,11 @@ export function mapUser(row: SessionUserRow): SessionUser {
         ? null
         : Number(row.promoter_id),
     createdAt: toIso(row.created_at),
+    hasPassword:
+      row.has_password === undefined || row.has_password === null
+        ? true
+        : Boolean(row.has_password),
+    wechatBound: Boolean(row.wechat_bound),
   };
 }
 
@@ -246,9 +258,12 @@ export async function getCurrentUser(
   await ensureUserPromoterColumns();
   await ensureUserEmailColumn();
   await ensureUserPaidVipColumns();
+  await ensureUserWechatColumns();
 
   const rows = await query<SessionUserRow[]>(
-    `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}, token_version
+    `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}, token_version,
+       (password_hash IS NOT NULL AND password_hash <> '') AS has_password,
+       (wechat_openid IS NOT NULL AND wechat_openid <> '') AS wechat_bound
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );
@@ -266,8 +281,11 @@ export async function getSessionUserById(
   await ensureUserPromoterColumns();
   await ensureUserEmailColumn();
   await ensureUserPaidVipColumns();
+  await ensureUserWechatColumns();
   const rows = await query<SessionUserRow[]>(
-    `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL}
+    `SELECT ${SESSION_USER_COLUMNS_WITH_EMAIL},
+       (password_hash IS NOT NULL AND password_hash <> '') AS has_password,
+       (wechat_openid IS NOT NULL AND wechat_openid <> '') AS wechat_bound
      FROM users WHERE id = :id LIMIT 1`,
     { id: userId },
   );

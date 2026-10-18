@@ -16,6 +16,7 @@ let learnSyncEnsured = false;
 let manorSyncEnsured = false;
 let customCourseQuotaEnsured = false;
 let customCoursesSyncEnsured = false;
+let wechatEnsured = false;
 
 /** Ensure users.diamonds exists (safe to call repeatedly). */
 export async function ensureUserDiamondsColumn(): Promise<void> {
@@ -484,4 +485,52 @@ export async function ensureUserCustomCoursesSyncTable(): Promise<void> {
   }
 
   customCoursesSyncEnsured = true;
+}
+
+
+/** Ensure WeChat openid/unionid columns + nullable password_hash for passwordless accounts. */
+export async function ensureUserWechatColumns(): Promise<void> {
+  if (wechatEnsured) return;
+  type ColRow = RowDataPacket & { Field: string; Null: string };
+
+  const openidCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'wechat_openid'`,
+  );
+  if (openidCols.length === 0) {
+    await execute(
+      `ALTER TABLE users
+       ADD COLUMN wechat_openid VARCHAR(64) NULL AFTER email,
+       ADD COLUMN wechat_unionid VARCHAR(64) NULL AFTER wechat_openid`,
+    );
+  } else {
+    const unionCols = await query<ColRow[]>(
+      `SHOW COLUMNS FROM users LIKE 'wechat_unionid'`,
+    );
+    if (unionCols.length === 0) {
+      await execute(
+        `ALTER TABLE users
+         ADD COLUMN wechat_unionid VARCHAR(64) NULL AFTER wechat_openid`,
+      );
+    }
+  }
+
+  type IndexRow = RowDataPacket & { Key_name: string };
+  const indexes = await query<IndexRow[]>(`SHOW INDEX FROM users`);
+  if (!indexes.some((row) => row.Key_name === "uk_users_wechat_openid")) {
+    await execute(
+      `ALTER TABLE users ADD UNIQUE KEY uk_users_wechat_openid (wechat_openid)`,
+    );
+  }
+
+  const pwCols = await query<ColRow[]>(
+    `SHOW COLUMNS FROM users LIKE 'password_hash'`,
+  );
+  const pw = pwCols[0];
+  if (pw && String(pw.Null).toUpperCase() === "NO") {
+    await execute(
+      `ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) NULL`,
+    );
+  }
+
+  wechatEnsured = true;
 }
