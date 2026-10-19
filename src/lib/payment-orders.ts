@@ -8,6 +8,13 @@ import {
   resolveAlipayMerchantByAppId,
   yuanToFen,
 } from "@/lib/alipay";
+import {
+  fenToYuanString,
+  getWechatPayAppId,
+  isWechatPayConfigured,
+  isWechatTradeSuccess,
+  queryWechatTradeByOutTradeNo,
+} from "@/lib/wechat-pay";
 import { getSessionUserById } from "@/lib/auth";
 import { shortenVip } from "@/lib/courses";
 import { execute, query, withTransaction } from "@/lib/db";
@@ -477,10 +484,13 @@ export type OrderFulfillResult =
 
 export async function markOrderPaidAndFulfill(input: {
   outTradeNo: string;
+  /** Third-party trade no (Alipay trade_no or WeChat transaction_id). */
   alipayTradeNo: string;
   totalAmountYuan: string;
   appId: string;
   expectedAppId: string;
+  /** Notify channel label; defaults to 支付宝 for backward compatibility. */
+  channel?: "支付宝" | "微信支付";
 }): Promise<OrderFulfillResult | null> {
   await ensurePaymentOrdersTable();
   const order = await getOrderByOutTradeNo(input.outTradeNo);
@@ -522,19 +532,22 @@ export async function markOrderPaidAndFulfill(input: {
     return null;
   }
 
+  const channelLabel = input.channel ?? "支付宝";
+  const tradeLabel =
+    channelLabel === "微信支付" ? "微信单号" : "支付宝单号";
   try {
     await notifyPayment({
       event: "paid",
       app: await resolvePaymentOrderApp(order),
-      channel: "支付宝",
+      channel: channelLabel,
       product: paymentPlanTitle(order.planId),
       amount: `¥${expectedAmount}`,
       userLabel: await payUserLabel(order.userId),
       orderNo: order.outTradeNo,
-      details: [`支付宝单号：${input.alipayTradeNo}`],
+      details: [`${tradeLabel}：${input.alipayTradeNo}`],
     });
   } catch (err) {
-    console.warn("[payment-notify] alipay paid", err);
+    console.warn("[payment-notify] paid", err);
   }
 
   if (isDiamondPackId(order.planId)) {
@@ -593,6 +606,71 @@ export async function syncPendingOrderFromAlipay(
   });
 
   return getOrderByOutTradeNo(outTradeNo);
+}
+
+/**
+ * If order is still pending, ask WeChat whether it was paid and fulfill.
+ * Idempotent; safe to call from client polling.
+ */
+export async function syncPendingOrderFromWechat(
+  outTradeNo: string,
+): Promise<PaymentOrder | null> {
+  if (!isWechatPayConfigured()) return getOrderByOutTradeNo(outTradeNo);
+
+  const order = await getOrderByOutTradeNo(outTradeNo);
+  if (!order) return null;
+  if (order.status !== "pending") return order;
+
+  const trade = await queryWechatTradeByOutTradeNo(outTradeNo);
+  if (!isWechatTradeSuccess(trade.tradeState)) {
+    return order;
+  }
+  if (!trade.transactionId || trade.amountTotalFen == null) {
+    console.error("[wechat/query] missing fields", outTradeNo, {
+      hasTx: Boolean(trade.transactionId),
+      amountTotalFen: trade.amountTotalFen,
+    });
+    return order;
+  }
+
+  const appId = trade.appId || getWechatPayAppId();
+  await markOrderPaidAndFulfill({
+    outTradeNo,
+    alipayTradeNo: trade.transactionId,
+    totalAmountYuan: fenToYuanString(trade.amountTotalFen),
+    appId,
+    expectedAppId: getWechatPayAppId(),
+    channel: "微信支付",
+  });
+
+  return getOrderByOutTradeNo(outTradeNo);
+}
+
+/**
+ * Poll fallback: try Alipay then WeChat when notify may have been missed.
+ */
+export async function syncPendingOrderFromProviders(
+  outTradeNo: string,
+  clientApp?: ClientAppId,
+): Promise<PaymentOrder | null> {
+  let order = await getOrderByOutTradeNo(outTradeNo);
+  if (!order) return null;
+  if (order.status !== "pending") return order;
+
+  try {
+    order =
+      (await syncPendingOrderFromAlipay(outTradeNo, clientApp)) ?? order;
+  } catch (err) {
+    console.error("[pay/query] alipay sync failed", outTradeNo, err);
+  }
+  if (order.status === "paid") return order;
+
+  try {
+    order = (await syncPendingOrderFromWechat(outTradeNo)) ?? order;
+  } catch (err) {
+    console.error("[pay/query] wechat sync failed", outTradeNo, err);
+  }
+  return order;
 }
 
 export type AlipayRefundResult = {

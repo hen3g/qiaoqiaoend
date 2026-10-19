@@ -13,17 +13,22 @@ import {
   createPendingDiamondOrder,
   orderAmountYuan,
 } from "@/lib/payment-orders";
+import {
+  createWechatAppPrepay,
+  isWechatPayConfigured,
+} from "@/lib/wechat-pay";
 import { ErrorCode } from "@/lib/error-codes";
 
 const schema = z.object({
   packId: z.enum(["pack6", "pack25", "pack28"]),
+  channel: z.enum(["alipay", "wechat"]).optional().default("alipay"),
 });
 
 export async function OPTIONS() {
   return authPreflight();
 }
 
-/** Create a pending diamond pack order and return Alipay App pay orderString. */
+/** Create a pending diamond pack order and return Alipay orderString or WeChat prepay params. */
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser(req);
@@ -43,9 +48,38 @@ export async function POST(req: Request) {
     const clientApp = clientAppFromRequest(req);
     const order = await createPendingDiamondOrder(user.id, body.packId, clientApp);
     const totalAmount = orderAmountYuan(order);
+    const subject = `${CLIENT_APP_LABELS[clientApp]}${pack.title}`;
+
+    if (body.channel === "wechat") {
+      if (!isWechatPayConfigured()) {
+        return withAuthCors(
+          jsonError("微信支付暂不可用", 503, { code: ErrorCode.CREATE_ORDER_FAILED }),
+        );
+      }
+      const wechatPay = await createWechatAppPrepay({
+        outTradeNo: order.outTradeNo,
+        description: subject,
+        amountFen: order.amountFen,
+        attach: `pack=${pack.id}`,
+      });
+      return withAuthCors(
+        jsonOk({
+          outTradeNo: order.outTradeNo,
+          channel: "wechat" as const,
+          wechatPay,
+          pack: {
+            id: pack.id,
+            title: pack.title,
+            price: pack.price,
+            diamonds: pack.diamonds,
+          },
+        }),
+      );
+    }
+
     const orderString = createAppPayOrderString({
       outTradeNo: order.outTradeNo,
-      subject: `${CLIENT_APP_LABELS[clientApp]}${pack.title}`,
+      subject,
       totalAmount,
       body: `pack=${pack.id}`,
       clientApp,
@@ -54,6 +88,7 @@ export async function POST(req: Request) {
     return withAuthCors(
       jsonOk({
         outTradeNo: order.outTradeNo,
+        channel: "alipay" as const,
         orderString,
         alipayAppId: getAlipayAppId(clientApp),
         pack: {

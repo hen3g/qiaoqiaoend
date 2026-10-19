@@ -14,7 +14,7 @@ import {
 } from "@/lib/diamond-packs";
 import {
   getOrderByOutTradeNo,
-  syncPendingOrderFromAlipay,
+  syncPendingOrderFromProviders,
 } from "@/lib/payment-orders";
 import {
   ensureShareCustomCoursesColumn,
@@ -30,7 +30,7 @@ export async function OPTIONS() {
 
 type Ctx = { params: { outTradeNo: string } };
 
-/** Poll diamond order status after Alipay SDK returns. */
+/** Poll diamond order status after payment SDK returns. */
 export async function GET(req: Request, ctx: Ctx) {
   try {
     const user = await getCurrentUser(req);
@@ -51,13 +51,13 @@ export async function GET(req: Request, ctx: Ctx) {
     if (order.status === "pending") {
       try {
         order =
-          (await syncPendingOrderFromAlipay(
+          (await syncPendingOrderFromProviders(
             outTradeNo,
             clientAppFromRequest(req),
           )) ?? order;
       } catch (err) {
         console.error(
-          "[diamonds/orders/:id] alipay query sync failed",
+          "[diamonds/orders/:id] pay query sync failed",
           outTradeNo,
           err,
         );

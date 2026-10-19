@@ -10,7 +10,7 @@ import { clientAppFromRequest } from "@/lib/client-app";
 import { query } from "@/lib/db";
 import {
   getOrderByOutTradeNo,
-  syncPendingOrderFromAlipay,
+  syncPendingOrderFromProviders,
 } from "@/lib/payment-orders";
 import { getVipPlan, isVipPlanId } from "@/lib/vip";
 import {
@@ -27,7 +27,7 @@ export async function OPTIONS() {
 
 type Ctx = { params: { outTradeNo: string } };
 
-/** Poll order status after Alipay SDK returns. */
+/** Poll order status after payment SDK returns. */
 export async function GET(req: Request, ctx: Ctx) {
   try {
     const user = await getCurrentUser(req);
@@ -48,18 +48,18 @@ export async function GET(req: Request, ctx: Ctx) {
       return withAuthCors(jsonError("订单不存在", 404, { code: ErrorCode.ORDER_NOT_FOUND }));
     }
 
-    // Fallback: client already saw SDK success, but async notify may have failed
-    // (e.g. bad ALIPAY_PUBLIC_KEY). Actively query Alipay and fulfill.
+    // Fallback: client already saw SDK success, but async notify may have failed.
+    // Actively query Alipay / WeChat and fulfill.
     if (order.status === "pending") {
       try {
         order =
-          (await syncPendingOrderFromAlipay(
+          (await syncPendingOrderFromProviders(
             outTradeNo,
             clientAppFromRequest(req),
           )) ?? order;
       } catch (err) {
         console.error(
-          "[vip/orders/:id] alipay query sync failed",
+          "[vip/orders/:id] pay query sync failed",
           outTradeNo,
           err,
         );
