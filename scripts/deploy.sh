@@ -72,10 +72,12 @@ pm2 restart qiaoqiaoend
 sleep 2
 pm2 list
 echo "=== HEALTH ==="
-curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:4891/
+code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4891/)"
+echo "HTTP $code"
 echo "=== BUILD_ID ==="
 cat .next/BUILD_ID
 echo
+[[ "$code" == "200" ]]
 REMOTE
 )"
 export DEPLOY_B64="$(printf '%s' "$remote" | base64 | tr -d '\n')"
@@ -86,7 +88,8 @@ set timeout 600
 log_user 1
 set password $env(SSH_PASSWORD)
 set b64 $env(DEPLOY_B64)
-spawn ssh -o StrictHostKeyChecking=no -tt root@182.254.140.32 bash -lc "echo $b64 | base64 -d | bash"
+# One argv so the remote shell, not Tcl, sees the pipe.
+spawn ssh -o StrictHostKeyChecking=no -tt root@182.254.140.32 "echo $b64 | base64 -d | bash"
 expect {
   "password:" { send "$password\r" }
   "Password:" { send "$password\r" }
